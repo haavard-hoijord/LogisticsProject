@@ -11,12 +11,12 @@ import {
     DirectionsRenderer,
     Rectangle, CircleF, RectangleF
 } from '@react-google-maps/api';
-
+import { throttle } from 'lodash';
 import './App.css'
 
 const containerStyle = {
-    width: '600px',
-    height: '600px'
+    width: '100%',
+    height: '900px'
 };
 const divStyle = {
     background: `white`,
@@ -34,7 +34,7 @@ function MapComponent() {
     const [center, setCenter] = React.useState({lat: 0, lng: 0});
     const [vehicles, setVehicles] = React.useState([]);
     const [selectedVehicle, setSelectedVehicle] = React.useState(null);
-    const [directions, setDirections] = React.useState({});
+    const [error, setError] = React.useState("");
 
     const onLoad = React.useCallback(function callback(map) {
         navigator.geolocation.getCurrentPosition(function(position) {
@@ -87,8 +87,8 @@ function MapComponent() {
         }
     }
 
-    function fetchVehicles() {
-        fetch(`http://localhost:5001/track/all`, {
+    async function fetchVehicles() {
+        await fetch(`http://localhost:5001/track/all`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -96,6 +96,8 @@ function MapComponent() {
         })
             .then(response => response.json())
             .then(data => setVehicles([...data]));
+
+        //calculate routes only when it updates new vechiles instead of each render
     }
 
     useEffect(() => {
@@ -106,34 +108,61 @@ function MapComponent() {
         return () => clearInterval(interval);
     }, []);
 
-    let desIndex = 0;
+    const [response, setResponse] = useState([]);
+
+    const directionsCallback = (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK) {
+            setResponse((prevResponse) => [...prevResponse, result]);
+            setError(null);
+        } else {
+            setError('Directions request failed due to ' + status);
+            setResponse([]);
+        }
+    };
+
+    const calculateAndDisplayRoute = (route) => {
+        const directionsServiceOptions = {
+            origin: route.start,
+            destination: route.end,
+            travelMode: google.maps.TravelMode.DRIVING,
+        };
+
+        return (
+            <DirectionsService
+                key={`directions_service_${route.id}`}
+                options={directionsServiceOptions}
+                callback={directionsCallback}
+            />
+        );
+    };
+
+
+    let paths = []
     const items = vehicles.map((vehicle, index) => {
         let path = []
         if(vehicle.destinations) {
             let position = {lat: vehicle.latitude, lng: vehicle.longitude}
-            for (let destination of vehicle.destinations) {
+            vehicle.destinations.forEach((destination, index) => {
                 let pos = {lat: destination.item1, lng: destination.item2}
-                path.push(<Circle key={`Destination ${vehicle.id}-${desIndex++}`} center={pos} options={
+                path.push(<Circle key={`Destination ${vehicle.id}-${index}`} center={pos} options={
                     {
-                        fillColor: "red",
+                        fillColor: "cyan",
                         visible: true,
                         clickable: false,
+                        radius: 100,
+                        zIndex: 1
                     }
                 }/>)
-                path.push(<Polyline key={`Path ${vehicle.id}-${desIndex++}`} path={[position, pos]}/>)
-    /*            path.push(<DirectionsService key={`Direction ${vehicle.id}-${index}`} options={{
-                    destination: pos,
-                    origin: position,
-                    travelMode: window.google.maps.TravelMode.DRIVING
-                }} callback={e => {
-                    setDirections({...directions, [`${vehicle.id}-${index}`]: ()=> e})
-                }
-                }/>)
-               // path.push(<DirectionsRenderer key={`Path ${vehicle.id}-${index}`} directions={directions[`${vehicle.id}-${index}`]}/>);
-     */
+                //path.push(<Polyline key={`Path ${vehicle.id}-${index}`} path={[position, pos]}/>)
+                paths.push({start: position, end: pos, id: `${vehicle.id}-${index}`})
                 position = pos;
-            }
+            });
         }
+        {paths.map((route) => calculateAndDisplayRoute(route))}
+        {response && response.map((res, index) => (
+            <DirectionsRenderer key={`directions_renderer_${index}`} directions={res} />
+        ))}
+
         return <Marker key={`Vehicle ${vehicle.id}`}
                 position={{lat: vehicle.latitude, lng: vehicle.longitude}}
                 onClick={(e) => {
@@ -156,6 +185,7 @@ function MapComponent() {
 
     return isLoaded ? (
         <div>
+            <p className="error">{error}</p>
             <GoogleMap
                 mapContainerStyle={containerStyle}
                 center={center}
