@@ -22,3 +22,22 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+
+/out/
+*.iml
+*.dll
+*.exe
+*.xml
+/Backend/Planner/Solution/obj/
+/Backend/Tracker/Solution/obj/
+/Backend/Webapi/Solution/obj/
+/Backend/Planner/Solution/.idea/
+/Backend/Tracker/Solution/.idea/
+/Backend/Webapi/Solution/.idea/
+/Backend/Planner/Solution/bin/
+/Backend/Tracker/Solution/bin/
+/Backend/Webapi/Solution/bin/
+*.dll
+*.xml
+*.cache

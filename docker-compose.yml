@@ -1,0 +1,123 @@
+services:
+  db:
+    image: "mysql"
+    healthcheck:
+      test: "/usr/bin/mysql --user=root --password=password123 --execute \"SHOW DATABASES;\""
+      interval: 1s
+      timeout: 3s
+      retries: 1000
+      start_period: 300s
+    env_file:
+      - .env
+    volumes:
+      - ./out/sql:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  backend:
+    build: "Backend/Webapi"
+    depends_on:
+      - redis
+      - placement
+      - backend-planner
+      - backend-tracker
+    ports:
+      - "5000:80"
+      - "8080:8080"
+
+  backend-dapr:
+    build: "Backend/Webapi/dapr/"
+    depends_on:
+      - backend
+    network_mode: "service:backend"
+
+  backend-tracker:
+    build: "Backend/Tracker"
+    env_file:
+      - .env
+    depends_on:
+      "redis":
+        condition: service_started
+      "placement":
+        condition: service_started
+      "db":
+        condition: service_healthy
+    ports:
+      - 5001:80
+
+  backend-tracker-dapr:
+    build: "Backend/Tracker/dapr/"
+    depends_on:
+      - backend-tracker
+    network_mode: "service:backend-tracker"
+
+  backend-planner:
+    build: "Backend/Planner"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - placement
+    ports:
+      - 5002:80
+
+  backend-planner-dapr:
+    build: "Backend/Planner/dapr/"
+    depends_on:
+      - backend-planner
+    network_mode: "service:backend-planner"
+
+  frontend-web:
+    build: "Frontend/Webview"
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    ports:
+      - 3000:3000
+
+  frontend-web-dapr:
+    build: "Frontend/Webview/dapr/"
+    depends_on:
+      - frontend-web
+    network_mode: "service:frontend-web"
+
+  frontend-admin:
+    build: "Frontend/Adminview"
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    ports:
+      - 3001:3001
+
+  frontend-admin-dapr:
+    build: "Frontend/Adminview/dapr/"
+    depends_on:
+      - frontend-admin
+    network_mode: "service:frontend-admin"
+
+  zipkin:
+    image: "openzipkin/zipkin"
+    ports:
+      - "9411:9411"
+
+  placement:
+    image: "daprio/dapr"
+    command: ["./placement", "-port", "50006"]
+    ports:
+      - "50006:50006"
+
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6380:6379"
+
+  seq:
+    image: datalust/seq:latest
+    ports:
+      - "5341:80"
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - "./out/seq-data/:/data"
