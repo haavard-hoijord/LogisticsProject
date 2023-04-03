@@ -10,8 +10,8 @@ public class Program
 
     public static void Main(string[] args)
     {
-        //client = new DaprClientBuilder().Build();
-        //client.WaitForSidecarAsync().Wait();
+        client = new DaprClientBuilder().Build();
+        client.WaitForSidecarAsync().Wait();
 
         var builder = WebApplication.CreateBuilder(args);
 
@@ -39,22 +39,16 @@ public class Program
 
         var app = builder.Build();
 
-        using (var scope = app.Services.CreateScope())
-        {
-            var services = scope.ServiceProvider;
-            try
-            {
-                var context = services.GetRequiredService<MysqlContext>();
-                context.Database.EnsureCreated();
-                context.Database.Migrate(); // Apply migrations
-            }
-            catch (Exception ex)
-            {
-                var logger = services.GetRequiredService<ILogger<Program>>();
-                logger.LogError(ex, "An error occurred while migrating the database.");
-            }
-        }
+        var serviceProvider = new ServiceCollection()
+            .AddDbContext<MysqlContext>()
+            .BuildServiceProvider();
 
+
+        using (var context = serviceProvider.GetService<MysqlContext>())
+        {
+                context.Database.EnsureCreated();
+                //context.Database.Migrate(); // Apply migrations
+        }
         db = new MysqlContext();
 
         // Configure the HTTP request pipeline.

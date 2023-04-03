@@ -21,7 +21,7 @@ public class MysqlContext : DbContext
             .Property(e => e.destinations)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, new JsonSerializerOptions { IgnoreNullValues = true }),
-                v => JsonSerializer.Deserialize<List<Tuple<double, double>>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
+                v => JsonSerializer.Deserialize<List<Coordinate>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
             .HasColumnType("json");
     }
 }

@@ -34,9 +34,15 @@ public class TrackerController : ControllerBase
     }
 
     [HttpPost("/delete")]
-    public void delete([FromBody] Vehicle vehicle)
+    public async void delete([FromBody] Vehicle vehicle)
     {
-        Program.db.Vehicles.Remove(vehicle);
-        Program.db.SaveChanges();
+        // Retrieve the entity using its primary key or another unique identifier
+        var entity = await Program.db.Vehicles.FindAsync(vehicle.id);
+
+        if (entity != null)
+        {
+             Program.db.Vehicles.Remove(entity);
+             Program.db.SaveChanges();
+        }
     }
 }
