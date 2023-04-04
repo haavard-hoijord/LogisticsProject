@@ -43,7 +43,6 @@ public class TrackerController : ControllerBase
             vehicle.destinations.Add(new Destination {coordinate = data.pickup, load = size, isPickup = true, routeId = routeId});
             vehicle.destinations.Add(new Destination {coordinate = data.dropoff, load = 0, isPickup = false, routeId = routeId});
 
-            /*
             List<Destination> destinations = new List<Destination>(vehicle.destinations);
             vehicle.destinations = new List<Destination>();
 
@@ -69,8 +68,6 @@ public class TrackerController : ControllerBase
                 destinations.Remove(lastDestination);
                 vehicle.destinations.Add(lastDestination);
             }
-
-            */
 
             Coordinate lastPos = vehicle.destinations.Last().coordinate;
             List<WayPoint> wayPoints = new List<WayPoint>();
