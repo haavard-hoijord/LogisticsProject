@@ -47,6 +47,7 @@ public class TrackerController : ControllerBase
             entity.coordinate = vehicle.coordinate;
             entity.destinations = vehicle.destinations;
             entity.maxLoad = vehicle.maxLoad;
+            entity.nodes = vehicle.nodes;;
 
             context.Vehicles.Update(entity);
             await context.SaveChangesAsync();
@@ -61,25 +62,6 @@ public class TrackerController : ControllerBase
         await context.SaveChangesAsync();
     }
 
-    [HttpPost("/path/add")]
-    public async void addPath([FromBody] Directions directions)
-    {
-        await using var context = new MysqlContext();
-
-        var entity = await context.Directions.FindAsync(directions.key);
-        if(entity != null)
-            context.Directions.Remove(entity);
-
-        context.Directions.Add(directions);
-        await context.SaveChangesAsync();
-    }
-
-    [HttpGet("/path")]
-    public async Task<List<GoogleApi.Entities.Common.Coordinate>?> getPath([FromHeader] String id)
-    {
-        await using var context = new MysqlContext();
-        return context.Directions.FindAsync(id).Result.directions;
-    }
 
     [HttpPost("/delete")]
     public async void delete([FromBody] Vehicle vehicle)

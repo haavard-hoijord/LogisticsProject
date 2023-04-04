@@ -11,7 +11,6 @@ namespace Solution.Context;
 public class MysqlContext : DbContext
 {
     public DbSet<Vehicle> Vehicles { get; set; }
-    public DbSet<Directions> Directions { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -34,11 +33,11 @@ public class MysqlContext : DbContext
                 v => JsonSerializer.Deserialize<Coordinate>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
             .HasColumnType("json");
 
-        modelBuilder.Entity<Directions>()
-            .Property(e => e.directions)
+        modelBuilder.Entity<Vehicle>()
+            .Property(e => e.nodes)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, new JsonSerializerOptions { IgnoreNullValues = true }),
-                v => JsonSerializer.Deserialize<List<GoogleApi.Entities.Common.Coordinate>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
+                v => JsonSerializer.Deserialize<List<Coordinate>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
             .HasColumnType("json");
     }
 }

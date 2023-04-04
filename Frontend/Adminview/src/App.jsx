@@ -17,18 +17,6 @@ const css3Colors = [
     'olive', 'orange', 'purple', 'red', 'silver', 'teal', 'white', 'yellow',
 ];
 
-// Seeded random number generator
-function seededRandom(seed) {
-    const x = Math.sin(seed++) * 10000;
-    return x - Math.floor(x);
-}
-
-// Generate a random CSS3 color based on a seed value
-function seededRandomColor(seed) {
-    const randomIndex = Math.floor(seededRandom(seed) * css3Colors.length);
-    return css3Colors[randomIndex];
-}
-
 function MapComponent() {
     const {isLoaded} = useJsApiLoader({
         id: 'google-map-script',
@@ -40,8 +28,6 @@ function MapComponent() {
     const [center, setCenter] = useState({lat: 0, lng: 0});
     const [vehicles, setVehicles] = useState([]);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
-    const [error, setError] = React.useState("");
-    const [response, setResponse] = useState({});
     const [load, setLoad] = useState(50);
     const [tempPath, setTempPath] = useState([]);
     const [directions, setDirections] = useState({});
@@ -71,7 +57,8 @@ function MapComponent() {
                     },
                     company: "Company",
                     maxLoad: load,
-                    destinations: []
+                    destinations: [],
+                    nodes: []
                 };
             setVehicles([...vehicles, vehicle]);
             setSelectedVehicle(vehicle)
@@ -124,10 +111,10 @@ function MapComponent() {
 
     useEffect(() => {
         fetchVehicles()
-        const interval = setInterval(() => {
-            fetchVehicles();
-        }, 10 * 1000);
-        return () => clearInterval(interval);
+        // const interval = setInterval(() => {
+        //     fetchVehicles();
+        // }, 10 * 1000);
+        // return () => clearInterval(interval);
     }, []);
 
     let paths = []
@@ -137,24 +124,6 @@ function MapComponent() {
             let position = {lat: vehicle.coordinate.latitude, lng: vehicle.coordinate.longitude}
             vehicle.destinations.forEach(async (destination, index) => {
                 if (destination.coordinate) {
-
-                    if (!directions[`${vehicle.id}-${index}`]) {
-                        let response = await fetch(`http://localhost:5001/path`, {
-                            method: 'GET',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'id': `${vehicle.id}-${index}`
-                            },
-                        })
-
-                        if (response.status === 200) {
-                            let data = await response.json();
-                            if (data) {
-                                setDirections({...directions, [`${vehicle.id}-${index}`]: data})
-                            }
-                        }
-                    }
-
                     let pos = {lat: destination.coordinate.latitude, lng: destination.coordinate.longitude}
                     path.push(<Circle key={`Destination ${vehicle.id}-${index}`} center={pos} options={
                         {
@@ -170,34 +139,26 @@ function MapComponent() {
                     }/>)
                     paths.push({start: position, end: pos, id: `${vehicle.id}-${index}`})
 
-                    if (directions[`${vehicle.id}-${index}`]) {
-                        let ob = directions[`${vehicle.id}-${index}`];
-                        if (ob && Array.isArray(ob)) {
-                            let lastPos = position;
-
-                            ob.forEach((pos, index) => {
-                                path.push(<Polyline key={`Path ${vehicle.id}-${index}-${Math.random()}`}
-                                                    path={[lastPos, pos]} options={
-                                    {
-                                        zIndex: -1000,
-                                        strokeColor: seededRandomColor(vehicle.id)
-                                    }
-                                }/>)
-                                lastPos = pos;
-                            })
-                        }
-                    } else {
-                        path.push(<Polyline key={`Path ${vehicle.id}-${index}`} path={[position, pos]} options={
-                            {
-                                zIndex: -1000
-                            }
-                        }/>)
-                    }
-
                     position = pos;
-
                 }
             });
+        }
+
+
+        if (vehicle.nodes) {
+            if (vehicle.nodes && Array.isArray(vehicle.nodes)) {
+                let mappedNodes = vehicle.nodes.map((node) => {
+                    return {
+                        lat: node.latitude,
+                        lng: node.longitude
+                    }
+                });
+                path.push(<Polyline key={`Path ${vehicle.id}-${Math.random()}`} path={mappedNodes} options={{
+                    zIndex: -1000,
+                    strokeColor: css3Colors[vehicle.id % css3Colors.length]
+                }
+                }/>)
+            }
         }
 
         return <Marker key={`Vehicle ${vehicle.id} - ${Math.random()}`}
@@ -213,7 +174,6 @@ function MapComponent() {
 
     return isLoaded ? (
         <div>
-            <p className="error">{error}</p>
             <GoogleMap
                 mapContainerStyle={{
                     width: '100%',
@@ -264,6 +224,8 @@ function MapComponent() {
                         body: JSON.stringify(vehicle)
                     });
                 }
+                setVehicles([]);
+                setTempPath([]);
                 window.location.reload();
             }}>Clear
             </button>

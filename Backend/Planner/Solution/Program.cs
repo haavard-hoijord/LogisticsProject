@@ -1,5 +1,4 @@
 using Dapr.Client;
-using Microsoft.EntityFrameworkCore;
 
 public class Program
 {

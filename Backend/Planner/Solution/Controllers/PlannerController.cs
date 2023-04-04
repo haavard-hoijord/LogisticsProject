@@ -9,6 +9,7 @@ using GoogleApi.Entities.Maps.Directions.Request;
 using GoogleApi.Entities.Maps.Directions.Response;
 using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
 using Vehicle = Solution.Models.Vehicle;
+using WayPoint = GoogleApi.Entities.Maps.Directions.Request.WayPoint;
 
 namespace Solution.Controllers;
 
@@ -22,7 +23,12 @@ public class TrackerController : ControllerBase
         int size = data.size;
         var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track/all");
         List<Vehicle> obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(message);
-        List<Vehicle> sortedVehicles = obj.Where(e => GetLoad(e) + size < e.maxLoad).OrderBy(vech => CalculateDistance(vech.coordinate, data.pickup)).ThenBy(vech => CalculateDistance(vech.coordinate, data.dropoff)).ThenBy(e => e.maxLoad - GetLoad(e)).ToList();
+        List<Vehicle> sortedVehicles = obj
+            .Where(e => GetLoad(e) + size < e.maxLoad)
+            .Where(e => e.destinations.Count <= 6) //Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
+            .OrderBy(vech => CalculateDistance(vech.coordinate, data.pickup))
+            .ThenBy(vech => CalculateDistance(vech.coordinate, data.dropoff))
+            .ThenBy(e => e.maxLoad - GetLoad(e)).ToList();
         Vehicle? vehicle = sortedVehicles.First();
 
         if (vehicle != null)
@@ -34,19 +40,19 @@ public class TrackerController : ControllerBase
                 routeId = vehicle.destinations.Max(e => e.routeId) + 1;
             }
 
-            vehicle.destinations.Add(new Destination(){coordinate = data.pickup, load = size, isPickup = true, routeId = routeId});
-            vehicle.destinations.Add(new Destination(){coordinate = data.dropoff, load = 0, isPickup = false, routeId = routeId});
+            vehicle.destinations.Add(new Destination {coordinate = data.pickup, load = size, isPickup = true, routeId = routeId});
+            vehicle.destinations.Add(new Destination {coordinate = data.dropoff, load = 0, isPickup = false, routeId = routeId});
 
+            /*
             List<Destination> destinations = new List<Destination>(vehicle.destinations);
             vehicle.destinations = new List<Destination>();
-
 
             Destination? lastDestination = null;
 
             while (destinations.Count > 0)
             {
                 destinations.OrderBy(pos => CalculateDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate, pos.coordinate)).ToList();
-                destinations.Sort(new Comparison<Destination>(((des1, des2) =>
+                destinations.Sort(((des1, des2) =>
                 {
                     if (des1.routeId == des2.routeId)
                     {
@@ -57,41 +63,48 @@ public class TrackerController : ControllerBase
                             return 1;
                     }
                     return 0;
-                })));
+                }));
 
                 lastDestination = destinations.First();
                 destinations.Remove(lastDestination);
                 vehicle.destinations.Add(lastDestination);
             }
 
-            List<Tuple<Coordinate, Coordinate>> paths = new List<Tuple<Coordinate, Coordinate>>();
-            Coordinate cords = vehicle.coordinate;
+            */
+
+            Coordinate lastPos = vehicle.destinations.Last().coordinate;
+            List<WayPoint> wayPoints = new List<WayPoint>();
 
             foreach (Destination destination in vehicle.destinations)
             {
-                paths.Add(new Tuple<Coordinate, Coordinate>(cords, destination.coordinate));
-                cords = destination.coordinate;
+                wayPoints.Add(new WayPoint(new LocationEx(new CoordinateEx(destination.coordinate.latitude, destination.coordinate.longitude))));
             }
 
-            var num = 0;
-            foreach (var path in paths)
+            Console.WriteLine(wayPoints.Count);
+
+            var request = new DirectionsRequest
             {
-                var request = new DirectionsRequest
-                {
-                    Key = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0",
-                    Origin = new LocationEx(new CoordinateEx(path.Item1.latitude, path.Item1.longitude)),
-                    Destination = new LocationEx(new CoordinateEx(path.Item2.latitude, path.Item2.longitude))
-                };
+                Key = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0",
+                Origin = new LocationEx(new CoordinateEx(vehicle.coordinate.latitude, vehicle.coordinate.longitude)),
+                WayPoints = wayPoints,
+               // OptimizeWaypoints = true,
+                Destination = new LocationEx(new CoordinateEx(lastPos.latitude, lastPos.longitude))
+            };
 
-                var key = vehicle.Id + "-" + num;
-                var response = await GoogleApi.GoogleMaps.Directions.QueryAsync(request);
+            var response = await GoogleApi.GoogleMaps.Directions.QueryAsync(request);
 
-                if (response.Status == Status.Ok)
-                {
-                    var message1 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "path/add", new Directions{key = key, directions = new List<GoogleApi.Entities.Common.Coordinate>(response.Routes.First().OverviewPath.Line)});
-                    await Program.client.InvokeMethodAsync(message1);
-                }
-                num++;
+            Console.WriteLine(response.Status);
+
+            if (response.Status == Status.Ok)
+            {
+                Console.WriteLine(response.Routes.Count());
+                var points = new List<GoogleApi.Entities.Common.Coordinate>(response.Routes.First().OverviewPath.Line);
+                vehicle.nodes = new List<Coordinate>(points.Select(e => new Coordinate{latitude = e.Latitude, longitude = e.Longitude}));
+                Console.WriteLine($"Points: {points.Count()} Nodes: {vehicle.nodes.Count}");
+            }
+            else
+            {
+                Console.WriteLine($"Google maps error: {response.Status}");
             }
 
             var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle);
