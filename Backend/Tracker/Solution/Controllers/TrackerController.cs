@@ -1,5 +1,9 @@
+using GoogleApi.Entities.Maps.Directions.Response;
 using Microsoft.AspNetCore.Mvc;
+using Solution.Context;
 using Solution.Models;
+using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
+using Vehicle = Solution.Models.Vehicle;
 
 namespace Solution.Controllers;
 
@@ -8,41 +12,86 @@ namespace Solution.Controllers;
 public class TrackerController : ControllerBase
 {
     [HttpGet("/track")]
-    public Vehicle? track([FromBody] int id)
+    public async Task<Vehicle?> track([FromBody] int id)
     {
-        return Program.db.Vehicles.Find(id);
+        await using var context = new MysqlContext();
+        return await context.Vehicles.FindAsync(id);
     }
 
     [HttpGet("/track/all")]
-    public List<Vehicle> getAll()
+    public async Task<List<Vehicle>> getAll()
     {
-        return Program.db.Vehicles.ToList();
+        await using var context = new MysqlContext();
+
+        List<Vehicle> vehicles = new List<Vehicle>();
+        try
+        {
+            vehicles.AddRange(context.Vehicles.ToList());
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+        return vehicles;
     }
 
     [HttpPost("/update")]
-    public void update([FromBody] Vehicle vehicle)
+    public async void update([FromBody] Vehicle vehicle)
     {
-        Program.db.Vehicles.Update(vehicle);
-        Program.db.SaveChanges();
+        await using var context = new MysqlContext();
+        var entity = await context.Vehicles.FindAsync(vehicle.Id);
+
+        if (entity != null)
+        {
+            entity.company = vehicle.company;
+            entity.coordinate = vehicle.coordinate;
+            entity.destinations = vehicle.destinations;
+            entity.maxLoad = vehicle.maxLoad;
+
+            context.Vehicles.Update(entity);
+            await context.SaveChangesAsync();
+        }
     }
 
     [HttpPost("/add")]
-    public void add([FromBody] Vehicle vehicle)
+    public async void add([FromBody] Vehicle vehicle)
     {
-        Program.db.Vehicles.Add(vehicle);
-        Program.db.SaveChanges();
+        await using var context = new MysqlContext();
+        context.Vehicles.Add(vehicle);
+        await context.SaveChangesAsync();
+    }
+
+    [HttpPost("/path/add")]
+    public async void addPath([FromBody] Directions directions)
+    {
+        await using var context = new MysqlContext();
+
+        var entity = await context.Directions.FindAsync(directions.key);
+        if(entity != null)
+            context.Directions.Remove(entity);
+
+        context.Directions.Add(directions);
+        await context.SaveChangesAsync();
+    }
+
+    [HttpGet("/path")]
+    public async Task<List<GoogleApi.Entities.Common.Coordinate>?> getPath([FromHeader] String id)
+    {
+        await using var context = new MysqlContext();
+        return context.Directions.FindAsync(id).Result.directions;
     }
 
     [HttpPost("/delete")]
     public async void delete([FromBody] Vehicle vehicle)
     {
+        await using var context = new MysqlContext();
         // Retrieve the entity using its primary key or another unique identifier
-        var entity = await Program.db.Vehicles.FindAsync(vehicle.id);
+        var entity = await context.Vehicles.FindAsync(vehicle.Id);
 
         if (entity != null)
         {
-             Program.db.Vehicles.Remove(entity);
-             Program.db.SaveChanges();
+            context.Vehicles.Remove(entity);
+            await context.SaveChangesAsync();
         }
     }
 }

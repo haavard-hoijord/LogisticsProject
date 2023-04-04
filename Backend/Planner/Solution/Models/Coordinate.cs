@@ -1,4 +1,6 @@
-﻿public class Coordinate
+﻿namespace Solution.Controllers;
+
+public class Coordinate
 {
     public double latitude { get; set; }
     public double longitude { get; set; }

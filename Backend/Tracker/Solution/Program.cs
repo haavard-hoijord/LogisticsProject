@@ -5,8 +5,6 @@ using Solution.Context;
 public class Program
 {
     public static DaprClient client;
-    public static MysqlContext db;
-
 
     public static void Main(string[] args)
     {
@@ -47,10 +45,8 @@ public class Program
         using (var context = serviceProvider.GetService<MysqlContext>())
         {
                 context.Database.EnsureCreated();
-                //context.Database.Migrate(); // Apply migrations
+                context.Database.Migrate(); // Apply migrations
         }
-        db = new MysqlContext();
-
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {

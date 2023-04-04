@@ -41,3 +41,12 @@ replay_pid*
 *.dll
 *.xml
 *.cache
+*.meta
+*.vsidx
+Backend/Planner/Solution/.vs/Solution/v17/.suo
+*.v2
+*.lock
+Backend/Webapi/Solution/.vs/Solution/v17/.suo
+*.2
+Backend/Planner/.vscode/tasks.json
+Backend/Planner/.vscode/launch.json

@@ -1,4 +1,5 @@
 using Dapr.Client;
+using Microsoft.EntityFrameworkCore;
 
 public class Program
 {
@@ -31,7 +32,7 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
         {
-            c.ResolveConflictingActions((apiDescriptions) => apiDescriptions.First());
+            c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
         });
 
         var app = builder.Build();
