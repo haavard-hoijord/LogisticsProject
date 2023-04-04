@@ -76,9 +76,7 @@ public class TrackerController : ControllerBase
             {
                 wayPoints.Add(new WayPoint(new LocationEx(new CoordinateEx(destination.coordinate.latitude, destination.coordinate.longitude))));
             }
-
-            Console.WriteLine(wayPoints.Count);
-
+            
             var request = new DirectionsRequest
             {
                 Key = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0",
@@ -90,14 +88,10 @@ public class TrackerController : ControllerBase
 
             var response = await GoogleApi.GoogleMaps.Directions.QueryAsync(request);
 
-            Console.WriteLine(response.Status);
-
             if (response.Status == Status.Ok)
             {
-                Console.WriteLine(response.Routes.Count());
                 var points = new List<GoogleApi.Entities.Common.Coordinate>(response.Routes.First().OverviewPath.Line);
                 vehicle.nodes = new List<Coordinate>(points.Select(e => new Coordinate{latitude = e.Latitude, longitude = e.Longitude}));
-                Console.WriteLine($"Points: {points.Count()} Nodes: {vehicle.nodes.Count}");
             }
             else
             {
