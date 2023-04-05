@@ -24,11 +24,11 @@
 }
 
 .sidebar-top {
-  flex: 1;
   overflow-y: auto;
   padding: 1rem;
   display: flex;
   flex-direction: column;
+  height: calc(30%);
 }
 
 .button-list-item {
@@ -39,6 +39,7 @@
   padding: 1rem;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .form-element {
@@ -55,9 +56,11 @@
   margin-bottom: 1rem;
 }
 
-.divider {
-  height: 1px;
-  background-color: #ccc;
+.sidebar-divider {
+  height: 8px;
+  background: #ccc;
+  cursor: row-resize;
+  user-select: none;
 }
 
 .selected {

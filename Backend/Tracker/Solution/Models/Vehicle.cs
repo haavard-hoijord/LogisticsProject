@@ -1,7 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Solution.Controllers;
-
 namespace Solution.Models;
 
 public class Vehicle

@@ -61,29 +61,20 @@ public class Program
                 List<Destination> removes = new List<Destination>();
                 foreach (var dest in vehicle.destinations)
                 {
-                    if(CalculateDistance(cords, dest.coordinate) <= 0.00001)
-                        removes.Add(dest);
-
-                    var found = false;
-                    foreach (var node in vehicle.nodes)
+                    if (dest.closestNode != null)
                     {
-                        if (CalculateDistance(dest.coordinate, node) <= 0.00001)
-                            found = true;
-                    }
-
-                    if (!found)
-                    {
-                        removes.Add(dest);
+                        if (dest.closestNode.latitude == cords.latitude &&
+                            dest.closestNode.longitude == cords.longitude)
+                        {
+                            removes.Add(dest);
+                        }
                     }
                 }
 
-                //TODO: Remove all nodes the vehicle has passed through
-                /*
                 foreach(var rm in removes)
                 {
                     vehicle.destinations.Remove(rm);
                 }
-                */
 
                 if (vehicle.nodes.Count == 0)
                 {
@@ -95,18 +86,9 @@ public class Program
             }else if (vehicle.destinations.Count > 0)
             {
                 vehicle.destinations.Clear();
+                var message2 = client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle);
+                await client.InvokeMethodAsync(message2);
             }
         }
-    }
-
-    public static double CalculateDistance(Coordinate coord1, Coordinate coord2)
-    {
-        if (coord1 == null || coord2 == null) return -1;
-
-        double latDistance = coord2.latitude - coord1.latitude;
-        double lonDistance = coord2.longitude - coord1.longitude;
-
-        double distance = Math.Sqrt(Math.Pow(latDistance, 2) + Math.Pow(lonDistance, 2));
-        return distance;
     }
 }

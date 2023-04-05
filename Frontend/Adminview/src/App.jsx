@@ -1,4 +1,4 @@
-import React, {useState, memo, useMemo, useEffect} from 'react'
+import React, {useState, useRef, useEffect} from 'react'
 import {
     GoogleMap,
     LoadScript,
@@ -8,17 +8,20 @@ import {
     Circle
 } from '@react-google-maps/api';
 import './App.css'
-
 const css3Colors = [
     'aqua', 'black', 'blue', 'fuchsia', 'gray', 'green', 'lime', 'maroon', 'navy',
     'olive', 'orange', 'purple', 'red', 'silver', 'teal', 'white', 'yellow',
 ];
 
 function MapComponent() {
+    const topSectionRef = useRef(null);
+    const mapRef = useRef(null);
+
+    const [isResizing, setIsResizing] = useState(false);
+
     const [currentLocation, setCurrentLocation] = useState(null);
     const [center, setCenter] = useState(null);
     const [zoom, setZoom] = useState(12);
-
 
     const [mode, setMode] = useState(null);
     const [pathMode, setPathMode] = useState("start");
@@ -29,7 +32,22 @@ function MapComponent() {
 
     const [pathPreview, setPathPreview] = useState({dropoff: null, pickup: null});
 
+    const handleMouseDown = () => {
+        setIsResizing(true);
+    };
+
+    const handleMouseUp = () => {
+        setIsResizing(false);
+    };
+
+    const handleMouseMove = (event) => {
+        if (isResizing && topSectionRef.current) {
+            topSectionRef.current.style.height = `${event.clientY}px`;
+        }
+    };
+
     const onClick = async (...args) => {
+        setSelectedVehicle(null)
         if (mode === "car") {
             let vehicle =
                 {
@@ -112,6 +130,15 @@ function MapComponent() {
             .then(response => response.json())
             .then(data => setVehicles([...data]));
     }
+    React.useEffect(() => {
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isResizing]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -150,14 +177,15 @@ function MapComponent() {
                         {
                             fillColor: destination.isPickup ? "green" : "red",
                             strokeColor: "white",
-                            fillOpacity: 1,
+                            fillOpacity: 0.5,
                             strokeOpacity: 0,
                             visible: true,
-                            clickable: false,
-                            radius: 100,
-                            zIndex: 1000
+                            radius: selectedVehicle && selectedVehicle.id === vehicle.id ?  500 : 100,
+                            zIndex: selectedVehicle && selectedVehicle.id === vehicle.id ? 2000 : 1000
                         }
-                    }/>)
+                    }
+                        onClick={() => setSelectedVehicle(vehicle)}
+                    />)
                     paths.push({start: position, end: pos, id: `${vehicle.id}-${index}`})
                     position = pos;
                 }
@@ -172,10 +200,12 @@ function MapComponent() {
                 }
             });
             path.push(<Polyline key={`Path ${vehicle.id || Math.random()}`} path={mappedNodes} options={{
-                zIndex: -1000,
-                strokeColor: css3Colors[vehicle.id % css3Colors.length]
-            }
-            }/>)
+                zIndex: selectedVehicle && selectedVehicle.id === vehicle.id ? 1000 : -1000,
+                strokeColor: css3Colors[vehicle.id % css3Colors.length],
+                strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
+            }}
+            onClick={() => setSelectedVehicle(vehicle)}
+            />)
         }else if (vehicle.destinations && Array.isArray(vehicle.destinations) && vehicle.destinations.length > 0) {
             let paths = vehicle.destinations.map((destination) => {
                 return {
@@ -185,12 +215,20 @@ function MapComponent() {
             });
             path.push(<Polyline key={`Path ${vehicle.id || Math.random()}`} path={paths} options={{
                 zIndex: -1000,
-                strokeColor: css3Colors[vehicle.id % css3Colors.length]
-            }
-            }/>)
+                strokeColor: css3Colors[vehicle.id % css3Colors.length],
+                strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
+            }}
+            onClick={() => setSelectedVehicle(vehicle)}/>)
         }
 
         return <Marker key={`Vehicle ${vehicle.id || Math.random()}`}
+                       label={{
+                           text: "\ue558",
+                           fontFamily: "Material Icons",
+                           color: css3Colors[vehicle.id % css3Colors.length],
+                           fontSize: "18px",
+                       }}
+                       title={`Vehicle ${vehicle.id}`}
                        position={{lat: vehicle.coordinate.latitude, lng: vehicle.coordinate.longitude}}
                        onClick={(e) => {
                            setSelectedVehicle(vehicle)
@@ -202,7 +240,7 @@ function MapComponent() {
     return (
         <div className="layout-container">
             <div className="sidebar">
-                <div className="sidebar-top">
+                <div className="sidebar-top" ref={topSectionRef}>
                     {vehicles.map((vehicle, index) => {
                         return (
                             <div className="vehicle-button">
@@ -238,7 +276,7 @@ function MapComponent() {
                             </div>)
                     })}
                 </div>
-                <div className="divider"/>
+                <div className="sidebar-divider" onMouseDown={handleMouseDown}></div>
                 <div className="sidebar-bottom">
                     <form className="input-container" onSubmit={e => {
                         e.preventDefault();
@@ -325,13 +363,18 @@ function MapComponent() {
             <div className="map-container">
                 <LoadScript googleMapsApiKey={"AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0"}>
                     <GoogleMap
+                        ref={mapRef}
                         mapContainerStyle={{
                             width: '100%',
                             height: '100%'
                         }}
+                        options={{
+                            disableDefaultUI: true,
+                        }}
                         center={center || currentLocation || {lat: 0, lng: 0}}
                         zoom={zoom}
                         onClick={onClick}
+                        clickableIcons={false}
                     >
                         <TrafficLayer/>
                         {currentLocation ? <Marker position={currentLocation} icon={{
