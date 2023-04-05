@@ -164,21 +164,19 @@ function MapComponent() {
             });
         }
 
-        if (vehicle.nodes) {
-            if (vehicle.nodes && Array.isArray(vehicle.nodes)) {
-                let mappedNodes = vehicle.nodes.map((node) => {
-                    return {
-                        lat: node.latitude,
-                        lng: node.longitude
-                    }
-                });
-                path.push(<Polyline key={`Path ${vehicle.id || Math.random()}`} path={mappedNodes} options={{
-                    zIndex: -1000,
-                    strokeColor: css3Colors[vehicle.id % css3Colors.length]
+        if (vehicle.nodes && Array.isArray(vehicle.nodes) && vehicle.nodes.length > 0) {
+            let mappedNodes = vehicle.nodes.map((node) => {
+                return {
+                    lat: node.latitude,
+                    lng: node.longitude
                 }
-                }/>)
+            });
+            path.push(<Polyline key={`Path ${vehicle.id || Math.random()}`} path={mappedNodes} options={{
+                zIndex: -1000,
+                strokeColor: css3Colors[vehicle.id % css3Colors.length]
             }
-        }else{
+            }/>)
+        }else if (vehicle.destinations && Array.isArray(vehicle.destinations) && vehicle.destinations.length > 0) {
             let paths = vehicle.destinations.map((destination) => {
                 return {
                     lat: destination.coordinate.latitude,
@@ -224,8 +222,8 @@ function MapComponent() {
                                             })
                                         }}>Focus
                                         </button>
-                                        <button onClick={() => {
-                                            fetch(`http://localhost:5001/delete`, {
+                                        <button onClick={async () => {
+                                            await fetch(`http://localhost:5001/delete`, {
                                                 method: 'POST',
                                                 headers: {
                                                     'Content-Type': 'application/json'
