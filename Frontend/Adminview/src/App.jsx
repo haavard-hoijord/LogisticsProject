@@ -1,16 +1,13 @@
 import React, {useState, memo, useMemo, useEffect} from 'react'
 import {
     GoogleMap,
-    useJsApiLoader,
+    LoadScript,
     TrafficLayer,
     Polyline,
     Marker,
-    Circle,
-    DirectionsService,
-    DirectionsRenderer,
+    Circle
 } from '@react-google-maps/api';
 import './App.css'
-
 
 const css3Colors = [
     'aqua', 'black', 'blue', 'fuchsia', 'gray', 'green', 'lime', 'maroon', 'navy',
@@ -18,35 +15,20 @@ const css3Colors = [
 ];
 
 function MapComponent() {
-    const {isLoaded} = useJsApiLoader({
-        id: 'google-map-script',
-        googleMapsApiKey: "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0"
-    })
-    const [map, setMap] = useState(null)
-    const [mode, setMode] = useState("car");
+    const [currentLocation, setCurrentLocation] = useState(null);
+    const [center, setCenter] = useState(null);
+    const [zoom, setZoom] = useState(12);
+
+
+    const [mode, setMode] = useState(null);
     const [pathMode, setPathMode] = useState("start");
-    const [center, setCenter] = useState({lat: 0, lng: 0});
     const [vehicles, setVehicles] = useState([]);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
-    const [load, setLoad] = useState(50);
-    const [tempPath, setTempPath] = useState([]);
-    const [directions, setDirections] = useState({});
+    const [vehicleLoad, setVehicleLoad] = useState(50);
+    const [pathLoad, setPathLoad] = useState(5);
 
-    const onLoad = React.useCallback(function callback(map) {
-        navigator.geolocation.getCurrentPosition(function (position) {
-            const bounds = new window.google.maps.LatLngBounds({
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
-            });
-            setCenter(bounds.getCenter());
-            map.fitBounds(bounds);
-            map.setZoom(12)
-            setMap(map)
-        });
-    }, [])
-    const onUnmount = React.useCallback(function callback(map) {
-        setMap(null)
-    }, [])
+    const [pathPreview, setPathPreview] = useState({dropoff: null, pickup: null});
+
     const onClick = async (...args) => {
         if (mode === "car") {
             let vehicle =
@@ -56,7 +38,7 @@ function MapComponent() {
                         longitude: args[0].latLng.lng(),
                     },
                     company: "Company",
-                    maxLoad: load,
+                    maxLoad: vehicleLoad,
                     destinations: [],
                     nodes: []
                 };
@@ -69,33 +51,55 @@ function MapComponent() {
                 },
                 body: JSON.stringify(vehicle)
             });
+            fetchVehicles();
+            if (!args[0].domEvent.shiftKey) setMode(null);
         } else if (mode === "path") {
             if (pathMode === "start") {
-                setTempPath([...tempPath, {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()}]);
+                await setPathPreview({pickup: args[0].latLng, dropoff: pathPreview.dropoff});
                 setPathMode("end");
             } else if (pathMode === "end") {
                 setPathMode("start");
-                await fetch(`http://localhost:5002/add`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        size: load,
-                        pickup: {
-                            latitude: tempPath[0].lat,
-                            longitude: tempPath[0].lng
-                        },
-                        dropoff: {
-                            latitude: args[0].latLng.lat(),
-                            longitude: args[0].latLng.lng()
-                        }
-                    })
-                });
-                setTempPath([]);
-                fetchVehicles();
+                await setPathPreview({pickup: pathPreview.pickup, dropoff: args[0].latLng});
+                await addPath(pathPreview.pickup, args[0].latLng);
+                if (!args[0].domEvent.shiftKey) setMode(null);
             }
         }
+    }
+
+    async function addPath(pickup, dropoff) {
+        await fetch(`http://localhost:5002/add`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                size: pathLoad,
+                pickup: {
+                    latitude: pickup.lat(),
+                    longitude: pickup.lng()
+                },
+                dropoff: {
+                    latitude: dropoff.lat(),
+                    longitude: dropoff.lng()
+                }
+            })
+        });
+        fetchVehicles();
+    }
+
+    function clear() {
+        for (let vehicle of vehicles) {
+            fetch(`http://localhost:5001/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(vehicle)
+            });
+        }
+        setVehicles([]);
+        setPathPreview({dropoff: null, pickup: null})
+        window.location.reload();
     }
 
     async function fetchVehicles() {
@@ -110,12 +114,29 @@ function MapComponent() {
     }
 
     useEffect(() => {
-        fetchVehicles()
-        // const interval = setInterval(() => {
-        //     fetchVehicles();
-        // }, 10 * 1000);
-        // return () => clearInterval(interval);
+        const interval = setInterval(() => {
+            fetchVehicles();
+        }, 10000); // 10000 milliseconds = 10 seconds
+
+        fetchVehicles();
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setCurrentLocation({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                });
+            },
+            (error) => {
+                console.error('Error getting current position:', error);
+            }
+        );
+
+        // Cleanup function that will be called when the component is unmounted
+        return () => {
+            clearInterval(interval);
+        };
     }, []);
+
 
     let paths = []
     const items = vehicles.map((vehicle, index) => {
@@ -133,17 +154,15 @@ function MapComponent() {
                             strokeOpacity: 0,
                             visible: true,
                             clickable: false,
-                            radius: 300,
+                            radius: 100,
                             zIndex: 1000
                         }
                     }/>)
                     paths.push({start: position, end: pos, id: `${vehicle.id}-${index}`})
-
                     position = pos;
                 }
             });
         }
-
 
         if (vehicle.nodes) {
             if (vehicle.nodes && Array.isArray(vehicle.nodes)) {
@@ -153,15 +172,27 @@ function MapComponent() {
                         lng: node.longitude
                     }
                 });
-                path.push(<Polyline key={`Path ${vehicle.id}-${Math.random()}`} path={mappedNodes} options={{
+                path.push(<Polyline key={`Path ${vehicle.id || Math.random()}`} path={mappedNodes} options={{
                     zIndex: -1000,
                     strokeColor: css3Colors[vehicle.id % css3Colors.length]
                 }
                 }/>)
             }
+        }else{
+            let paths = vehicle.destinations.map((destination) => {
+                return {
+                    lat: destination.coordinate.latitude,
+                    lng: destination.coordinate.longitude
+                }
+            });
+            path.push(<Polyline key={`Path ${vehicle.id || Math.random()}`} path={paths} options={{
+                zIndex: -1000,
+                strokeColor: css3Colors[vehicle.id % css3Colors.length]
+            }
+            }/>)
         }
 
-        return <Marker key={`Vehicle ${vehicle.id} - ${Math.random()}`}
+        return <Marker key={`Vehicle ${vehicle.id || Math.random()}`}
                        position={{lat: vehicle.coordinate.latitude, lng: vehicle.coordinate.longitude}}
                        onClick={(e) => {
                            setSelectedVehicle(vehicle)
@@ -170,67 +201,174 @@ function MapComponent() {
         </Marker>
     });
 
-    const path = selectedVehicle ? <></> : <></>
+    return (
+        <div className="layout-container">
+            <div className="sidebar">
+                <div className="sidebar-top">
+                    {vehicles.map((vehicle, index) => {
+                        return (
+                            <div className="vehicle-button">
+                                <div className="vehicle-button-row">
+                                <span className="vehicle-text">
+                                    <b>Vehicle {vehicle.id}</b>
+                                    <br/><br/>
+                                    Status: {vehicle.nodes.length > 0 ? "DRIVING" : "IDLE"}
+                                </span>
+                                    <br></br>
+                                    <div className="action-buttons">
+                                        <button onClick={() => {
+                                            setSelectedVehicle(vehicle)
+                                            setCenter({
+                                                lat: vehicle.coordinate.latitude,
+                                                lng: vehicle.coordinate.longitude
+                                            })
+                                        }}>Focus
+                                        </button>
+                                        <button onClick={() => {
+                                            fetch(`http://localhost:5001/delete`, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json'
+                                                },
+                                                body: JSON.stringify(vehicle)
+                                            });
+                                            fetchVehicles();
+                                        }}>Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>)
+                    })}
+                </div>
+                <div className="divider"/>
+                <div className="sidebar-bottom">
+                    <form className="input-container" onSubmit={e => {
+                        e.preventDefault();
+                        let val = e.target[0].value;
 
-    return isLoaded ? (
-        <div>
-            <GoogleMap
-                mapContainerStyle={{
-                    width: '100%',
-                    height: '600px'
-                }}
-                center={center}
-                zoom={2}
-                onLoad={onLoad}
-                onClick={onClick}
-                onUnmount={onUnmount}
-            >
-                <TrafficLayer/>
-                <Marker position={center} icon={{
-                    path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-                    scale: 7,
-                }}/>
-                {items}
-                {path}
-                {tempPath.map((pos, index) =>
-                    <Circle key={`Temp position ${Math.random()}`} center={pos} options={
-                        {
-                            fillColor: "green",
-                            visible: true,
-                            clickable: false,
-                            radius: 200,
-                            zIndex: 1
+                        if (val) {
+                            fetch(`http://localhost:5002/address`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({address: val})
+
+                            }).then(response => async () => {
+                                    if (response.ok) {
+                                        let js = response.json();
+                                        await setPathPreview({
+                                            pickup: {lat: js.latitude, lng: js.longitude},
+                                            dropoff: pathPreview.dropoff
+                                        })
+                                        if (pathPreview.pickup && pathPreview.dropoff) {
+                                            await addPath({lat: js.latitude, lng: js.longitude}, pathPreview.dropoff);
+                                        } else {
+                                            setPathMode("end")
+                                        }
+                                    }
+                                });
                         }
-                    }/>)}
-            </GoogleMap>
-            <button onClick={e => {
-                setMode(mode === "car" ? "path" : "car")
-                setLoad(mode === "car" ? 5 : 50)
-            }}>{mode === "car" ? "Add Car" : "Add Path"}</button>
-            <br/>
+                    }}>
+                        <label className="label" htmlFor="pickup-address">Pickup address</label>
+                        <input id="pickup-address" type="text" placeholder="Address"/>
+                    </form>
+                    <form className="input-container" onSubmit={e => {
+                        e.preventDefault();
+                        let val = e.target[0].value;
 
-            <input className="load_amount" type="number" value={load} placeholder="Load" required onChange={(e) => {
-                setLoad(e.target.value)
-            }}/>
-            <br/>
+                        if (val) {
+                            fetch(`http://localhost:5002/address`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({address: val})
+                            })
+                                .then(response => async () => {
+                                    if (response.ok) {
+                                        let js = response.json();
+                                        await setPathPreview({
+                                            pickup: pathPreview.pickup,
+                                            dropoff: {lat: js.latitude, lng: js.longitude}
+                                        })
+                                        if (pathPreview.pickup && pathPreview.dropoff) {
+                                            await addPath(pathPreview.pickup, {lat: js.latitude, lng: js.longitude});
+                                        } else {
+                                            setPathMode("start")
+                                        }
+                                    }
+                                });
+                        }
+                    }}>
+                        <label className="label" htmlFor="dropoff-address">Dropoff address</label>
+                        <input id="dropoff-address" type="text" placeholder="Address"/>
+                    </form>
+                    <div className="input-container">
+                        <label className="label" htmlFor="load-size">Vehicle load size</label>
+                        <input id="load-size" type="number" min="1" placeholder="Vehicle load size" value={vehicleLoad}
+                               onChange={e => setVehicleLoad(e.target.value)} required/>
+                    </div>
+                    <button className={"form-element " + (mode === "car" ? "selected" : "")}
+                            onClick={() => setMode(mode === "car" ? null : "car")}>Add car
+                    </button>
 
-            <button onClick={e => {
-                for (let vehicle of vehicles) {
-                    fetch(`http://localhost:5001/delete`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(vehicle)
-                    });
-                }
-                setVehicles([]);
-                setTempPath([]);
-                window.location.reload();
-            }}>Clear
-            </button>
+                    <div className="input-container">
+                        <label className="label" htmlFor="load-size">Path load size</label>
+                        <input id="load-size" type="number" min="1" placeholder="Path load size" value={pathLoad}
+                               onChange={e => setPathLoad(e.target.value)} required/>
+                    </div>
+                    <button className={"form-element " + (mode === "path" ? "selected" : "")}
+                            onClick={() => setMode(mode === "path" ? null : "path")}>Add path
+                    </button>
+                    <button className="form-element" onClick={() => clear()}>Clear</button>
+                </div>
+            </div>
+            <div className="map-container">
+                <LoadScript googleMapsApiKey={"AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0"}>
+                    <GoogleMap
+                        mapContainerStyle={{
+                            width: '100%',
+                            height: '100%'
+                        }}
+                        center={center || currentLocation || {lat: 0, lng: 0}}
+                        zoom={zoom}
+                        onClick={onClick}
+                    >
+                        <TrafficLayer/>
+                        {currentLocation ? <Marker position={currentLocation} icon={{
+                            path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+                            scale: 7,
+                        }}/> : <></>}
+
+                        {items}
+                        {pathPreview && pathPreview.pickup ?
+                            <Circle key={`Pickup`} center={pathPreview.pickup} options={
+                                {
+                                    fillColor: "green",
+                                    strokeColor: "white",
+                                    fillOpacity: 1,
+                                    strokeOpacity: 0,
+                                    radius: 100,
+                                    visible: true,
+                                }
+                            }/> : <></>}
+                        {pathPreview && pathPreview.dropoff ?
+                            <Circle key={`Dropoff`} center={pathPreview.dropoff} options={
+                                {
+                                    fillColor: "red",
+                                    strokeColor: "white",
+                                    fillOpacity: 1,
+                                    strokeOpacity: 0,
+                                    radius: 100,
+                                    visible: true,
+                                }
+                            }/> : <></>}
+                    </GoogleMap>
+                </LoadScript>
+            </div>
         </div>
-    ) : <></>;
+    );
 }
 
 function App() {

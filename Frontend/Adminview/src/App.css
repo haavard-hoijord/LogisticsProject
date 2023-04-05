@@ -1,11 +1,92 @@
 #root {
   margin: 0 auto;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   width: 100%;
-  height: 100%;
 }
 
-.error{
-  color: red;
-  font-size: 20px;
+.layout-container {
+  display: flex;
+  height: 100vh; /* Take up the full viewport height */
+}
+
+.map-container {
+  flex: 1;
+}
+
+.sidebar {
+  width: 300px; /* Adjust this value to change the sidebar width */
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #ccc;
+}
+
+.sidebar-top {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.button-list-item {
+  margin-bottom: 1rem;
+}
+
+.sidebar-bottom {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-element {
+  margin-bottom: 1rem;
+}
+
+.label {
+  margin-bottom: 0.5rem;
+}
+
+.input-container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.divider {
+  height: 1px;
+  background-color: #ccc;
+}
+
+.selected {
+  background-color: darkgray;
+}
+
+.vehicle-button {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  margin-bottom: 1rem;
+}
+
+.vehicle-button-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.vehicle-text {
+  margin-top: 0.5rem;
+  margin-left: 0.5rem;
+  max-width: 50%;
+  word-wrap: break-word;
+  text-align: left;
+}
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }

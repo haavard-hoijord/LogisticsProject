@@ -1,9 +1,7 @@
 using GoogleApi.Entities.Maps.Directions.Response;
 using Microsoft.AspNetCore.Mvc;
 using Solution.Context;
-using Solution.Models;
 using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
-using Vehicle = Solution.Models.Vehicle;
 
 namespace Solution.Controllers;
 
@@ -12,18 +10,18 @@ namespace Solution.Controllers;
 public class TrackerController : ControllerBase
 {
     [HttpGet("/track")]
-    public async Task<Vehicle?> track([FromBody] int id)
+    public async Task<Models.Vehicle?> track([FromBody] int id)
     {
         await using var context = new MysqlContext();
         return await context.Vehicles.FindAsync(id);
     }
 
     [HttpGet("/track/all")]
-    public async Task<List<Vehicle>> getAll()
+    public async Task<List<Models.Vehicle>> getAll()
     {
         await using var context = new MysqlContext();
 
-        List<Vehicle> vehicles = new List<Vehicle>();
+        List<Models.Vehicle> vehicles = new List<Models.Vehicle>();
         try
         {
             vehicles.AddRange(context.Vehicles.ToList());
@@ -36,7 +34,7 @@ public class TrackerController : ControllerBase
     }
 
     [HttpPost("/update")]
-    public async void update([FromBody] Vehicle vehicle)
+    public async void update([FromBody] Models.Vehicle vehicle)
     {
         await using var context = new MysqlContext();
         var entity = await context.Vehicles.FindAsync(vehicle.Id);
@@ -55,7 +53,7 @@ public class TrackerController : ControllerBase
     }
 
     [HttpPost("/add")]
-    public async void add([FromBody] Vehicle vehicle)
+    public async void add([FromBody] Models.Vehicle vehicle)
     {
         await using var context = new MysqlContext();
         context.Vehicles.Add(vehicle);
@@ -64,16 +62,10 @@ public class TrackerController : ControllerBase
 
 
     [HttpPost("/delete")]
-    public async void delete([FromBody] Vehicle vehicle)
+    public async void delete([FromBody] Models.Vehicle vehicle)
     {
         await using var context = new MysqlContext();
-        // Retrieve the entity using its primary key or another unique identifier
-        var entity = await context.Vehicles.FindAsync(vehicle.Id);
-
-        if (entity != null)
-        {
-            context.Vehicles.Remove(entity);
-            await context.SaveChangesAsync();
-        }
+        context.Vehicles.Remove(vehicle);
+        await context.SaveChangesAsync();
     }
 }

@@ -1,10 +1,8 @@
 using System.Text.Json;
-using GoogleApi.Entities.Maps.Directions.Response;
 using Microsoft.EntityFrameworkCore;
-using Solution.Models;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
+using Solution.Models;
 using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
-using Vehicle = Solution.Models.Vehicle;
 
 namespace Solution.Context;
 

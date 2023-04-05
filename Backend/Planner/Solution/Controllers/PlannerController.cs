@@ -3,10 +3,13 @@ using Solution.Models;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using Google.Type;
+using GoogleApi;
 using GoogleApi.Entities.Common.Enums;
 using GoogleApi.Entities.Maps.Common;
 using GoogleApi.Entities.Maps.Directions.Request;
 using GoogleApi.Entities.Maps.Directions.Response;
+using GoogleApi.Entities.Maps.Geocoding.Address.Request;
 using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
 using Vehicle = Solution.Models.Vehicle;
 using WayPoint = GoogleApi.Entities.Maps.Directions.Request.WayPoint;
@@ -17,6 +20,8 @@ namespace Solution.Controllers;
 [Route("[controller]")]
 public class TrackerController : ControllerBase
 {
+    public string API_KEY = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
+
     [HttpPost("/add")]
     public async Task<Vehicle?> addPath([FromBody] Delivery data)
     {
@@ -29,6 +34,9 @@ public class TrackerController : ControllerBase
             .OrderBy(vech => CalculateDistance(vech.coordinate, data.pickup))
             .ThenBy(vech => CalculateDistance(vech.coordinate, data.dropoff))
             .ThenBy(e => e.maxLoad - GetLoad(e)).ToList();
+        if(sortedVehicles.Count == 0)
+            return null;
+
         Vehicle? vehicle = sortedVehicles.First();
 
         if (vehicle != null)
@@ -79,7 +87,7 @@ public class TrackerController : ControllerBase
             
             var request = new DirectionsRequest
             {
-                Key = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0",
+                Key = API_KEY,
                 Origin = new LocationEx(new CoordinateEx(vehicle.coordinate.latitude, vehicle.coordinate.longitude)),
                 WayPoints = wayPoints,
                // OptimizeWaypoints = true,
@@ -103,6 +111,23 @@ public class TrackerController : ControllerBase
             return vehicle;
         }
 
+        return null;
+    }
+
+    [HttpPost("/address")]
+    public Coordinate GetCoordinateFromAdress([FromBody] Dictionary<String, String> address)
+    {
+        var request = new AddressGeocodeRequest
+        {
+            Address = address["address"],
+            Key = API_KEY
+        };
+        var response = GoogleMaps.Geocode.AddressGeocode.Query(request);
+        if (response.Status == Status.Ok)
+        {
+            var location = response.Results.First().Geometry.Location;
+            return new Coordinate{latitude = location.Latitude, longitude = location.Longitude};
+        }
         return null;
     }
 

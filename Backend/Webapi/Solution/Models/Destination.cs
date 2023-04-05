@@ -1,5 +1,3 @@
-using Solution.Controllers;
-
 namespace Solution.Models;
 
 public class Destination

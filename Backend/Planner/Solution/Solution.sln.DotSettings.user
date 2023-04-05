@@ -1,6 +1,7 @@
-﻿<wpf:ResourceDictionary xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                        xmlns:s="clr-namespace:System;assembly=mscorlib"
-                        xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                        xml:space="preserve">
+﻿<wpf:ResourceDictionary xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xml:space="preserve">
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=C_003A_005CUsers_005Chavard_002Ehoijord_005COneDrive_0020_002D_0020Bouvet_0020Norge_0020AS_005CDocuments_005CLogisticsProject_005CBackend_005CShared_005CModels_005CCoordinate_002Ecs/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=C_003A_005CUsers_005Chavard_002Ehoijord_005COneDrive_0020_002D_0020Bouvet_0020Norge_0020AS_005CDocuments_005CLogisticsProject_005CBackend_005CShared_005CModels_005CDelivery_002Ecs/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=C_003A_005CUsers_005Chavard_002Ehoijord_005COneDrive_0020_002D_0020Bouvet_0020Norge_0020AS_005CDocuments_005CLogisticsProject_005CBackend_005CShared_005CModels_005CDestination_002Ecs/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=C_003A_005CUsers_005Chavard_002Ehoijord_005COneDrive_0020_002D_0020Bouvet_0020Norge_0020AS_005CDocuments_005CLogisticsProject_005CBackend_005CShared_005CModels_005CVehicle_002Ecs/@EntryIndexedValue">True</s:Boolean>
 	<s:Int64 x:Key="/Default/Environment/Hierarchy/Build/BuildTool/MsbuildVersion/@EntryValue">1114112</s:Int64>
     <s:String x:Key="/Default/Environment/Hierarchy/Build/BuildTool/CustomBuildToolPath/@EntryValue">C:\Program Files\JetBrains\JetBrains Rider 2022.3.3\tools\MSBuild\Current\Bin\MSBuild.exe</s:String></wpf:ResourceDictionary>
