@@ -57,6 +57,7 @@ public class Program
                 Coordinate cords = vehicle.nodes.First();
                 vehicle.coordinate = cords;
                 vehicle.nodes.RemoveAt(0);
+
                 List<Destination> removes = new List<Destination>();
                 foreach (var dest in vehicle.destinations)
                 {
@@ -76,10 +77,13 @@ public class Program
                     }
                 }
 
+                //TODO: Remove all nodes the vehicle has passed through
+                /*
                 foreach(var rm in removes)
                 {
                     vehicle.destinations.Remove(rm);
                 }
+                */
 
                 if (vehicle.nodes.Count == 0)
                 {
