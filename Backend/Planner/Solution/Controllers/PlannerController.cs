@@ -61,14 +61,14 @@ public class PlannerController : ControllerBase
         return null;
     }
 
-    private static readonly IPathService pathService = new GooglePathService();
+    private static readonly IMapService pathService = new GoogleMapService();
 
-    private static IPathService GetPathService(Vehicle vehicle)
+    private static IMapService GetPathService(Vehicle vehicle)
     {
         return GetDefaultPathSerivce();
     }
 
-    private static IPathService GetDefaultPathSerivce()
+    private static IMapService GetDefaultPathSerivce()
     {
         return pathService;
     }
@@ -111,8 +111,14 @@ public class PlannerController : ControllerBase
                         return 1;
                 }
 
-                var dis1 = GetPathService(vehicle).GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate, des1.coordinate).Result;
-                var dis2 = GetPathService(vehicle).GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate, des2.coordinate).Result;
+                var dis1 = GetPathService(vehicle)
+                    .GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate,
+                        des1.coordinate).Result;
+
+                var dis2 = GetPathService(vehicle)
+                    .GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate,
+                        des2.coordinate).Result;
+
                 return dis1.CompareTo(dis2);
             }));
 
@@ -157,9 +163,9 @@ public class PlannerController : ControllerBase
     {
         double distance = Double.NaN;
 
-        vehicle.destinations.ForEach(async e =>
+        vehicle.destinations.ForEach( e =>
         {
-            var dis = await GetPathService(vehicle).GetDistance(e.coordinate, coordinate);
+            var dis = GetPathService(vehicle).GetDistance(e.coordinate, coordinate).Result;
             if (Double.IsNaN(distance) || dis < distance)
             {
                 distance = dis;

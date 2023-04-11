@@ -8,7 +8,7 @@ using Solution.Models;
 
 namespace Solution.Pathfinder;
 
-public class GooglePathService : IPathService
+public class GoogleMapService : IMapService
 {
     public async Task<List<Coordinate>> GetPath(Vehicle vehicle)
     {
@@ -35,13 +35,10 @@ public class GooglePathService : IPathService
         if (response.Status == Status.Ok)
         {
             var points = new List<GoogleApi.Entities.Common.Coordinate>(response.Routes.First().OverviewPath.Line);
-            vehicle.nodes = new List<Coordinate>(points.Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude }));
-        }
-        else
-        {
-            Console.WriteLine($"Google maps error: {response.Status}");
+            return new List<Coordinate>(points.Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude }));
         }
 
+        Console.WriteLine($"Google maps error: {response.Status}");
         return new List<Coordinate>();
     }
 
@@ -66,12 +63,11 @@ public class GooglePathService : IPathService
 
     public async Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data)
     {
+        double tripDistance = await ((IMapService)this).GetDistance(data.pickup, data.dropoff);
         List<Vehicle> sortedVehicles = vehicles
             .Where(e => PlannerController.GetCurrentVehicleLoad(e) + data.size < e.maxLoad)
-            .Where(e => e.destinations.Count <=
-                        6) //Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
-            .OrderBy(vech => PlannerController.GetShortestDistance(vech, data.pickup).Result)
-            .ThenBy(vech => PlannerController.GetShortestDistance(vech, data.dropoff).Result)
+            .Where(e => e.destinations.Count <= 6) //Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
+            .OrderBy(e => PlannerController.GetShortestDistance(e, data.pickup).Result + tripDistance)
             .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e)).ToList();
 
         if (sortedVehicles.Count == 0)

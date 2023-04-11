@@ -248,6 +248,13 @@ function MapComponent() {
                                 <div className="vehicle-button-row">
                                 <span className="vehicle-text">
                                     <b>Vehicle {vehicle.id}</b>
+                                    <div className="color-cube" style={{
+                                        float: "right",
+                                        height: "25px",
+                                        width: "25px",
+                                        borderRadius: "50%",
+                                        backgroundColor: css3Colors[vehicle.id % css3Colors.length]
+                                    }}></div>
                                     <br/>
                                     Status:
                                     <br/>
