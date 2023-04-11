@@ -42,19 +42,12 @@ public class PlannerController : ControllerBase
         {
             AddDestination(data, vehicle);
 
-            //Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
+            Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
 
             await GeneratePathNodes(vehicle);
             await FindClosetsDestinationNodes(vehicle);
 
-            var res = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle);
-
-            Console.WriteLine(res.ToString());
-            Console.WriteLine(await res.Content.ReadAsStringAsync());
-
-            var response = await Program.client.InvokeMethodWithResponseAsync(res);
-            Console.WriteLine(response.ToString());
-            Console.WriteLine(await response.Content.ReadAsStringAsync());
+            await Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
 
             Program.client.PublishEventAsync("vehicle_update", "new_path", new Dictionary<string, string>()
             {
@@ -96,8 +89,8 @@ public class PlannerController : ControllerBase
             routeId = vehicle.destinations.Max(e => e.routeId) + 1;
         }
 
-        vehicle.destinations.Add(new Destination { coordinate = data.pickup, load = data.size, isPickup = true, routeId = routeId, closestNode = new Coordinate()});
-        vehicle.destinations.Add(new Destination { coordinate = data.dropoff, load = data.size, isPickup = false, routeId = routeId, closestNode = new Coordinate()});
+        vehicle.destinations.Add(new Destination { coordinate = data.pickup, load = data.size, isPickup = true, routeId = routeId});
+        vehicle.destinations.Add(new Destination { coordinate = data.dropoff, load = data.size, isPickup = false, routeId = routeId});
 
         List<Destination> destinations = new List<Destination>(vehicle.destinations);
         vehicle.destinations = new List<Destination>();
