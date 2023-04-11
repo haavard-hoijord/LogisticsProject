@@ -4,14 +4,14 @@ public class Program
 {
     public static DaprClient client;
 
+    public static string API_KEY = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
+
     public static void Main(string[] args)
     {
         client = new DaprClientBuilder().Build();
         client.WaitForSidecarAsync().Wait();
 
         var builder = WebApplication.CreateBuilder(args);
-
-        // Add services to the container.
 
         builder.Services.AddCors(options =>
         {
@@ -26,8 +26,8 @@ public class Program
         });
 
 
-        builder.Services.AddControllers();
-        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+        builder.Services.AddControllers().AddDapr();
+        //builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
         {
@@ -45,8 +45,8 @@ public class Program
 
         app.UseRouting();
         app.UseCors("AllowAllOrigins");
-        //app.UseHttpsRedirection();
         app.UseAuthorization();
+        app.UseCloudEvents();
         app.MapControllers();
 
         app.Run();

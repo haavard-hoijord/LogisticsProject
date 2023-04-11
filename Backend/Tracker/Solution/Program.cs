@@ -27,8 +27,7 @@ public class Program
                 });
         });
 
-        builder.Services.AddControllers();
-        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+        builder.Services.AddControllers().AddDapr();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
         {
@@ -58,6 +57,7 @@ public class Program
         app.UseRouting();
         app.UseCors("AllowAllOrigins");
         //app.UseHttpsRedirection();
+        app.UseCloudEvents();
         app.UseAuthorization();
         app.MapControllers();
 

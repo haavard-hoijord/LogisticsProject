@@ -243,12 +243,18 @@ function MapComponent() {
                 <div className="sidebar-top" ref={topSectionRef}>
                     {vehicles.map((vehicle, index) => {
                         return (
-                            <div className="vehicle-button">
+                            <div className={"vehicle-button " + (selectedVehicle && selectedVehicle.id === vehicle.id ? "selected" : "")}>
                                 <div className="vehicle-button-row">
                                 <span className="vehicle-text">
                                     <b>Vehicle {vehicle.id}</b>
-                                    <br/><br/>
-                                    Status: {vehicle.nodes.length > 0 ? "DRIVING" : "IDLE"}
+                                    <br/>
+                                    Status:
+                                    <br/>
+                                    <b>
+                                        {vehicle.nodes.length > 0 && vehicle.destinations.length > 0 ? vehicle.destinations[0].isPickup ? `Picking up ${vehicle.destinations[0].routeId}` : `Delivering ${vehicle.destinations[0].routeId}` : "IDLE"}
+                                    </b>
+                                    <br/>
+                                    Capacity: <b>{vehicle.maxLoad - vehicle.destinations.filter(e => !e.isPickup).map(e=>e.load).reduce((acc, x) => acc + x, 0)} / {vehicle.maxLoad}</b>
                                 </span>
                                     <br></br>
                                     <div className="action-buttons">
@@ -269,7 +275,7 @@ function MapComponent() {
                                                 body: JSON.stringify(vehicle)
                                             });
                                             fetchVehicles();
-                                        }}>Clear
+                                        }}>Remove
                                         </button>
                                     </div>
                                 </div>
@@ -341,8 +347,8 @@ function MapComponent() {
                         <input id="dropoff-address" type="text" placeholder="Address"/>
                     </form>
                     <div className="input-container">
-                        <label className="label" htmlFor="load-size">Vehicle load size</label>
-                        <input id="load-size" type="number" min="1" placeholder="Vehicle load size" value={vehicleLoad}
+                        <label className="label" htmlFor="load-size">Vehicle max size</label>
+                        <input id="load-size" type="number" min="1" value={vehicleLoad}
                                onChange={e => setVehicleLoad(e.target.value)} required/>
                     </div>
                     <button className={"form-element " + (mode === "car" ? "selected" : "")}
@@ -350,8 +356,8 @@ function MapComponent() {
                     </button>
 
                     <div className="input-container">
-                        <label className="label" htmlFor="load-size">Path load size</label>
-                        <input id="load-size" type="number" min="1" placeholder="Path load size" value={pathLoad}
+                        <label className="label" htmlFor="load-size">Delivery size</label>
+                        <input id="load-size" type="number" min="1" value={pathLoad}
                                onChange={e => setPathLoad(e.target.value)} required/>
                     </div>
                     <button className={"form-element " + (mode === "path" ? "selected" : "")}
@@ -384,7 +390,7 @@ function MapComponent() {
 
                         {items}
                         {pathPreview && pathPreview.pickup ?
-                            <Circle key={`Pickup`} center={pathPreview.pickup} options={
+                            <Circle key="Pickup" center={pathPreview.pickup} options={
                                 {
                                     fillColor: "green",
                                     strokeColor: "white",
@@ -395,7 +401,7 @@ function MapComponent() {
                                 }
                             }/> : <></>}
                         {pathPreview && pathPreview.dropoff ?
-                            <Circle key={`Dropoff`} center={pathPreview.dropoff} options={
+                            <Circle key="Dropoff" center={pathPreview.dropoff} options={
                                 {
                                     fillColor: "red",
                                     strokeColor: "white",

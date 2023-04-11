@@ -10,6 +10,7 @@ using GoogleApi.Entities.Maps.Common;
 using GoogleApi.Entities.Maps.Directions.Request;
 using GoogleApi.Entities.Maps.Directions.Response;
 using GoogleApi.Entities.Maps.Geocoding.Address.Request;
+using Solution.Pathfinder;
 using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
 using Vehicle = Solution.Models.Vehicle;
 using WayPoint = GoogleApi.Entities.Maps.Directions.Request.WayPoint;
@@ -18,39 +19,135 @@ namespace Solution.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class TrackerController : ControllerBase
+public class PlannerController : ControllerBase
 {
-    public string API_KEY = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
+    [HttpPost("/address")]
+    public async Task<Coordinate> GetCoordinateFromAddress([FromBody] Dictionary<String, String> address)
+    {
+        return await GetDefaultPathSerivce().GetAddressCoordinates(address["address"]);
+    }
+
+    [HttpGet("/health")]
+    public IActionResult CheckHealth()
+    {
+        return Ok();
+    }
 
     [HttpPost("/add")]
     public async Task<Vehicle?> addPath([FromBody] Delivery data)
     {
-        int size = data.size;
-        var vehicle = await FindFittingVehicle(data, size);
+        var vehicle = await FindFittingVehicle(data);
 
         if (vehicle != null)
         {
-            AddDestination(data, vehicle, size);
-            await GeneratePathNodes(vehicle);
-            FindCloestsDestinationNodes(vehicle);
+            AddDestination(data, vehicle);
 
-            var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle);
-            await Program.client.InvokeMethodAsync(message2);
+            //Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
+
+            await GeneratePathNodes(vehicle);
+            await FindClosetsDestinationNodes(vehicle);
+
+            var res = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle);
+
+            Console.WriteLine(res.ToString());
+            Console.WriteLine(await res.Content.ReadAsStringAsync());
+
+            var response = await Program.client.InvokeMethodWithResponseAsync(res);
+            Console.WriteLine(response.ToString());
+            Console.WriteLine(await response.Content.ReadAsStringAsync());
+
+            Program.client.PublishEventAsync("vehicle_update", "new_path", new Dictionary<string, string>()
+            {
+                {"id", vehicle.Id.ToString()},
+                {"delivery", JsonSerializer.Serialize(data)}
+            });
+
             return vehicle;
         }
 
         return null;
     }
 
-    private static void FindCloestsDestinationNodes(Vehicle vehicle)
+    private static readonly IPathService pathService = new GooglePathService();
+
+    private static IPathService GetPathService(Vehicle vehicle)
+    {
+        return GetDefaultPathSerivce();
+    }
+
+    private static IPathService GetDefaultPathSerivce()
+    {
+        return pathService;
+    }
+
+    private static async Task<Vehicle> FindFittingVehicle(Delivery data)
+    {
+        var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track/all");
+        return await GetDefaultPathSerivce()
+            .FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
+    }
+
+    private static void AddDestination(Delivery data, Vehicle vehicle)
+    {
+        int routeId = 1;
+
+        if (vehicle.destinations.Count > 0)
+        {
+            routeId = vehicle.destinations.Max(e => e.routeId) + 1;
+        }
+
+        vehicle.destinations.Add(new Destination { coordinate = data.pickup, load = data.size, isPickup = true, routeId = routeId, closestNode = new Coordinate()});
+        vehicle.destinations.Add(new Destination { coordinate = data.dropoff, load = data.size, isPickup = false, routeId = routeId, closestNode = new Coordinate()});
+
+        List<Destination> destinations = new List<Destination>(vehicle.destinations);
+        vehicle.destinations = new List<Destination>();
+
+        Destination? lastDestination = null;
+
+        while (destinations.Count > 0)
+        {
+            //destinations.OrderBy(pos => GetPathService(vehicle).GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate, pos.coordinate)).ToList();
+            destinations.Sort(((des1, des2) =>
+            {
+                if (des1.routeId == des2.routeId)
+                {
+                    if (des1.isPickup && !des2.isPickup)
+                        return -1;
+
+                    if (des2.isPickup && !des1.isPickup)
+                        return 1;
+                }
+
+                var dis1 = GetPathService(vehicle).GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate, des1.coordinate).Result;
+                var dis2 = GetPathService(vehicle).GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate, des2.coordinate).Result;
+                return dis1.CompareTo(dis2);
+            }));
+
+            lastDestination = destinations.First();
+            destinations.Remove(lastDestination);
+            vehicle.destinations.Add(lastDestination);
+        }
+    }
+
+    private async Task GeneratePathNodes(Vehicle vehicle)
+    {
+        vehicle.nodes = await GetPathService(vehicle).GetPath(vehicle);
+    }
+
+    public static int GetCurrentVehicleLoad(Vehicle vehicle)
+    {
+        return vehicle.destinations.Where(e => !e.isPickup).Select(s => s.load).Sum();
+    }
+
+    private static async Task FindClosetsDestinationNodes(Vehicle vehicle)
     {
         foreach (var dest in vehicle.destinations)
         {
             Coordinate closestNode = null;
             foreach (var node in vehicle.nodes)
             {
-                if (closestNode == null || CalculateDistance(closestNode, dest.coordinate) >
-                    CalculateDistance(node, dest.coordinate))
+                if (closestNode == null || await GetPathService(vehicle).GetDistance(closestNode, dest.coordinate) >
+                    await GetPathService(vehicle).GetDistance(node, dest.coordinate))
                 {
                     closestNode = node;
                 }
@@ -63,122 +160,20 @@ public class TrackerController : ControllerBase
         }
     }
 
-    private async Task GeneratePathNodes(Vehicle vehicle)
+    public static async Task<double> GetShortestDistance(Vehicle vehicle, Coordinate coordinate)
     {
-        Coordinate lastPos = vehicle.destinations.Last().coordinate;
-        List<WayPoint> wayPoints = new List<WayPoint>();
+        double distance = Double.NaN;
 
-        foreach (Destination destination in vehicle.destinations)
+        vehicle.destinations.ForEach(async e =>
         {
-            wayPoints.Add(new WayPoint(new LocationEx(new CoordinateEx(destination.coordinate.latitude,
-                destination.coordinate.longitude))));
-        }
-
-        var request = new DirectionsRequest
-        {
-            Key = API_KEY,
-            Origin = new LocationEx(new CoordinateEx(vehicle.coordinate.latitude, vehicle.coordinate.longitude)),
-            WayPoints = wayPoints,
-            // OptimizeWaypoints = true,
-            Destination = new LocationEx(new CoordinateEx(lastPos.latitude, lastPos.longitude))
-        };
-
-        var response = await GoogleApi.GoogleMaps.Directions.QueryAsync(request);
-
-        if (response.Status == Status.Ok)
-        {
-            var points = new List<GoogleApi.Entities.Common.Coordinate>(response.Routes.First().OverviewPath.Line);
-            vehicle.nodes =
-                new List<Coordinate>(points.Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude }));
-        }
-        else
-        {
-            Console.WriteLine($"Google maps error: {response.Status}");
-        }
-    }
-
-    private static void AddDestination(Delivery data, Vehicle vehicle, int size)
-    {
-        int routeId = 1;
-
-        if (vehicle.destinations.Count > 0)
-        {
-            routeId = vehicle.destinations.Max(e => e.routeId) + 1;
-        }
-
-        vehicle.destinations.Add(new Destination
-            { coordinate = data.pickup, load = size, isPickup = true, routeId = routeId });
-        vehicle.destinations.Add(new Destination
-            { coordinate = data.dropoff, load = 0, isPickup = false, routeId = routeId });
-
-        List<Destination> destinations = new List<Destination>(vehicle.destinations);
-        vehicle.destinations = new List<Destination>();
-
-        Destination? lastDestination = null;
-
-        while (destinations.Count > 0)
-        {
-            destinations.OrderBy(pos =>
-                CalculateDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate,
-                    pos.coordinate)).ToList();
-            destinations.Sort(((des1, des2) =>
+            var dis = await GetPathService(vehicle).GetDistance(e.coordinate, coordinate);
+            if (Double.IsNaN(distance) || dis < distance)
             {
-                if (des1.routeId == des2.routeId)
-                {
-                    if (des1.isPickup)
-                        return -1;
+                distance = dis;
+            }
+        });
 
-                    if (des2.isPickup)
-                        return 1;
-                }
-
-                return 0;
-            }));
-
-            lastDestination = destinations.First();
-            destinations.Remove(lastDestination);
-            vehicle.destinations.Add(lastDestination);
-        }
-    }
-
-    private static async Task<Vehicle> FindFittingVehicle(Delivery data, int size)
-    {
-        var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track/all");
-        List<Vehicle> obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(message);
-        List<Vehicle> sortedVehicles = obj
-            .Where(e => GetLoad(e) + size < e.maxLoad)
-            .Where(e => e.destinations.Count <=
-                        6) //Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
-            .OrderBy(vech => CalculateDistance(vech.coordinate, data.pickup))
-            .ThenBy(vech => CalculateDistance(vech.coordinate, data.dropoff))
-            .ThenBy(e => e.maxLoad - GetLoad(e)).ToList();
-
-        if (sortedVehicles.Count == 0)
-            return null;
-
-        return sortedVehicles.First();
-    }
-
-    [HttpPost("/address")]
-    public Coordinate GetCoordinateFromAddress([FromBody] Dictionary<String, String> address)
-    {
-        var request = new AddressGeocodeRequest
-        {
-            Address = address["address"],
-            Key = API_KEY
-        };
-        var response = GoogleMaps.Geocode.AddressGeocode.Query(request);
-        if (response.Status == Status.Ok)
-        {
-            var location = response.Results.First().Geometry.Location;
-            return new Coordinate{latitude = location.Latitude, longitude = location.Longitude};
-        }
-        return null;
-    }
-
-    public static int GetLoad(Vehicle vehicle)
-    {
-        return vehicle.destinations.Select(s => s.load).Sum();
+        return distance;
     }
 
     public static double CalculateDistance(Coordinate coord1, Coordinate coord2)

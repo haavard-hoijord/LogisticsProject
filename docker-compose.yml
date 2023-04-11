@@ -16,11 +16,23 @@ services:
 
   backend:
     build: "Backend/Webapi"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl --fail --silent http://localhost:80/health || exit 1" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
     depends_on:
-      - redis
-      - placement
-      - backend-planner
-      - backend-tracker
+      redis:
+        condition: service_started
+      placement:
+        condition: service_started
+      backend-planner:
+        condition: service_healthy
+      backend-tracker:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "5000:80"
 
@@ -34,12 +46,20 @@ services:
     build: "Backend/Tracker"
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:80/health || exit 1"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
     depends_on:
-      "redis":
+      redis:
         condition: service_started
-      "placement":
+      placement:
         condition: service_started
-      "db":
+      db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     ports:
       - 5001:80
@@ -52,11 +72,23 @@ services:
 
   backend-planner:
     build: "Backend/Planner"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl --fail --silent http://localhost:80/health || exit 1" ]
+      interval: 1s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
     env_file:
       - .env
     depends_on:
-      - redis
-      - placement
+      redis:
+          condition: service_started
+      placement:
+          condition: service_started
+      backend-tracker:
+          condition: service_healthy
+      rabbitmq:
+          condition: service_healthy
     ports:
       - 5002:80
 
@@ -71,7 +103,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - 3000:3000
 
@@ -86,7 +119,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - 3001:3001
 
@@ -111,6 +145,20 @@ services:
     image: "redis:alpine"
     ports:
       - "6380:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 10s
+      retries: 20
+    environment:
+      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_DEFAULT_USER: admin
+    ports:
+      - "5672:5672"
 
   seq:
     image: datalust/seq:latest

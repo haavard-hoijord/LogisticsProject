@@ -47,48 +47,65 @@ public class Program
 
     private static async void OnTimerElapsed(object sender, ElapsedEventArgs e)
     {
-        var message = client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track/all");
-        List<Vehicle> obj = await client.InvokeMethodAsync<List<Vehicle>>(message);
-
-        foreach (var vehicle in obj)
+        try
         {
-            if (vehicle.nodes.Count > 0)
-            {
-                Coordinate cords = vehicle.nodes.First();
-                vehicle.coordinate = cords;
-                vehicle.nodes.RemoveAt(0);
+            List<Vehicle> obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "tracker", "track/all");
 
-                List<Destination> removes = new List<Destination>();
-                foreach (var dest in vehicle.destinations)
+            foreach (var vehicle in obj)
+            {
+                if (vehicle.nodes.Count > 0)
                 {
-                    if (dest.closestNode != null)
+                    Coordinate cords = vehicle.nodes.First();
+                    vehicle.coordinate = cords;
+                    vehicle.nodes.RemoveAt(0);
+
+                    foreach (var dest in vehicle.destinations)
                     {
-                        if (dest.closestNode.latitude == cords.latitude &&
-                            dest.closestNode.longitude == cords.longitude)
+                        if (dest.closestNode != null)
                         {
-                            removes.Add(dest);
+                            if (dest.closestNode.latitude == cords.latitude &&
+                                dest.closestNode.longitude == cords.longitude)
+                            {
+                                if (dest.isPickup)
+                                {
+                                    Program.client.PublishEventAsync("delivery_status", "pickup", new Dictionary<string, string>()
+                                    {
+                                        {"id", vehicle.Id.ToString()},
+                                        {"latitude", dest.coordinate.latitude.ToString()},
+                                        {"longitude", dest.coordinate.longitude.ToString()},
+                                        {"route", dest.routeId.ToString()}
+                                    });
+                                }
+                                else
+                                {
+                                    Program.client.PublishEventAsync("delivery_status", "delivery", new Dictionary<string, string>()
+                                    {
+                                        {"id", vehicle.Id.ToString()},
+                                        {"latitude", dest.coordinate.latitude.ToString()},
+                                        {"longitude", dest.coordinate.longitude.ToString()},
+                                        {"route", dest.routeId.ToString()}
+                                    });
+
+                                }
+                            }
                         }
                     }
-                }
 
-                foreach(var rm in removes)
-                {
-                    vehicle.destinations.Remove(rm);
-                }
+                    if (vehicle.nodes.Count == 0)
+                    {
+                        vehicle.destinations.Clear();
+                    }
 
-                if (vehicle.nodes.Count == 0)
+                    await client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
+                }else if (vehicle.destinations.Count > 0)
                 {
                     vehicle.destinations.Clear();
+                    await client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
                 }
-
-                var message2 = client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle);
-                await client.InvokeMethodAsync(message2);
-            }else if (vehicle.destinations.Count > 0)
-            {
-                vehicle.destinations.Clear();
-                var message2 = client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle);
-                await client.InvokeMethodAsync(message2);
             }
+        }catch(Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
         }
     }
 }

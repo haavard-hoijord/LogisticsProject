@@ -1,7 +1,9 @@
+using System.Text.Json;
 using GoogleApi.Entities.Maps.Directions.Response;
 using Microsoft.AspNetCore.Mvc;
 using Solution.Context;
 using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
+using Vehicle = Solution.Models.Vehicle;
 
 namespace Solution.Controllers;
 
@@ -9,19 +11,25 @@ namespace Solution.Controllers;
 [Route("[controller]")]
 public class TrackerController : ControllerBase
 {
+    [HttpGet("/health")]
+    public IActionResult CheckHealth()
+    {
+        return Ok();
+    }
+
     [HttpGet("/track")]
-    public async Task<Models.Vehicle?> track([FromBody] int id)
+    public async Task<Vehicle?> track([FromBody] int id)
     {
         await using var context = new MysqlContext();
         return await context.Vehicles.FindAsync(id);
     }
 
     [HttpGet("/track/all")]
-    public async Task<List<Models.Vehicle>> getAll()
+    public async Task<List<Vehicle>> getAll()
     {
         await using var context = new MysqlContext();
 
-        List<Models.Vehicle> vehicles = new List<Models.Vehicle>();
+        List<Vehicle> vehicles = new List<Vehicle>();
         try
         {
             vehicles.AddRange(context.Vehicles.ToList());
@@ -34,10 +42,10 @@ public class TrackerController : ControllerBase
     }
 
     [HttpPost("/update")]
-    public async void update([FromBody] Models.Vehicle vehicle)
+    public void update([FromBody] Vehicle vehicle)
     {
-        await using var context = new MysqlContext();
-        var entity = await context.Vehicles.FindAsync(vehicle.Id);
+        using var context = new MysqlContext();
+        var entity = context.Vehicles.Find(vehicle.Id);
 
         if (entity != null)
         {
@@ -48,24 +56,45 @@ public class TrackerController : ControllerBase
             entity.nodes = vehicle.nodes;;
 
             context.Vehicles.Update(entity);
-            await context.SaveChangesAsync();
+            context.SaveChanges();
+
+            Program.client.PublishEventAsync("vehicle_update", "update_vehicle", new Dictionary<string, string>()
+            {
+                {"id", vehicle.Id.ToString()},
+                {"vehicle", JsonSerializer.Serialize(entity)}
+            });
         }
     }
 
     [HttpPost("/add")]
-    public async void add([FromBody] Models.Vehicle vehicle)
+    public async Task<ActionResult> add([FromBody] Vehicle vehicle)
     {
         await using var context = new MysqlContext();
         context.Vehicles.Add(vehicle);
         await context.SaveChangesAsync();
+
+        Program.client.PublishEventAsync("vehicle_update", "new_vehicle", new Dictionary<string, string>()
+        {
+            {"id", vehicle.Id.ToString()},
+            {"vehicle", JsonSerializer.Serialize(vehicle)}
+        });
+
+        return Ok();
     }
 
 
     [HttpPost("/delete")]
-    public async void delete([FromBody] Models.Vehicle vehicle)
+    public async Task<ActionResult> delete([FromBody] Vehicle vehicle)
     {
         await using var context = new MysqlContext();
         context.Vehicles.Remove(vehicle);
         await context.SaveChangesAsync();
+
+        Program.client.PublishEventAsync("vehicle_update", "remove_vehicle", new Dictionary<string, string>()
+        {
+            {"id", vehicle.Id.ToString()}
+        });
+
+        return Ok();
     }
 }
