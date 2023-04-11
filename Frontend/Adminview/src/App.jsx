@@ -80,6 +80,7 @@ function MapComponent() {
                 await setPathPreview({pickup: pathPreview.pickup, dropoff: args[0].latLng});
                 await addPath(pathPreview.pickup, args[0].latLng);
                 if (!args[0].domEvent.shiftKey) setMode(null);
+                setPathPreview({dropoff: null, pickup: null});
             }
         }
     }
