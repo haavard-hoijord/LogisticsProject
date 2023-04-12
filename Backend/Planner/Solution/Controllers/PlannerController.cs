@@ -61,23 +61,23 @@ public class PlannerController : ControllerBase
         return null;
     }
 
-    private static readonly IMapService pathService = new GoogleMapService();
+    private static readonly IMapService defaultPathService = new GoogleMapService();
+    private static readonly IMapService vehiclePathService = new GoogleMapService();
 
-    private static IMapService GetPathService(Vehicle vehicle)
+    public static IMapService GetPathService(Vehicle vehicle)
     {
-        return GetDefaultPathSerivce();
+        return vehiclePathService;
     }
 
-    private static IMapService GetDefaultPathSerivce()
+    public static IMapService GetDefaultPathSerivce()
     {
-        return pathService;
+        return defaultPathService;
     }
 
     private static async Task<Vehicle> FindFittingVehicle(Delivery data)
     {
         var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track/all");
-        return await GetDefaultPathSerivce()
-            .FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
+        return await GetDefaultPathSerivce().FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
     }
 
     private static void AddDestination(Delivery data, Vehicle vehicle)
@@ -163,9 +163,12 @@ public class PlannerController : ControllerBase
     {
         double distance = Double.NaN;
 
-        vehicle.destinations.ForEach( e =>
+        List<Coordinate> nodes = new List<Coordinate>(vehicle.destinations.Select(e => e.coordinate));
+        nodes.Add(vehicle.coordinate);
+
+        nodes.ForEach( e =>
         {
-            var dis = GetPathService(vehicle).GetDistance(e.coordinate, coordinate).Result;
+            var dis = GetPathService(vehicle).GetDistance(e, coordinate).Result;
             if (Double.IsNaN(distance) || dis < distance)
             {
                 distance = dis;

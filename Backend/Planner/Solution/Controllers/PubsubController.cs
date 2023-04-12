@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Dapr;
 using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Utilities;
@@ -9,39 +10,51 @@ namespace Solution.Controllers;
 [Route("[controller]")]
 public class PubsubController : ControllerBase
 {
+    [Consumes("application/json")]
+    [HttpPost("pickup")]
     [Topic("delivery_status", "pickup")]
-    [HttpPost("planner")]
-    public async Task<ActionResult> Pickup([FromBody] Dictionary<String, String> data)
+    public async Task<ActionResult> Pickup([FromBody] MessageData data)
     {
-        var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", Int32.Parse(data["id"]));
-        Vehicle obj = await Program.client.InvokeMethodAsync<Vehicle>(message);
+        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
+        Vehicle obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
         obj.destinations.RemoveAll((destination =>
-            destination.isPickup && destination.routeId == Int32.Parse(data["route"])));
+            destination.isPickup && destination.routeId == data.route));
 
         var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj);
         await Program.client.InvokeMethodAsync(message2);
 
-        Console.WriteLine("Vehicle " + obj.Id + " has picked up a package on route " + Int32.Parse(data["route"]));
+        var address = await PlannerController.GetPathService(obj).GetClosestAddress(new Coordinate{longitude = data.longitude, latitude = data.latitude});
 
+        Console.WriteLine("Vehicle " + obj.Id + " has picked up a package from " + address + " on route " + data.route);
         return Ok();
     }
 
+    [Consumes("application/json")]
+    [HttpPost("delivery")]
     [Topic("delivery_status", "delivery")]
-    [HttpPost("planner")]
-    public async Task<ActionResult> Delivery([FromBody] Dictionary<String, String> data)
+    public async Task<ActionResult> Delivery([FromBody] MessageData data)
     {
-        var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", Int32.Parse(data["id"]));
-        Vehicle obj = await Program.client.InvokeMethodAsync<Vehicle>(message);
+        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
+        Vehicle obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
         obj.destinations.RemoveAll((destination =>
-            !destination.isPickup && destination.routeId == Int32.Parse(data["route"])));
+            !destination.isPickup && destination.routeId == data.route));
 
         var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj);
         await Program.client.InvokeMethodAsync(message2);
 
-        Console.WriteLine("Vehicle " + obj.Id + " has delivered a package on route " + Int32.Parse(data["route"]));
+        var address = await PlannerController.GetPathService(obj).GetClosestAddress(new Coordinate{longitude = data.longitude, latitude = data.latitude});
 
+        Console.WriteLine("Vehicle " + obj.Id + " has delivered a package to " + address + " on route " + data.route);
         return Ok();
+    }
+
+    public class MessageData
+    {
+        public int id { get; set; }
+        public int route { get; set; }
+        public double latitude { get; set; }
+        public double longitude { get; set; }
     }
 }

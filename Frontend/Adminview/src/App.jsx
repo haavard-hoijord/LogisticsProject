@@ -8,10 +8,15 @@ import {
     Circle
 } from '@react-google-maps/api';
 import './App.css'
+
 const css3Colors = [
     'aqua', 'black', 'blue', 'fuchsia', 'gray', 'green', 'lime', 'maroon', 'navy',
     'olive', 'orange', 'purple', 'red', 'silver', 'teal', 'white', 'yellow',
 ];
+
+function getColor(num) {
+    return css3Colors[num % css3Colors.length];
+}
 
 function MapComponent() {
     const topSectionRef = useRef(null);
@@ -62,7 +67,9 @@ function MapComponent() {
                 };
             setVehicles([...vehicles, vehicle]);
             setSelectedVehicle(vehicle)
-            await fetch(`http://localhost:5001/add`, { //http://localhost:${daprPort}/v1.0/invoke/tracker/method/add
+            await fetch(`http://localhost:5001/add`, {
+                //http://localhost:5001/add
+                //http://localhost:${daprPort}/v1.0/invoke/tracker/method/add
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -94,21 +101,21 @@ function MapComponent() {
             body: JSON.stringify({
                 size: pathLoad,
                 pickup: {
-                    latitude: pickup.lat(),
-                    longitude: pickup.lng()
+                    latitude: pickup.lat,
+                    longitude: pickup.lng
                 },
                 dropoff: {
-                    latitude: dropoff.lat(),
-                    longitude: dropoff.lng()
+                    latitude: dropoff.lat,
+                    longitude: dropoff.lng
                 }
             })
         });
         fetchVehicles();
     }
 
-    function clear() {
+    async function clear() {
         for (let vehicle of vehicles) {
-            fetch(`http://localhost:5001/delete`, {
+            await fetch(`http://localhost:5001/delete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -202,7 +209,7 @@ function MapComponent() {
             });
             path.push(<Polyline key={`Path ${vehicle.id || Math.random()}`} path={mappedNodes} options={{
                 zIndex: selectedVehicle && selectedVehicle.id === vehicle.id ? 1000 : -1000,
-                strokeColor: css3Colors[vehicle.id % css3Colors.length],
+                strokeColor: getColor(vehicle.id-1),
                 strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
             }}
             onClick={() => setSelectedVehicle(vehicle)}
@@ -216,7 +223,7 @@ function MapComponent() {
             });
             path.push(<Polyline key={`Path ${vehicle.id || Math.random()}`} path={paths} options={{
                 zIndex: -1000,
-                strokeColor: css3Colors[vehicle.id % css3Colors.length],
+                strokeColor: getColor(vehicle.id-1),
                 strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
             }}
             onClick={() => setSelectedVehicle(vehicle)}/>)
@@ -226,7 +233,7 @@ function MapComponent() {
                        label={{
                            text: "\ue558",
                            fontFamily: "Material Icons",
-                           color: css3Colors[vehicle.id % css3Colors.length],
+                           color: getColor(vehicle.id-1),
                            fontSize: "18px",
                        }}
                        title={`Vehicle ${vehicle.id}`}
@@ -237,6 +244,63 @@ function MapComponent() {
             {path}
         </Marker>
     });
+
+    async function pickupAddress(e){
+        e.preventDefault();
+        let val = e.target[0].value;
+
+        if (val) {
+            let response = await fetch(`http://localhost:5002/address`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({address: val})
+
+            });
+
+            if (response.ok) {
+                let js = await response.json();
+                await setPathPreview({
+                    pickup: {lat: js.latitude, lng: js.longitude},
+                    dropoff: pathPreview.dropoff
+                })
+                if (pathPreview.dropoff) {
+                    await addPath({lat: js.latitude, lng: js.longitude}, pathPreview.dropoff);
+                } else {
+                    setPathMode("end")
+                }
+            }
+        }
+    }
+
+    async function dropOffAddress(e)   {
+        e.preventDefault();
+        let val = e.target[0].value;
+
+        if (val) {
+            let response = await fetch(`http://localhost:5002/address`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({address: val})
+            });
+
+            if (response.ok) {
+                let js = await response.json();
+                await setPathPreview({
+                    pickup: pathPreview.pickup,
+                    dropoff: {lat: js.latitude, lng: js.longitude}
+                })
+                if (pathPreview.pickup) {
+                    await addPath(pathPreview.pickup, {lat: js.latitude, lng: js.longitude});
+                } else {
+                    setPathMode("start")
+                }
+            }
+        }
+    }
 
     return (
         <div className="layout-container">
@@ -253,7 +317,7 @@ function MapComponent() {
                                         height: "25px",
                                         width: "25px",
                                         borderRadius: "50%",
-                                        backgroundColor: css3Colors[vehicle.id % css3Colors.length]
+                                        backgroundColor: getColor(vehicle.id-1)
                                     }}></div>
                                     <br/>
                                     Status:
@@ -292,68 +356,6 @@ function MapComponent() {
                 </div>
                 <div className="sidebar-divider" onMouseDown={handleMouseDown}></div>
                 <div className="sidebar-bottom">
-                    <form className="input-container" onSubmit={e => {
-                        e.preventDefault();
-                        let val = e.target[0].value;
-
-                        if (val) {
-                            fetch(`http://localhost:5002/address`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({address: val})
-
-                            }).then(response => async () => {
-                                    if (response.ok) {
-                                        let js = response.json();
-                                        await setPathPreview({
-                                            pickup: {lat: js.latitude, lng: js.longitude},
-                                            dropoff: pathPreview.dropoff
-                                        })
-                                        if (pathPreview.pickup && pathPreview.dropoff) {
-                                            await addPath({lat: js.latitude, lng: js.longitude}, pathPreview.dropoff);
-                                        } else {
-                                            setPathMode("end")
-                                        }
-                                    }
-                                });
-                        }
-                    }}>
-                        <label className="label" htmlFor="pickup-address">Pickup address</label>
-                        <input id="pickup-address" type="text" placeholder="Address"/>
-                    </form>
-                    <form className="input-container" onSubmit={e => {
-                        e.preventDefault();
-                        let val = e.target[0].value;
-
-                        if (val) {
-                            fetch(`http://localhost:5002/address`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({address: val})
-                            })
-                                .then(response => async () => {
-                                    if (response.ok) {
-                                        let js = response.json();
-                                        await setPathPreview({
-                                            pickup: pathPreview.pickup,
-                                            dropoff: {lat: js.latitude, lng: js.longitude}
-                                        })
-                                        if (pathPreview.pickup && pathPreview.dropoff) {
-                                            await addPath(pathPreview.pickup, {lat: js.latitude, lng: js.longitude});
-                                        } else {
-                                            setPathMode("start")
-                                        }
-                                    }
-                                });
-                        }
-                    }}>
-                        <label className="label" htmlFor="dropoff-address">Dropoff address</label>
-                        <input id="dropoff-address" type="text" placeholder="Address"/>
-                    </form>
                     <div className="input-container">
                         <label className="label" htmlFor="load-size">Vehicle max size</label>
                         <input id="load-size" type="number" min="1" value={vehicleLoad}
@@ -363,13 +365,21 @@ function MapComponent() {
                             onClick={() => setMode(mode === "car" ? null : "car")}>Add car
                     </button>
 
+                    <form className="input-container" onSubmit={pickupAddress}>
+                        <label className="label" htmlFor="pickup-address">Pickup address</label>
+                        <input id="pickup-address" type="text" placeholder="Address"/>
+                    </form>
+                    <form className="input-container" onSubmit={dropOffAddress}>
+                        <label className="label" htmlFor="dropoff-address">Dropoff address</label>
+                        <input id="dropoff-address" type="text" placeholder="Address"/>
+                    </form>
                     <div className="input-container">
                         <label className="label" htmlFor="load-size">Delivery size</label>
                         <input id="load-size" type="number" min="1" value={pathLoad}
                                onChange={e => setPathLoad(e.target.value)} required/>
                     </div>
                     <button className={"form-element " + (mode === "path" ? "selected" : "")}
-                            onClick={() => setMode(mode === "path" ? null : "path")}>Add path
+                            onClick={() => setMode(mode === "path" ? null : "path")}>Add delivery
                     </button>
                     <button className="form-element" onClick={() => clear()}>Clear</button>
                 </div>

@@ -7,10 +7,11 @@ public interface IMapService
 {
     public Task<List<Coordinate>> GetPath(Vehicle vehicle);
     public Task<Coordinate> GetAddressCoordinates(String address);
+    public Task<string> GetClosestAddress(Coordinate coordinate);
 
     public Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data);
 
-    public virtual async Task<double> GetDistance(Coordinate dest1, Coordinate dest2)
+    public async Task<double> GetDistance(Coordinate dest1, Coordinate dest2)
     {
         return PlannerController.CalculateDistance(dest1, dest2);
     }

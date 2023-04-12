@@ -58,11 +58,11 @@ public class TrackerController : ControllerBase
             context.Vehicles.Update(entity);
             context.SaveChanges();
 
-            Program.client.PublishEventAsync("vehicle_update", "update_vehicle", new Dictionary<string, string>()
+            Program.client.PublishEventAsync("vehicle_update", "update_vehicle", JsonSerializer.Serialize(new Dictionary<string, string>()
             {
                 {"id", vehicle.Id.ToString()},
                 {"vehicle", JsonSerializer.Serialize(entity)}
-            });
+            }));
         }
     }
 
@@ -73,11 +73,11 @@ public class TrackerController : ControllerBase
         context.Vehicles.Add(vehicle);
         await context.SaveChangesAsync();
 
-        Program.client.PublishEventAsync("vehicle_update", "new_vehicle", new Dictionary<string, string>()
+        Program.client.PublishEventAsync("vehicle_update", "new_vehicle", JsonSerializer.Serialize(new Dictionary<string, object>()
         {
-            {"id", vehicle.Id.ToString()},
+            {"id", vehicle.Id},
             {"vehicle", JsonSerializer.Serialize(vehicle)}
-        });
+        }));
 
         return Ok();
     }
@@ -90,10 +90,10 @@ public class TrackerController : ControllerBase
         context.Vehicles.Remove(vehicle);
         await context.SaveChangesAsync();
 
-        Program.client.PublishEventAsync("vehicle_update", "remove_vehicle", new Dictionary<string, string>()
+        Program.client.PublishEventAsync("vehicle_update", "remove_vehicle", JsonSerializer.Serialize(new Dictionary<string, object>()
         {
-            {"id", vehicle.Id.ToString()}
-        });
+            {"id", vehicle.Id}
+        }));
 
         return Ok();
     }

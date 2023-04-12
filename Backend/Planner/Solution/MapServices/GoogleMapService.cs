@@ -3,6 +3,7 @@ using GoogleApi.Entities.Common.Enums;
 using GoogleApi.Entities.Maps.Common;
 using GoogleApi.Entities.Maps.Directions.Request;
 using GoogleApi.Entities.Maps.Geocoding.Address.Request;
+using GoogleApi.Entities.Maps.Geocoding.Location.Request;
 using Solution.Controllers;
 using Solution.Models;
 
@@ -10,6 +11,9 @@ namespace Solution.Pathfinder;
 
 public class GoogleMapService : IMapService
 {
+    public static string API_KEY = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
+
+
     public async Task<List<Coordinate>> GetPath(Vehicle vehicle)
     {
         Coordinate lastPos = vehicle.destinations.Last().coordinate;
@@ -23,7 +27,7 @@ public class GoogleMapService : IMapService
 
         var request = new DirectionsRequest
         {
-            Key = Program.API_KEY,
+            Key = API_KEY,
             Origin = new LocationEx(new CoordinateEx(vehicle.coordinate.latitude, vehicle.coordinate.longitude)),
             WayPoints = wayPoints,
             // OptimizeWaypoints = true,
@@ -39,6 +43,7 @@ public class GoogleMapService : IMapService
         }
 
         Console.WriteLine($"Google maps error: {response.Status}");
+        Console.WriteLine(response.ErrorMessage);
         return new List<Coordinate>();
     }
 
@@ -47,7 +52,7 @@ public class GoogleMapService : IMapService
         var request = new AddressGeocodeRequest
         {
             Address = address,
-            Key = Program.API_KEY
+            Key = API_KEY
         };
 
         var response = GoogleMaps.Geocode.AddressGeocode.Query(request);
@@ -61,6 +66,18 @@ public class GoogleMapService : IMapService
         return null;
     }
 
+    public async Task<string> GetClosestAddress(Coordinate coordinate)
+    {
+        var request = new LocationGeocodeRequest
+        {
+            Key = API_KEY,
+            Location = new GoogleApi.Entities.Common.Coordinate(coordinate.latitude, coordinate.longitude)
+        };
+
+        var response = GoogleMaps.Geocode.LocationGeocode.Query(request);
+        return response.Status == Status.Ok ? response.Results.First().FormattedAddress : null;
+    }
+
     public async Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data)
     {
         double tripDistance = await ((IMapService)this).GetDistance(data.pickup, data.dropoff);
@@ -70,9 +87,6 @@ public class GoogleMapService : IMapService
             .OrderBy(e => PlannerController.GetShortestDistance(e, data.pickup).Result + tripDistance)
             .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e)).ToList();
 
-        if (sortedVehicles.Count == 0)
-            return null;
-
-        return sortedVehicles.First();
+        return sortedVehicles.Count == 0 ? null : sortedVehicles.First();
     }
 }

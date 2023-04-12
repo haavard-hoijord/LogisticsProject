@@ -1,8 +1,10 @@
 using Dapr.Client;
 using System;
+using System.Text.Json;
 using System.Timers;
 using Solution.Models;
 using Timer = System.Timers.Timer;
+// ReSharper disable All
 
 public class Program
 {
@@ -66,25 +68,21 @@ public class Program
                             if (dest.closestNode.latitude == cords.latitude &&
                                 dest.closestNode.longitude == cords.longitude)
                             {
+                                var messageData = new MessageData
+                                {
+                                    id = vehicle.Id,
+                                    route = dest.routeId,
+                                    latitude = dest.coordinate.latitude,
+                                    longitude = dest.coordinate.longitude
+                                };
+
                                 if (dest.isPickup)
                                 {
-                                    Program.client.PublishEventAsync("delivery_status", "pickup", new Dictionary<string, string>()
-                                    {
-                                        {"id", vehicle.Id.ToString()},
-                                        {"latitude", dest.coordinate.latitude.ToString()},
-                                        {"longitude", dest.coordinate.longitude.ToString()},
-                                        {"route", dest.routeId.ToString()}
-                                    });
+                                    Program.client.PublishEventAsync("delivery_status", "pickup", messageData);
                                 }
                                 else
                                 {
-                                    Program.client.PublishEventAsync("delivery_status", "delivery", new Dictionary<string, string>()
-                                    {
-                                        {"id", vehicle.Id.ToString()},
-                                        {"latitude", dest.coordinate.latitude.ToString()},
-                                        {"longitude", dest.coordinate.longitude.ToString()},
-                                        {"route", dest.routeId.ToString()}
-                                    });
+                                    Program.client.PublishEventAsync("delivery_status", "delivery", messageData);
 
                                 }
                             }
@@ -107,5 +105,13 @@ public class Program
         {
             Console.WriteLine(ex.ToString());
         }
+    }
+
+    public class MessageData
+    {
+        public int id { get; set; }
+        public int route { get; set; }
+        public double latitude { get; set; }
+        public double longitude { get; set; }
     }
 }
