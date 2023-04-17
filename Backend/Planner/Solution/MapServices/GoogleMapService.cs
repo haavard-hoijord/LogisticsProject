@@ -4,6 +4,7 @@ using GoogleApi.Entities.Maps.Common;
 using GoogleApi.Entities.Maps.Directions.Request;
 using GoogleApi.Entities.Maps.Geocoding.Address.Request;
 using GoogleApi.Entities.Maps.Geocoding.Location.Request;
+using PolylineEncoder.Net.Utility;
 using Solution.Controllers;
 using Solution.Models;
 
@@ -12,18 +13,16 @@ namespace Solution.Pathfinder;
 public class GoogleMapService : IMapService
 {
     public static string API_KEY = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
-
+    private static readonly PolylineUtility polylineEncoder = new();
 
     public async Task<List<Coordinate>> GetPath(Vehicle vehicle)
     {
-        Coordinate lastPos = vehicle.destinations.Last().coordinate;
-        List<WayPoint> wayPoints = new List<WayPoint>();
+        var lastPos = vehicle.destinations.Last().coordinate;
+        var wayPoints = new List<WayPoint>();
 
-        foreach (Destination destination in vehicle.destinations)
-        {
+        foreach (var destination in vehicle.destinations)
             wayPoints.Add(new WayPoint(new LocationEx(new CoordinateEx(destination.coordinate.latitude,
                 destination.coordinate.longitude))));
-        }
 
         var request = new DirectionsRequest
         {
@@ -34,12 +33,14 @@ public class GoogleMapService : IMapService
             Destination = new LocationEx(new CoordinateEx(lastPos.latitude, lastPos.longitude))
         };
 
-        var response = await GoogleApi.GoogleMaps.Directions.QueryAsync(request);
+        var response = await GoogleMaps.Directions.QueryAsync(request);
 
         if (response.Status == Status.Ok)
         {
-            var points = new List<GoogleApi.Entities.Common.Coordinate>(response.Routes.First().OverviewPath.Line);
-            return new List<Coordinate>(points.Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude }));
+            var points = response.Routes.First().OverviewPath.Points;
+            var cords = polylineEncoder.Decode(points)
+                .Select(e => new Coordinate { longitude = e.Longitude, latitude = e.Latitude }).ToList();
+            return cords;
         }
 
         Console.WriteLine($"Google maps error: {response.Status}");
@@ -60,7 +61,7 @@ public class GoogleMapService : IMapService
         if (response.Status == Status.Ok)
         {
             var location = response.Results.First().Geometry.Location;
-            return new Coordinate{latitude = location.Latitude, longitude = location.Longitude};
+            return new Coordinate { latitude = location.Latitude, longitude = location.Longitude };
         }
 
         return null;
@@ -80,10 +81,11 @@ public class GoogleMapService : IMapService
 
     public async Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data)
     {
-        double tripDistance = await ((IMapService)this).GetDistance(data.pickup, data.dropoff);
-        List<Vehicle> sortedVehicles = vehicles
+        var tripDistance = await ((IMapService)this).GetDistance(data.pickup, data.dropoff);
+        var sortedVehicles = vehicles
             .Where(e => PlannerController.GetCurrentVehicleLoad(e) + data.size < e.maxLoad)
-            .Where(e => e.destinations.Count <= 6) //Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
+            .Where(e => e.destinations.Count <=
+                        6) //Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
             .OrderBy(e => PlannerController.GetShortestDistance(e, data.pickup).Result + tripDistance)
             .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e)).ToList();
 

@@ -18,6 +18,10 @@ function getColor(num) {
     return css3Colors[num % css3Colors.length];
 }
 
+
+const DAPR_PORT = 3500;
+const DAPR_URL = `http://localhost:${DAPR_PORT}`;
+
 function MapComponent() {
     const topSectionRef = useRef(null);
     const mapRef = useRef(null);
@@ -27,6 +31,12 @@ function MapComponent() {
     const [currentLocation, setCurrentLocation] = useState(null);
     const [center, setCenter] = useState(null);
     const [zoom, setZoom] = useState(12);
+
+    const [mapModes, setMapModes] = useState([]);
+    const [mapMode, setMapMode] = useState(null);
+
+    const [companies, setCompanies] = useState([]);
+    const [company, setCompany] = useState(null);
 
     const [mode, setMode] = useState(null);
     const [pathMode, setPathMode] = useState("start");
@@ -48,6 +58,7 @@ function MapComponent() {
     const handleMouseMove = (event) => {
         if (isResizing && topSectionRef.current) {
             topSectionRef.current.style.height = `${event.clientY}px`;
+            sessionStorage.setItem('topSectionHeight', `${event.clientY}`);
         }
     };
 
@@ -60,7 +71,8 @@ function MapComponent() {
                         latitude: args[0].latLng.lat(),
                         longitude: args[0].latLng.lng(),
                     },
-                    company: "Company",
+                    company: company,
+                    mapService: mapMode,
                     maxLoad: vehicleLoad,
                     destinations: [],
                     nodes: []
@@ -69,7 +81,7 @@ function MapComponent() {
             setSelectedVehicle(vehicle)
             await fetch(`http://localhost:5001/add`, {
                 //http://localhost:5001/add
-                //http://localhost:${daprPort}/v1.0/invoke/tracker/method/add
+                //${DAPR_URL}/v1.0/invoke/tracker/method/add
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -80,12 +92,12 @@ function MapComponent() {
             if (!args[0].domEvent.shiftKey) setMode(null);
         } else if (mode === "path") {
             if (pathMode === "start") {
-                await setPathPreview({pickup: args[0].latLng, dropoff: pathPreview.dropoff});
+                await setPathPreview({pickup: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()}, dropoff: pathPreview.dropoff});
                 setPathMode("end");
             } else if (pathMode === "end") {
                 setPathMode("start");
-                await setPathPreview({pickup: pathPreview.pickup, dropoff: args[0].latLng});
-                await addPath(pathPreview.pickup, args[0].latLng);
+                await setPathPreview({pickup: pathPreview.pickup, dropoff: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()}});
+                await addPath(pathPreview.pickup, {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()});
                 if (!args[0].domEvent.shiftKey) setMode(null);
                 setPathPreview({dropoff: null, pickup: null});
             }
@@ -138,6 +150,41 @@ function MapComponent() {
             .then(response => response.json())
             .then(data => setVehicles([...data]));
     }
+
+    async function fetchCompanies() {
+        await fetch(`http://localhost:5000/companies`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                setCompanies([...data])
+                if(company === null && data.length > 0){
+                    setCompany(data[0]);
+                }
+            });
+
+    }
+
+    async function fetchMapModes() {
+        await fetch(`http://localhost:5002/mapmodes`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                setMapModes([...data])
+                if(mapMode === null && data.length > 0){
+                    setMapMode(data[0]);
+                }
+            });
+    }
+
+
     React.useEffect(() => {
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
@@ -149,11 +196,18 @@ function MapComponent() {
     }, [isResizing]);
 
     useEffect(() => {
+        if (topSectionRef.current && sessionStorage.getItem('topSectionHeight')) {
+            topSectionRef.current.style.height = `${sessionStorage.getItem('topSectionHeight')}px`;
+        }
+
         const interval = setInterval(() => {
             fetchVehicles();
         }, 10000); // 10000 milliseconds = 10 seconds
 
         fetchVehicles();
+        fetchCompanies();
+        fetchMapModes();
+
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 setCurrentLocation({
@@ -356,6 +410,22 @@ function MapComponent() {
                 </div>
                 <div className="sidebar-divider" onMouseDown={handleMouseDown}></div>
                 <div className="sidebar-bottom">
+                    <div className="input-container">
+                        <label className="label" htmlFor="companies">Vehicle company</label>
+                        <select id="companies" value={company} onChange={(e) => setCompany(e.target.value)}>
+                            {companies.map((mode) => {
+                                return <option value={mode}>{mode}</option>
+                            })}
+                        </select>
+                    </div>
+                    <div className="input-container">
+                        <label className="label" htmlFor="map-modes">Vehicle map service</label>
+                        <select id="map-modes" value={mapMode?.toLowerCase()} onChange={(e) => setMapMode(e.target.value)}>
+                            {mapModes.map((mode) => {
+                                return <option value={mode.toLowerCase()}>{mode.charAt(0).toUpperCase() + mode.slice(1)}</option>
+                            })}
+                        </select>
+                    </div>
                     <div className="input-container">
                         <label className="label" htmlFor="load-size">Vehicle max size</label>
                         <input id="load-size" type="number" min="1" value={vehicleLoad}

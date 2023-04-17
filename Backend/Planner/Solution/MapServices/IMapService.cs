@@ -6,7 +6,7 @@ namespace Solution.Pathfinder;
 public interface IMapService
 {
     public Task<List<Coordinate>> GetPath(Vehicle vehicle);
-    public Task<Coordinate> GetAddressCoordinates(String address);
+    public Task<Coordinate> GetAddressCoordinates(string address);
     public Task<string> GetClosestAddress(Coordinate coordinate);
 
     public Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data);

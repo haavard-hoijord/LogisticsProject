@@ -5,6 +5,7 @@ public class Vehicle
     public int Id { get; set; }
 
     public string company { get; set; }
+    public string mapService { get; set; }
     public int maxLoad { get; set; }
 
     public Coordinate coordinate { get; set; }

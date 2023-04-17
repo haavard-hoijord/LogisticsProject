@@ -43,8 +43,8 @@ public class Program
 
         using (var context = serviceProvider.GetService<MysqlContext>())
         {
-                context.Database.EnsureCreated();
-                context.Database.Migrate(); // Apply migrations
+            context.Database.EnsureCreated();
+            //context.Database.Migrate(); // Apply migrations
         }
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())

@@ -1,19 +1,7 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Solution.Models;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using Google.Type;
-using GoogleApi;
-using GoogleApi.Entities.Common.Enums;
-using GoogleApi.Entities.Maps.Common;
-using GoogleApi.Entities.Maps.Directions.Request;
-using GoogleApi.Entities.Maps.Directions.Response;
-using GoogleApi.Entities.Maps.Geocoding.Address.Request;
 using Solution.Pathfinder;
-using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
-using Vehicle = Solution.Models.Vehicle;
-using WayPoint = GoogleApi.Entities.Maps.Directions.Request.WayPoint;
 
 namespace Solution.Controllers;
 
@@ -21,8 +9,16 @@ namespace Solution.Controllers;
 [Route("[controller]")]
 public class PlannerController : ControllerBase
 {
+    private static readonly IMapService defaultPathService = new GoogleMapService();
+
+    private static readonly Dictionary<string, IMapService> mapServices = new()
+    {
+        { "google", new GoogleMapService() },
+        { "mapbox", new MapBoxMapService() }
+    };
+
     [HttpPost("/address")]
-    public async Task<Coordinate> GetCoordinateFromAddress([FromBody] Dictionary<String, String> address)
+    public async Task<Coordinate> GetCoordinateFromAddress([FromBody] Dictionary<string, string> address)
     {
         return await GetDefaultPathSerivce().GetAddressCoordinates(address["address"]);
     }
@@ -49,10 +45,10 @@ public class PlannerController : ControllerBase
 
             await Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
 
-            Program.client.PublishEventAsync("vehicle_update", "new_path", new Dictionary<string, string>()
+            Program.client.PublishEventAsync("vehicle_update", "new_path", new Dictionary<string, string>
             {
-                {"id", vehicle.Id.ToString()},
-                {"delivery", JsonSerializer.Serialize(data)}
+                { "id", vehicle.Id.ToString() },
+                { "delivery", JsonSerializer.Serialize(data) }
             });
 
             return vehicle;
@@ -60,13 +56,15 @@ public class PlannerController : ControllerBase
 
         return null;
     }
-
-    private static readonly IMapService defaultPathService = new GoogleMapService();
-    private static readonly IMapService vehiclePathService = new GoogleMapService();
+    [HttpGet("/mapmodes")]
+    public async Task<List<string>> getMapModes()
+    {
+        return mapServices.Keys.ToList();
+    }
 
     public static IMapService GetPathService(Vehicle vehicle)
     {
-        return vehiclePathService;
+        return mapServices[vehicle.mapService];
     }
 
     public static IMapService GetDefaultPathSerivce()
@@ -77,22 +75,22 @@ public class PlannerController : ControllerBase
     private static async Task<Vehicle> FindFittingVehicle(Delivery data)
     {
         var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track/all");
-        return await GetDefaultPathSerivce().FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
+        return await GetDefaultPathSerivce()
+            .FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
     }
 
     private static void AddDestination(Delivery data, Vehicle vehicle)
     {
-        int routeId = 1;
+        var routeId = 1;
 
-        if (vehicle.destinations.Count > 0)
-        {
-            routeId = vehicle.destinations.Max(e => e.routeId) + 1;
-        }
+        if (vehicle.destinations.Count > 0) routeId = vehicle.destinations.Max(e => e.routeId) + 1;
 
-        vehicle.destinations.Add(new Destination { coordinate = data.pickup, load = data.size, isPickup = true, routeId = routeId});
-        vehicle.destinations.Add(new Destination { coordinate = data.dropoff, load = data.size, isPickup = false, routeId = routeId});
+        vehicle.destinations.Add(new Destination
+            { coordinate = data.pickup, load = data.size, isPickup = true, routeId = routeId });
+        vehicle.destinations.Add(new Destination
+            { coordinate = data.dropoff, load = data.size, isPickup = false, routeId = routeId });
 
-        List<Destination> destinations = new List<Destination>(vehicle.destinations);
+        var destinations = new List<Destination>(vehicle.destinations);
         vehicle.destinations = new List<Destination>();
 
         Destination? lastDestination = null;
@@ -100,7 +98,7 @@ public class PlannerController : ControllerBase
         while (destinations.Count > 0)
         {
             //destinations.OrderBy(pos => GetPathService(vehicle).GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate, pos.coordinate)).ToList();
-            destinations.Sort(((des1, des2) =>
+            destinations.Sort((des1, des2) =>
             {
                 if (des1.routeId == des2.routeId)
                 {
@@ -120,7 +118,7 @@ public class PlannerController : ControllerBase
                         des2.coordinate).Result;
 
                 return dis1.CompareTo(dis2);
-            }));
+            });
 
             lastDestination = destinations.First();
             destinations.Remove(lastDestination);
@@ -144,35 +142,25 @@ public class PlannerController : ControllerBase
         {
             Coordinate closestNode = null;
             foreach (var node in vehicle.nodes)
-            {
                 if (closestNode == null || await GetPathService(vehicle).GetDistance(closestNode, dest.coordinate) >
                     await GetPathService(vehicle).GetDistance(node, dest.coordinate))
-                {
                     closestNode = node;
-                }
-            }
 
-            if (closestNode != null)
-            {
-                dest.closestNode = closestNode;
-            }
+            if (closestNode != null) dest.closestNode = closestNode;
         }
     }
 
     public static async Task<double> GetShortestDistance(Vehicle vehicle, Coordinate coordinate)
     {
-        double distance = Double.NaN;
+        var distance = double.NaN;
 
-        List<Coordinate> nodes = new List<Coordinate>(vehicle.destinations.Select(e => e.coordinate));
+        var nodes = new List<Coordinate>(vehicle.destinations.Select(e => e.coordinate));
         nodes.Add(vehicle.coordinate);
 
-        nodes.ForEach( e =>
+        nodes.ForEach(e =>
         {
             var dis = GetPathService(vehicle).GetDistance(e, coordinate).Result;
-            if (Double.IsNaN(distance) || dis < distance)
-            {
-                distance = dis;
-            }
+            if (double.IsNaN(distance) || dis < distance) distance = dis;
         });
 
         return distance;
@@ -182,10 +170,10 @@ public class PlannerController : ControllerBase
     {
         if (coord1 == null || coord2 == null) return -1;
 
-        double latDistance = coord2.latitude - coord1.latitude;
-        double lonDistance = coord2.longitude - coord1.longitude;
+        var latDistance = coord2.latitude - coord1.latitude;
+        var lonDistance = coord2.longitude - coord1.longitude;
 
-        double distance = Math.Sqrt(Math.Pow(latDistance, 2) + Math.Pow(lonDistance, 2));
+        var distance = Math.Sqrt(Math.Pow(latDistance, 2) + Math.Pow(lonDistance, 2));
         return distance;
     }
 }
