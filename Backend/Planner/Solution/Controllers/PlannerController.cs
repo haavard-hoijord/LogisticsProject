@@ -45,7 +45,7 @@ public class PlannerController : ControllerBase
 
             await Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
 
-            Program.client.PublishEventAsync("vehicle_update", "new_path", new Dictionary<string, string>
+            Program.client.PublishEventAsync("status", "new_path", new Dictionary<string, string>
             {
                 { "id", vehicle.Id.ToString() },
                 { "delivery", JsonSerializer.Serialize(data) }

@@ -1,9 +1,8 @@
-using Dapr.Client;
-using System;
-using System.Text.Json;
 using System.Timers;
+using Dapr.Client;
 using Solution.Models;
 using Timer = System.Timers.Timer;
+
 // ReSharper disable All
 
 public class Program
@@ -36,7 +35,7 @@ public class Program
 
         // Add services to the container.
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers().AddDapr();
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
@@ -52,16 +51,69 @@ public class Program
             app.UseSwagger();
             app.UseSwaggerUI();
         }
+
         app.UseRouting();
         app.UseCors("AllowAllOrigins");
         app.UseAuthorization();
 
+        app.UseWebSockets();
+        app.UseMiddleware<WebSocketMiddleware>();
+
+        app.UseCloudEvents();
+
         app.UseEndpoints(endpoints =>
         {
+            endpoints.MapSubscribeHandler();
             endpoints.MapControllers();
         });
-
         app.MapControllers();
+
+
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/dapr"))
+            {
+                var targetUrl = $"http://localhost:3500{context.Request.Path.Value.Replace("/dapr", "")}";
+                var targetRequestMessage = new HttpRequestMessage()
+                {
+                    Method = new HttpMethod(context.Request.Method),
+                    RequestUri = new Uri(targetUrl),
+                    Content = new StreamContent(context.Request.Body)
+                };
+
+                // Forward headers from the original request to the target request
+                foreach (var header in context.Request.Headers)
+                {
+                    if (!targetRequestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray()) &&
+                        targetRequestMessage.Content != null)
+                    {
+                        targetRequestMessage.Content.Headers.TryAddWithoutValidation(header.Key,
+                            header.Value.ToArray());
+                    }
+                }
+
+                using (var responseMessage = await new HttpClient().SendAsync(targetRequestMessage,
+                           HttpCompletionOption.ResponseHeadersRead, context.RequestAborted))
+                {
+                    context.Response.StatusCode = (int)responseMessage.StatusCode;
+                    var responseHeaders = responseMessage.Headers.ToDictionary(h => h.Key, h => h.Value.First());
+
+                    foreach (var header in responseHeaders)
+                    {
+                        context.Response.Headers[header.Key] = header.Value;
+                    }
+
+                    using (var responseStream = await responseMessage.Content.ReadAsStreamAsync())
+                    {
+                        await responseStream.CopyToAsync(context.Response.Body, context.RequestAborted);
+                    }
+                }
+            }
+            else
+            {
+                await next();
+            }
+        });
 
         app.Run();
     }
@@ -70,7 +122,7 @@ public class Program
     {
         try
         {
-            List<Vehicle> obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "tracker", "track/all");
+            List<Vehicle> obj = await client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "tracker", "track/all");
 
             foreach (var vehicle in obj)
             {
@@ -97,12 +149,11 @@ public class Program
 
                                 if (dest.isPickup)
                                 {
-                                    Program.client.PublishEventAsync("delivery_status", "pickup", messageData);
+                                    client.PublishEventAsync("status", "pickup", messageData);
                                 }
                                 else
                                 {
-                                    Program.client.PublishEventAsync("delivery_status", "delivery", messageData);
-
+                                    client.PublishEventAsync("status", "delivery", messageData);
                                 }
                             }
                         }
@@ -114,13 +165,15 @@ public class Program
                     }
 
                     await client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
-                }else if (vehicle.destinations.Count > 0)
+                }
+                else if (vehicle.destinations.Count > 0)
                 {
                     vehicle.destinations.Clear();
                     await client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
                 }
             }
-        }catch(Exception ex)
+        }
+        catch (Exception ex)
         {
             Console.WriteLine(ex.ToString());
         }

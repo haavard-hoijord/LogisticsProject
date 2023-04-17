@@ -10,7 +10,7 @@ public class PubsubController : ControllerBase
 {
     [Consumes("application/json")]
     [HttpPost("pickup")]
-    [Topic("delivery_status", "pickup")]
+    [Topic("status", "pickup")]
     public async Task<ActionResult> Pickup([FromBody] MessageData data)
     {
         var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
@@ -31,7 +31,7 @@ public class PubsubController : ControllerBase
 
     [Consumes("application/json")]
     [HttpPost("delivery")]
-    [Topic("delivery_status", "delivery")]
+    [Topic("status", "delivery")]
     public async Task<ActionResult> Delivery([FromBody] MessageData data)
     {
         var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);

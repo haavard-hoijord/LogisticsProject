@@ -1,7 +1,7 @@
 apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
-  name: delivery_status
+  name: status
 spec:
   type: pubsub.rabbitmq
   version: v1
@@ -9,12 +9,10 @@ spec:
     - name: host
       value: "amqp://admin:password@rabbitmq:5672"
     - name: durable
-      value: "false"
-    - name: deletedWhenUnused
-      value: "false"
+      value: "true"
     - name: autoAck
       value: "false"
     - name: reconnectWait
-      value: "0"
+      value: "5"
     - name: concurrency
       value: parallel

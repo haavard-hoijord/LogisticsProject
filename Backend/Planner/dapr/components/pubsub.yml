@@ -1,7 +1,7 @@
 apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
-  name: delivery_status
+  name: status
 spec:
   type: pubsub.rabbitmq
   version: v1

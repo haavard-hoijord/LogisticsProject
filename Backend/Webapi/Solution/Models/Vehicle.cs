@@ -1,4 +1,5 @@
 namespace Solution.Models;
+
 public class Vehicle
 {
     public int Id { get; set; }

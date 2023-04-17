@@ -1,13 +1,13 @@
 apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
-  name: delivery_status
+  name: status
 spec:
   type: pubsub.rabbitmq
   version: v1
   metadata:
     - name: host
-      value: "amqp://admin:password@localhost:5672"
+      value: "amqp://admin:password@rabbitmq:5672"
     - name: durable
       value: "true"
     - name: autoAck

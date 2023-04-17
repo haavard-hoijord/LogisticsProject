@@ -108,12 +108,6 @@ services:
     ports:
       - 3000:3000
 
-  frontend-web-dapr:
-    build: "Frontend/Webview/dapr/"
-    depends_on:
-      - frontend-web
-    network_mode: "service:frontend-web"
-
   frontend-admin:
     build: "Frontend/Adminview"
     env_file:
@@ -123,12 +117,6 @@ services:
         condition: service_healthy
     ports:
       - 3001:3001
-
-  frontend-admin-dapr:
-    build: "Frontend/Adminview/dapr/"
-    depends_on:
-      - frontend-admin
-    network_mode: "service:frontend-admin"
 
   zipkin:
     image: "openzipkin/zipkin"

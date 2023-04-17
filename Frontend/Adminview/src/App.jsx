@@ -18,9 +18,7 @@ function getColor(num) {
     return css3Colors[num % css3Colors.length];
 }
 
-
-const DAPR_PORT = 3500;
-const DAPR_URL = `http://localhost:${DAPR_PORT}`;
+const DAPR_URL = `http://localhost:5000/dapr`;
 
 function MapComponent() {
     const topSectionRef = useRef(null);
@@ -79,9 +77,7 @@ function MapComponent() {
                 };
             setVehicles([...vehicles, vehicle]);
             setSelectedVehicle(vehicle)
-            await fetch(`http://localhost:5001/add`, {
-                //http://localhost:5001/add
-                //${DAPR_URL}/v1.0/invoke/tracker/method/add
+            await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/add`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -105,7 +101,7 @@ function MapComponent() {
     }
 
     async function addPath(pickup, dropoff) {
-        await fetch(`http://localhost:5002/add`, {
+        await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/add`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -127,7 +123,7 @@ function MapComponent() {
 
     async function clear() {
         for (let vehicle of vehicles) {
-            await fetch(`http://localhost:5001/delete`, {
+            await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/delete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -141,7 +137,7 @@ function MapComponent() {
     }
 
     async function fetchVehicles() {
-        await fetch(`http://localhost:5001/track/all`, {
+        await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/track/all`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -152,7 +148,7 @@ function MapComponent() {
     }
 
     async function fetchCompanies() {
-        await fetch(`http://localhost:5000/companies`, {
+        await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/companies`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -169,7 +165,7 @@ function MapComponent() {
     }
 
     async function fetchMapModes() {
-        await fetch(`http://localhost:5002/mapmodes`, {
+        await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/mapmodes`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -201,7 +197,7 @@ function MapComponent() {
         }
 
         const interval = setInterval(() => {
-            fetchVehicles();
+            //fetchVehicles();
         }, 10000); // 10000 milliseconds = 10 seconds
 
         fetchVehicles();
@@ -220,9 +216,64 @@ function MapComponent() {
             }
         );
 
+
+        const ws = new WebSocket("ws://localhost:5000/ws");
+        ws.onmessage = async (event) => {
+            let mes = JSON.parse(event.data);
+
+            let type = mes.type;
+            let data = mes.data;
+
+            switch (type) {
+                case "pickup":
+                    console.log("Pickup")
+                    break;
+                case "delivery":
+                    console.log("Delivery")
+                    break;
+
+
+                case "update_vehicle":
+                    let vh = await vehicles;
+                    vh.forEach((vehicle, index) => {
+                        if (vehicle.id === data.id) {
+                            vh[index] = data;
+                            console.log(data)
+                        }
+                    });
+                   // await setVehicles([...vh]);
+                    break;
+
+                case "add_vehicle":
+                    //await setVehicles([...vehicles, data]);
+                    break;
+
+                case "remove_vehicle":
+                    let v = await vehicles;
+                    v.forEach((vehicle, index) => {
+                        if (vehicle.id === data.id) {
+                            v.splice(index, 1);
+                        }
+                    });
+                    //await setVehicles([...v]);
+                    break;
+
+                default:
+                    console.log(type)
+                    break;
+            }
+            console.log(`Received message ${JSON.stringify(mes)}`)
+            fetchVehicles();
+        }
+
+        ws.onclose = (event) => {
+            console.log("Connection closed")
+        }
+
         // Cleanup function that will be called when the component is unmounted
         return () => {
             clearInterval(interval);
+            ws.close()
         };
     }, []);
 
@@ -291,7 +342,7 @@ function MapComponent() {
                            fontSize: "18px",
                        }}
                        title={`Vehicle ${vehicle.id}`}
-                       position={{lat: vehicle.coordinate.latitude, lng: vehicle.coordinate.longitude}}
+                       position={{lat: vehicle.coordinate?.latitude, lng: vehicle.coordinate?.longitude}}
                        onClick={(e) => {
                            setSelectedVehicle(vehicle)
                        }}>
@@ -304,7 +355,7 @@ function MapComponent() {
         let val = e.target[0].value;
 
         if (val) {
-            let response = await fetch(`http://localhost:5002/address`, {
+            let response = await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/address`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -333,7 +384,7 @@ function MapComponent() {
         let val = e.target[0].value;
 
         if (val) {
-            let response = await fetch(`http://localhost:5002/address`, {
+            let response = await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/address`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -393,7 +444,7 @@ function MapComponent() {
                                         }}>Focus
                                         </button>
                                         <button onClick={async () => {
-                                            await fetch(`http://localhost:5001/delete`, {
+                                            await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/delete`, {
                                                 method: 'POST',
                                                 headers: {
                                                     'Content-Type': 'application/json'

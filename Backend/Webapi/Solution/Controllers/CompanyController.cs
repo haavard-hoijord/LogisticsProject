@@ -11,7 +11,7 @@ public class CompanyController
         "Company A",
         "Company B",
         "Company C",
-        "Company D",
+        "Company D"
     };
 
     [HttpGet("/companies")]

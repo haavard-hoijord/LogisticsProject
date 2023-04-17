@@ -58,11 +58,11 @@ public class TrackerController : ControllerBase
             context.Vehicles.Update(entity);
             context.SaveChanges();
 
-            Program.client.PublishEventAsync("vehicle_update", "update_vehicle", JsonSerializer.Serialize(new Dictionary<string, string>()
+            Program.client.PublishEventAsync("status", "update_vehicle", new MessageUpdateData
             {
-                {"id", vehicle.Id.ToString()},
-                {"vehicle", JsonSerializer.Serialize(entity)}
-            }));
+                id = vehicle.Id,
+                vehicle = vehicle
+            });
         }
     }
 
@@ -73,11 +73,11 @@ public class TrackerController : ControllerBase
         context.Vehicles.Add(vehicle);
         await context.SaveChangesAsync();
 
-        Program.client.PublishEventAsync("vehicle_update", "new_vehicle", JsonSerializer.Serialize(new Dictionary<string, object>()
+        Program.client.PublishEventAsync("status", "new_vehicle", new MessageUpdateData
         {
-            {"id", vehicle.Id},
-            {"vehicle", JsonSerializer.Serialize(vehicle)}
-        }));
+            id = vehicle.Id,
+            vehicle = vehicle
+        });
 
         return Ok();
     }
@@ -90,11 +90,17 @@ public class TrackerController : ControllerBase
         context.Vehicles.Remove(vehicle);
         await context.SaveChangesAsync();
 
-        Program.client.PublishEventAsync("vehicle_update", "remove_vehicle", JsonSerializer.Serialize(new Dictionary<string, object>()
+        Program.client.PublishEventAsync("status", "remove_vehicle", new MessageUpdateData
         {
-            {"id", vehicle.Id}
-        }));
+            id = vehicle.Id
+        });
 
         return Ok();
+    }
+
+    public class MessageUpdateData
+    {
+        public int id { get; set; }
+        public Vehicle? vehicle { get; set; }
     }
 }
