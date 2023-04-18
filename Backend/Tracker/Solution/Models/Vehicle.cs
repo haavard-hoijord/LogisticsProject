@@ -2,7 +2,7 @@ namespace Solution.Models;
 
 public class Vehicle
 {
-    public int Id { get; set; }
+    public int id { get; set; }
 
     public string company { get; set; }
     public string mapService { get; set; }

@@ -14,9 +14,21 @@ public class PubsubController : ControllerBase
     [Topic("status", "pickup")]
     public async Task<ActionResult> Pickup([FromBody] MessageData data)
     {
+        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
+        var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
+
+        var requestAddress = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "planner", "address/closest", new Coordinate { longitude = data.longitude, latitude = data.latitude });
+        var res = Program.client.InvokeMethodWithResponseAsync(requestAddress);
+        var address = res.Result.Content.ReadAsStringAsync().Result;
         WebSocketMiddleware.SendMessageToAllAsync(JsonSerializer.Serialize(new Dictionary<string, object>
         {
-            { "data", data },
+            { "data", new MessageStatusData
+                {
+                    id = data.id,
+                    vehicle = obj,
+                    route = address
+                }
+            },
             { "type", "pickup" }
         }));
         return Ok();
@@ -27,9 +39,22 @@ public class PubsubController : ControllerBase
     [Topic("status", "delivery")]
     public async Task<ActionResult> Delivery([FromBody] MessageData data)
     {
+        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
+        var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
+
+        var requestAddress = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "planner", "address/closest", new Coordinate { longitude = data.longitude, latitude = data.latitude });
+        var res = Program.client.InvokeMethodWithResponseAsync(requestAddress);
+        var address = res.Result.Content.ReadAsStringAsync().Result;
+
         WebSocketMiddleware.SendMessageToAllAsync(JsonSerializer.Serialize(new Dictionary<string, object>
         {
-            { "data", data },
+            { "data", new MessageStatusData
+                {
+                    id = data.id,
+                    vehicle = obj,
+                    route = address
+                }
+            },
             { "type", "delivery" }
         }));
         return Ok();
@@ -76,6 +101,11 @@ public class PubsubController : ControllerBase
     {
         public int id { get; set; }
         public Vehicle? vehicle { get; set; }
+    }
+
+    public class MessageStatusData : MessageUpdateData
+    {
+        public string route { get; set; }
     }
 
     public class MessageData

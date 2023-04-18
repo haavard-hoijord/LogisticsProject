@@ -8,6 +8,7 @@ import {
     Circle
 } from '@react-google-maps/api';
 import './App.css'
+import Chatlog from "./Chatlog.jsx";
 
 const css3Colors = [
     'aqua', 'black', 'blue', 'fuchsia', 'gray', 'green', 'lime', 'maroon', 'navy',
@@ -18,7 +19,21 @@ function getColor(num) {
     return css3Colors[num % css3Colors.length];
 }
 
+function getCurrentTimestamp() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+
 const DAPR_URL = `http://localhost:5000/dapr`;
+const GOOGLE_API_TOKEN = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
 
 function MapComponent() {
     const topSectionRef = useRef(null);
@@ -42,6 +57,8 @@ function MapComponent() {
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [vehicleLoad, setVehicleLoad] = useState(50);
     const [pathLoad, setPathLoad] = useState(5);
+
+    const [logMessages, setLogMessages] = useState([]);
 
     const [pathPreview, setPathPreview] = useState({dropoff: null, pickup: null});
 
@@ -216,7 +233,14 @@ function MapComponent() {
             }
         );
 
+        // Cleanup function that will be called when the component is unmounted
+        return () => {
+            clearInterval(interval);
+        };
+    }, []);
 
+
+    useEffect(() => {
         const ws = new WebSocket("ws://localhost:5000/ws");
         ws.onmessage = async (event) => {
             let mes = JSON.parse(event.data);
@@ -224,59 +248,72 @@ function MapComponent() {
             let type = mes.type;
             let data = mes.data;
 
-            switch (type) {
-                case "pickup":
-                    console.log("Pickup")
-                    break;
-                case "delivery":
-                    console.log("Delivery")
-                    break;
-
-
-                case "update_vehicle":
-                    let vh = await vehicles;
-                    vh.forEach((vehicle, index) => {
+            async function updateVehicle(data){
+                if(data.vehicle){
+                    vehicles.forEach((vehicle, index) => {
                         if (vehicle.id === data.id) {
-                            vh[index] = data;
-                            console.log(data)
+                            data.vehicle.id = data.id;
+                            vehicles[index] = data.vehicle;
                         }
                     });
-                   // await setVehicles([...vh]);
-                    break;
+                    await setVehicles([...vehicles]);
+                }
+            }
 
-                case "add_vehicle":
-                    //await setVehicles([...vehicles, data]);
+            switch (type) {
+                case "pickup":{
+                    setLogMessages([...logMessages, {
+                        text: `Vehicle ${data.id} picked up a package at ${data.route}`,
+                        timestamp: getCurrentTimestamp()
+                    }]);
+                    await updateVehicle(data);
                     break;
+                }
 
-                case "remove_vehicle":
-                    let v = await vehicles;
+                case "delivery": {
+                    setLogMessages([...logMessages, {
+                        text: `Vehicle ${data.id} delivered a package at ${data.route}`,
+                        timestamp: getCurrentTimestamp()
+                    }]);
+                    await updateVehicle(data);
+                    break;
+                }
+
+                case "update_vehicle":{
+                    await updateVehicle(data);
+                    break;
+                }
+
+                case "add_vehicle": {
+                    if(data.vehicle) await setVehicles([...vehicles, data.vehicle]);
+                    break;
+                }
+
+                case "remove_vehicle": {
+                    let v = vehicles;
                     v.forEach((vehicle, index) => {
                         if (vehicle.id === data.id) {
                             v.splice(index, 1);
                         }
                     });
-                    //await setVehicles([...v]);
+                    await setVehicles([...v]);
                     break;
+                }
 
                 default:
                     console.log(type)
+                    console.log(`Received message ${JSON.stringify(mes)}`)
                     break;
             }
-            console.log(`Received message ${JSON.stringify(mes)}`)
-            fetchVehicles();
         }
 
-        ws.onclose = (event) => {
-            console.log("Connection closed")
-        }
+        ws.onclose = (event) => {}
 
         // Cleanup function that will be called when the component is unmounted
         return () => {
-            clearInterval(interval);
             ws.close()
         };
-    }, []);
-
+    }, [vehicles]);
 
     let paths = []
     const items = vehicles.map((vehicle, index) => {
@@ -463,17 +500,17 @@ function MapComponent() {
                 <div className="sidebar-bottom">
                     <div className="input-container">
                         <label className="label" htmlFor="companies">Vehicle company</label>
-                        <select id="companies" value={company} onChange={(e) => setCompany(e.target.value)}>
+                        <select id="companies" value={company || undefined} onChange={(e) => setCompany(e.target.value)}>
                             {companies.map((mode) => {
-                                return <option value={mode}>{mode}</option>
+                                return <option key={mode} value={mode}>{mode}</option>
                             })}
                         </select>
                     </div>
                     <div className="input-container">
                         <label className="label" htmlFor="map-modes">Vehicle map service</label>
-                        <select id="map-modes" value={mapMode?.toLowerCase()} onChange={(e) => setMapMode(e.target.value)}>
+                        <select id="map-modes" value={mapMode?.toLowerCase() || undefined} onChange={(e) => setMapMode(e.target.value)}>
                             {mapModes.map((mode) => {
-                                return <option value={mode.toLowerCase()}>{mode.charAt(0).toUpperCase() + mode.slice(1)}</option>
+                                return <option key={mode} value={mode.toLowerCase()}>{mode.charAt(0).toUpperCase() + mode.slice(1)}</option>
                             })}
                         </select>
                     </div>
@@ -506,7 +543,7 @@ function MapComponent() {
                 </div>
             </div>
             <div className="map-container">
-                <LoadScript googleMapsApiKey={"AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0"}>
+                <LoadScript googleMapsApiKey={GOOGLE_API_TOKEN}>
                     <GoogleMap
                         ref={mapRef}
                         mapContainerStyle={{
@@ -521,8 +558,8 @@ function MapComponent() {
                         onClick={onClick}
                         clickableIcons={false}
                     >
-                        <TrafficLayer/>
-                        {currentLocation ? <Marker position={currentLocation} icon={{
+                        <TrafficLayer key={"Traffic"}/>
+                        {currentLocation ? <Marker key={"current-pos"} position={currentLocation} icon={{
                             path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
                             scale: 7,
                         }}/> : <></>}
@@ -552,6 +589,7 @@ function MapComponent() {
                             }/> : <></>}
                     </GoogleMap>
                 </LoadScript>
+                <Chatlog key={"chatlog"} messages={logMessages} />
             </div>
         </div>
     );

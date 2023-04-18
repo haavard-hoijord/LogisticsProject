@@ -141,7 +141,7 @@ public class Program
                             {
                                 var messageData = new MessageData
                                 {
-                                    id = vehicle.Id,
+                                    id = vehicle.id,
                                     route = dest.routeId,
                                     latitude = dest.coordinate.latitude,
                                     longitude = dest.coordinate.longitude

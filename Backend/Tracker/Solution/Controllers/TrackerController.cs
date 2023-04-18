@@ -45,7 +45,7 @@ public class TrackerController : ControllerBase
     public void update([FromBody] Vehicle vehicle)
     {
         using var context = new MysqlContext();
-        var entity = context.Vehicles.Find(vehicle.Id);
+        var entity = context.Vehicles.Find(vehicle.id);
 
         if (entity != null)
         {
@@ -60,7 +60,7 @@ public class TrackerController : ControllerBase
 
             Program.client.PublishEventAsync("status", "update_vehicle", new MessageUpdateData
             {
-                id = vehicle.Id,
+                id = vehicle.id,
                 vehicle = vehicle
             });
         }
@@ -75,7 +75,7 @@ public class TrackerController : ControllerBase
 
         Program.client.PublishEventAsync("status", "new_vehicle", new MessageUpdateData
         {
-            id = vehicle.Id,
+            id = vehicle.id,
             vehicle = vehicle
         });
 
@@ -92,7 +92,7 @@ public class TrackerController : ControllerBase
 
         Program.client.PublishEventAsync("status", "remove_vehicle", new MessageUpdateData
         {
-            id = vehicle.Id
+            id = vehicle.id
         });
 
         return Ok();

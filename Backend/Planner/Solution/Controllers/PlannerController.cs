@@ -23,6 +23,12 @@ public class PlannerController : ControllerBase
         return await GetDefaultPathSerivce().GetAddressCoordinates(address["address"]);
     }
 
+    [HttpPost("/address/closest")]
+    public async Task<string> getClosestAddress([FromBody] Coordinate coordinate)
+    {
+        return await GetDefaultPathSerivce().GetClosestAddress(coordinate);
+    }
+
     [HttpGet("/health")]
     public IActionResult CheckHealth()
     {
@@ -47,7 +53,7 @@ public class PlannerController : ControllerBase
 
             Program.client.PublishEventAsync("status", "new_path", new Dictionary<string, string>
             {
-                { "id", vehicle.Id.ToString() },
+                { "id", vehicle.id.ToString() },
                 { "delivery", JsonSerializer.Serialize(data) }
             });
 

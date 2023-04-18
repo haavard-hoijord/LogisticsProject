@@ -25,7 +25,7 @@ public class PubsubController : ControllerBase
         var address = await PlannerController.GetPathService(obj).GetClosestAddress(new Coordinate
             { longitude = data.longitude, latitude = data.latitude });
 
-        Console.WriteLine("Vehicle " + obj.Id + " has picked up a package from " + address + " on route " + data.route);
+        Console.WriteLine("Vehicle " + obj.id + " has picked up a package from " + address + " on route " + data.route);
         return Ok();
     }
 
@@ -46,7 +46,7 @@ public class PubsubController : ControllerBase
         var address = await PlannerController.GetPathService(obj).GetClosestAddress(new Coordinate
             { longitude = data.longitude, latitude = data.latitude });
 
-        Console.WriteLine("Vehicle " + obj.Id + " has delivered a package to " + address + " on route " + data.route);
+        Console.WriteLine("Vehicle " + obj.id + " has delivered a package to " + address + " on route " + data.route);
         return Ok();
     }
 
