@@ -1,12 +1,5 @@
-import React, {useState, useRef, useEffect} from 'react'
-import {
-    GoogleMap,
-    LoadScript,
-    TrafficLayer,
-    Polyline,
-    Marker,
-    Circle
-} from '@react-google-maps/api';
+import React, {useEffect, useRef, useState} from 'react'
+import {Circle, GoogleMap, LoadScript, Marker, Polyline, TrafficLayer} from '@react-google-maps/api';
 import './App.css'
 import Chatlog from "./Chatlog.jsx";
 
@@ -62,21 +55,6 @@ function MapComponent() {
 
     const [pathPreview, setPathPreview] = useState({dropoff: null, pickup: null});
 
-    const handleMouseDown = () => {
-        setIsResizing(true);
-    };
-
-    const handleMouseUp = () => {
-        setIsResizing(false);
-    };
-
-    const handleMouseMove = (event) => {
-        if (isResizing && topSectionRef.current) {
-            topSectionRef.current.style.height = `${event.clientY}px`;
-            sessionStorage.setItem('topSectionHeight', `${event.clientY}`);
-        }
-    };
-
     const onClick = async (...args) => {
         setSelectedVehicle(null)
         if (mode === "car") {
@@ -105,11 +83,17 @@ function MapComponent() {
             if (!args[0].domEvent.shiftKey) setMode(null);
         } else if (mode === "path") {
             if (pathMode === "start") {
-                await setPathPreview({pickup: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()}, dropoff: pathPreview.dropoff});
+                await setPathPreview({
+                    pickup: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()},
+                    dropoff: pathPreview.dropoff
+                });
                 setPathMode("end");
             } else if (pathMode === "end") {
                 setPathMode("start");
-                await setPathPreview({pickup: pathPreview.pickup, dropoff: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()}});
+                await setPathPreview({
+                    pickup: pathPreview.pickup,
+                    dropoff: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()}
+                });
                 await addPath(pathPreview.pickup, {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()});
                 if (!args[0].domEvent.shiftKey) setMode(null);
                 setPathPreview({dropoff: null, pickup: null});
@@ -137,7 +121,6 @@ function MapComponent() {
         });
         fetchVehicles();
     }
-
     async function clear() {
         for (let vehicle of vehicles) {
             await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/delete`, {
@@ -152,7 +135,6 @@ function MapComponent() {
         setPathPreview({dropoff: null, pickup: null})
         window.location.reload();
     }
-
     async function fetchVehicles() {
         await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/track/all`, {
             method: 'GET',
@@ -163,7 +145,6 @@ function MapComponent() {
             .then(response => response.json())
             .then(data => setVehicles([...data]));
     }
-
     async function fetchCompanies() {
         await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/companies`, {
             method: 'GET',
@@ -174,13 +155,12 @@ function MapComponent() {
             .then(response => response.json())
             .then(data => {
                 setCompanies([...data])
-                if(company === null && data.length > 0){
+                if (company === null && data.length > 0) {
                     setCompany(data[0]);
                 }
             });
 
     }
-
     async function fetchMapModes() {
         await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/mapmodes`, {
             method: 'GET',
@@ -191,13 +171,13 @@ function MapComponent() {
             .then(response => response.json())
             .then(data => {
                 setMapModes([...data])
-                if(mapMode === null && data.length > 0){
+                if (mapMode === null && data.length > 0) {
                     setMapMode(data[0]);
                 }
             });
     }
 
-
+    //Resize handling
     React.useEffect(() => {
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
@@ -208,19 +188,34 @@ function MapComponent() {
         };
     }, [isResizing]);
 
+    const handleMouseDown = () => {
+        setIsResizing(true);
+    };
+
+    const handleMouseUp = () => {
+        setIsResizing(false);
+    };
+
+    const handleMouseMove = (event) => {
+        if (isResizing && topSectionRef.current) {
+            topSectionRef.current.style.height = `${event.clientY}px`;
+            sessionStorage.setItem('topSectionHeight', `${event.clientY}`);
+        }
+    };
+
+    useEffect(() => {
+        fetchVehicles();
+        fetchCompanies();
+        fetchMapModes();
+    }, []);
+
     useEffect(() => {
         if (topSectionRef.current && sessionStorage.getItem('topSectionHeight')) {
             topSectionRef.current.style.height = `${sessionStorage.getItem('topSectionHeight')}px`;
         }
+    }, []);
 
-        const interval = setInterval(() => {
-            //fetchVehicles();
-        }, 10000); // 10000 milliseconds = 10 seconds
-
-        fetchVehicles();
-        fetchCompanies();
-        fetchMapModes();
-
+    useEffect(() => {
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 setCurrentLocation({
@@ -232,11 +227,6 @@ function MapComponent() {
                 console.error('Error getting current position:', error);
             }
         );
-
-        // Cleanup function that will be called when the component is unmounted
-        return () => {
-            clearInterval(interval);
-        };
     }, []);
 
 
@@ -248,8 +238,8 @@ function MapComponent() {
             let type = mes.type;
             let data = mes.data;
 
-            async function updateVehicle(data){
-                if(data.vehicle){
+            async function updateVehicle(data) {
+                if (data.vehicle) {
                     vehicles.forEach((vehicle, index) => {
                         if (vehicle.id === data.id) {
                             data.vehicle.id = data.id;
@@ -261,7 +251,7 @@ function MapComponent() {
             }
 
             switch (type) {
-                case "pickup":{
+                case "pickup": {
                     setLogMessages([...logMessages, {
                         text: `Vehicle ${data.id} picked up a package at ${data.route}`,
                         timestamp: getCurrentTimestamp()
@@ -279,13 +269,13 @@ function MapComponent() {
                     break;
                 }
 
-                case "update_vehicle":{
+                case "update_vehicle": {
                     await updateVehicle(data);
                     break;
                 }
 
                 case "add_vehicle": {
-                    if(data.vehicle) await setVehicles([...vehicles, data.vehicle]);
+                    if (data.vehicle) await setVehicles([...vehicles, data.vehicle]);
                     break;
                 }
 
@@ -309,76 +299,69 @@ function MapComponent() {
 
         ws.onclose = (event) => {}
 
-        // Cleanup function that will be called when the component is unmounted
         return () => {
             ws.close()
         };
     }, [vehicles]);
 
-    let paths = []
-    const items = vehicles.map((vehicle, index) => {
+    const items = vehicles.map((vehicle) => {
+        let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
         let path = []
         if (vehicle.destinations) {
             let position = {lat: vehicle.coordinate.latitude, lng: vehicle.coordinate.longitude}
             vehicle.destinations.forEach(async (destination, index) => {
                 if (destination.coordinate) {
                     let pos = {lat: destination.coordinate.latitude, lng: destination.coordinate.longitude}
-                    path.push(<Circle key={`Destination ${vehicle.id}-${index}`} center={pos} options={
+                    path.push(<Circle key={`Destination ${vehicleId}-${index}`} center={pos} options={
                         {
                             fillColor: destination.isPickup ? "green" : "red",
                             strokeColor: "white",
                             fillOpacity: 0.5,
                             strokeOpacity: 0,
                             visible: true,
-                            radius: selectedVehicle && selectedVehicle.id === vehicle.id ?  500 : 100,
+                            radius: selectedVehicle && selectedVehicle.id === vehicle.id ? 500 : 100,
                             zIndex: selectedVehicle && selectedVehicle.id === vehicle.id ? 2000 : 1000
                         }
-                    }
-                        onClick={() => setSelectedVehicle(vehicle)}
+                    } onClick={() => setSelectedVehicle(vehicle)}
                     />)
-                    paths.push({start: position, end: pos, id: `${vehicle.id}-${index}`})
                     position = pos;
                 }
             });
         }
 
         if (vehicle.nodes && Array.isArray(vehicle.nodes) && vehicle.nodes.length > 0) {
-            let mappedNodes = vehicle.nodes.map((node) => {
+            path.push(<Polyline key={`Path ${vehicleId}`} path={vehicle.nodes.map((node) => {
                 return {
                     lat: node.latitude,
                     lng: node.longitude
                 }
-            });
-            path.push(<Polyline key={`Path ${vehicle.id || Math.random()}`} path={mappedNodes} options={{
+            })} options={{
                 zIndex: selectedVehicle && selectedVehicle.id === vehicle.id ? 1000 : -1000,
-                strokeColor: getColor(vehicle.id-1),
+                strokeColor: getColor(vehicleId - 1),
                 strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
-            }}
-            onClick={() => setSelectedVehicle(vehicle)}
-            />)
-        }else if (vehicle.destinations && Array.isArray(vehicle.destinations) && vehicle.destinations.length > 0) {
-            let paths = vehicle.destinations.map((destination) => {
+            }} onClick={() => setSelectedVehicle(vehicle)} />)
+
+        } else if (vehicle.destinations && Array.isArray(vehicle.destinations) && vehicle.destinations.length > 0) {
+            path.push(<Polyline key={`Path ${vehicleId}`} path={vehicle.destinations.map((destination) => {
                 return {
                     lat: destination.coordinate.latitude,
                     lng: destination.coordinate.longitude
                 }
-            });
-            path.push(<Polyline key={`Path ${vehicle.id || Math.random()}`} path={paths} options={{
+            })} options={{
                 zIndex: -1000,
-                strokeColor: getColor(vehicle.id-1),
+                strokeColor: getColor(vehicleId - 1),
                 strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
-            }}
-            onClick={() => setSelectedVehicle(vehicle)}/>)
+            }} onClick={() => setSelectedVehicle(vehicle)}/>)
         }
 
-        return <Marker key={`Vehicle ${vehicle.id || Math.random()}`}
+        return <Marker key={`Vehicle ${vehicleId}`}
                        label={{
                            text: "\ue558",
                            fontFamily: "Material Icons",
-                           color: getColor(vehicle.id-1),
+                           color: getColor(vehicleId - 1),
                            fontSize: "18px",
                        }}
-                       title={`Vehicle ${vehicle.id}`}
+                       title={`Vehicle ${vehicleId}`}
                        position={{lat: vehicle.coordinate?.latitude, lng: vehicle.coordinate?.longitude}}
                        onClick={(e) => {
                            setSelectedVehicle(vehicle)
@@ -387,7 +370,7 @@ function MapComponent() {
         </Marker>
     });
 
-    async function pickupAddress(e){
+    async function pickupAddress(e) {
         e.preventDefault();
         let val = e.target[0].value;
 
@@ -415,8 +398,7 @@ function MapComponent() {
             }
         }
     }
-
-    async function dropOffAddress(e)   {
+    async function dropOffAddress(e) {
         e.preventDefault();
         let val = e.target[0].value;
 
@@ -444,13 +426,17 @@ function MapComponent() {
         }
     }
 
+    //<TrafficLayer key="Traffic"/>
+
     return (
         <div className="layout-container">
             <div className="sidebar">
                 <div className="sidebar-top" ref={topSectionRef}>
                     {vehicles.map((vehicle, index) => {
+                        let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
                         return (
-                            <div className={"vehicle-button " + (selectedVehicle && selectedVehicle.id === vehicle.id ? "selected" : "")}>
+                            <div
+                                className={"vehicle-button " + (selectedVehicle && selectedVehicle.id === vehicle.id ? "selected" : "")}>
                                 <div className="vehicle-button-row">
                                 <span className="vehicle-text">
                                     <b>Vehicle {vehicle.id}</b>
@@ -459,8 +445,8 @@ function MapComponent() {
                                         height: "25px",
                                         width: "25px",
                                         borderRadius: "50%",
-                                        backgroundColor: getColor(vehicle.id-1)
-                                    }}></div>
+                                        backgroundColor: getColor(vehicleId - 1)
+                                    }}/>
                                     <br/>
                                     Status:
                                     <br/>
@@ -468,7 +454,7 @@ function MapComponent() {
                                         {vehicle.nodes.length > 0 && vehicle.destinations.length > 0 ? vehicle.destinations[0].isPickup ? `Picking up ${vehicle.destinations[0].routeId}` : `Delivering ${vehicle.destinations[0].routeId}` : "IDLE"}
                                     </b>
                                     <br/>
-                                    Capacity: <b>{vehicle.maxLoad - vehicle.destinations.filter(e => !e.isPickup).map(e=>e.load).reduce((acc, x) => acc + x, 0)} / {vehicle.maxLoad}</b>
+                                    Capacity: <b>{vehicle.maxLoad - vehicle.destinations.filter(e => !e.isPickup).map(e => e.load).reduce((acc, x) => acc + x, 0)} / {vehicle.maxLoad}</b>
                                 </span>
                                     <br></br>
                                     <div className="action-buttons">
@@ -500,7 +486,8 @@ function MapComponent() {
                 <div className="sidebar-bottom">
                     <div className="input-container">
                         <label className="label" htmlFor="companies">Vehicle company</label>
-                        <select id="companies" value={company || undefined} onChange={(e) => setCompany(e.target.value)}>
+                        <select id="companies" value={company || undefined}
+                                onChange={(e) => setCompany(e.target.value)}>
                             {companies.map((mode) => {
                                 return <option key={mode} value={mode}>{mode}</option>
                             })}
@@ -508,14 +495,16 @@ function MapComponent() {
                     </div>
                     <div className="input-container">
                         <label className="label" htmlFor="map-modes">Vehicle map service</label>
-                        <select id="map-modes" value={mapMode?.toLowerCase() || undefined} onChange={(e) => setMapMode(e.target.value)}>
+                        <select id="map-modes" value={mapMode?.toLowerCase() || undefined}
+                                onChange={(e) => setMapMode(e.target.value)}>
                             {mapModes.map((mode) => {
-                                return <option key={mode} value={mode.toLowerCase()}>{mode.charAt(0).toUpperCase() + mode.slice(1)}</option>
+                                return <option key={mode}
+                                               value={mode.toLowerCase()}>{mode.charAt(0).toUpperCase() + mode.slice(1)}</option>
                             })}
                         </select>
                     </div>
                     <div className="input-container">
-                        <label className="label" htmlFor="load-size">Vehicle max size</label>
+                        <label className="label" htmlFor="load-size">Vehicle max capacity</label>
                         <input id="load-size" type="number" min="1" value={vehicleLoad}
                                onChange={e => setVehicleLoad(e.target.value)} required/>
                     </div>
@@ -558,7 +547,6 @@ function MapComponent() {
                         onClick={onClick}
                         clickableIcons={false}
                     >
-                        <TrafficLayer key={"Traffic"}/>
                         {currentLocation ? <Marker key={"current-pos"} position={currentLocation} icon={{
                             path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
                             scale: 7,
@@ -589,7 +577,7 @@ function MapComponent() {
                             }/> : <></>}
                     </GoogleMap>
                 </LoadScript>
-                <Chatlog key={"chatlog"} messages={logMessages} />
+                <Chatlog key="chatlog" messages={logMessages}/>
             </div>
         </div>
     );
