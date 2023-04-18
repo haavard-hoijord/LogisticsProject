@@ -1,7 +1,9 @@
 using GoogleApi;
 using GoogleApi.Entities.Common.Enums;
 using GoogleApi.Entities.Maps.Common;
+using GoogleApi.Entities.Maps.Common.Enums;
 using GoogleApi.Entities.Maps.Directions.Request;
+using GoogleApi.Entities.Maps.DistanceMatrix.Request;
 using GoogleApi.Entities.Maps.Geocoding.Address.Request;
 using GoogleApi.Entities.Maps.Geocoding.Location.Request;
 using PolylineEncoder.Net.Utility;
@@ -82,13 +84,46 @@ public class GoogleMapService : IMapService
     public async Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data)
     {
         var tripDistance = await ((IMapService)this).GetDistance(data.pickup, data.dropoff);
-        var sortedVehicles = vehicles
+        var filteredList = vehicles
             .Where(e => PlannerController.GetCurrentVehicleLoad(e) + data.size < e.maxLoad)
-            .Where(e => e.destinations.Count <=
-                        6) //Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
+            .Where(e => e.destinations.Count <= 6)//Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
             .OrderBy(e => PlannerController.GetShortestDistance(e, data.pickup).Result + tripDistance)
-            .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e)).ToList();
+            .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e))
+            .ToList();
 
-        return sortedVehicles.Count == 0 ? null : sortedVehicles.First();
+        if (filteredList.Count > 10)
+        {
+            filteredList = filteredList.GetRange(0, 10);
+        }
+
+        List<LocationEx> coordinates = new List<LocationEx>();
+        filteredList.ForEach(e => coordinates.Add(new LocationEx(new CoordinateEx(e.coordinate.latitude, e.coordinate.longitude))));
+
+        var request = new DistanceMatrixRequest
+        {
+            Key = API_KEY,
+            Origins = coordinates,
+            Destinations = new List<LocationEx>
+            {
+                new(new CoordinateEx(data.pickup.latitude, data.pickup.longitude))
+            },
+            TravelMode = TravelMode.Driving,
+            DepartureTime = DateTime.Now
+        };
+
+        var response = await GoogleApi.GoogleMaps.DistanceMatrix.QueryAsync(request);
+
+        if (response.Status == Status.Ok)
+        {
+            var fastestRow = response.Rows
+                .Select((row, index) => new { index, row.Elements.First().Duration.Value })
+                .OrderBy(x => x.Value)
+                .First();
+
+            var fastestVehicle = vehicles[fastestRow.index];
+            return fastestVehicle;
+        }
+
+        return null;
     }
 }
