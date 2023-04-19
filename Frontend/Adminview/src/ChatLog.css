@@ -11,13 +11,12 @@
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     opacity: 1;
-    transition: opacity 1s;
+    transition: opacity 0.5s;
 }
 
 .chat-log.hidden {
-    opacity: 0.2;
+    opacity: 0.15;
 }
-
 
 .message {
     display: flex;

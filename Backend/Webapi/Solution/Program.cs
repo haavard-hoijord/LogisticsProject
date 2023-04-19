@@ -14,8 +14,8 @@ public class Program
         client = new DaprClientBuilder().Build();
         client.WaitForSidecarAsync().Wait();
 
-        Timer timer = new Timer(5 * 1000);
-        timer.Elapsed += OnTimerElapsed;
+        Timer timer = new Timer(1 * 1000);
+        timer.Elapsed += Simulate;
         timer.AutoReset = true;
         timer.Enabled = true;
 
@@ -118,7 +118,9 @@ public class Program
         app.Run();
     }
 
-    private static async void OnTimerElapsed(object sender, ElapsedEventArgs e)
+    private static readonly Dictionary<int, double> vehicleProgress = new Dictionary<int, double>();
+
+    private static async void Simulate(object sender, ElapsedEventArgs e)
     {
         try
         {
@@ -129,8 +131,29 @@ public class Program
                 if (vehicle.nodes.Count > 0)
                 {
                     Coordinate cords = vehicle.nodes.First();
-                    vehicle.coordinate = cords;
-                    vehicle.nodes.RemoveAt(0);
+                    var latDif = (cords.latitude - vehicle.coordinate.latitude) * 0.1;
+                    var lngDif = (cords.longitude - vehicle.coordinate.longitude) * 0.1;
+                    vehicle.coordinate = new Coordinate
+                    {
+                        latitude = vehicle.coordinate.latitude + latDif,
+                        longitude = vehicle.coordinate.longitude + lngDif
+                    };
+
+                    if (vehicleProgress[vehicle.id] >= 1)
+                    {
+                        vehicle.coordinate = cords;
+                        vehicle.nodes.RemoveAt(0);
+                        vehicleProgress.Remove(vehicle.id);
+                    }
+
+                    if (vehicleProgress.ContainsKey(vehicle.id))
+                    {
+                        vehicleProgress.Add(vehicle.id, vehicleProgress[vehicle.id] + 0.1);
+                    }
+                    else
+                    {
+                        vehicleProgress.Add(vehicle.id, 0.1);
+                    }
 
                     foreach (var dest in vehicle.destinations)
                     {

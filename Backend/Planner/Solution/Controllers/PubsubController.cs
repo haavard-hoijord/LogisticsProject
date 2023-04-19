@@ -16,16 +16,11 @@ public class PubsubController : ControllerBase
         var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
-        obj.destinations.RemoveAll(destination =>
-            destination.isPickup && destination.routeId == data.route);
+        var dest = obj.destinations.Where(dest => dest.isPickup && dest.routeId == data.route).OrderBy(e => PlannerController.GetShortestDistance(obj, e.coordinate)).First();
+        obj.destinations.Remove(dest);
 
         var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj);
         await Program.client.InvokeMethodAsync(message2);
-
-        var address = await PlannerController.GetPathService(obj).GetClosestAddress(new Coordinate
-            { longitude = data.longitude, latitude = data.latitude });
-
-        Console.WriteLine("Vehicle " + obj.id + " has picked up a package from " + address + " on route " + data.route);
         return Ok();
     }
 
@@ -37,16 +32,11 @@ public class PubsubController : ControllerBase
         var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
-        obj.destinations.RemoveAll(destination =>
-            !destination.isPickup && destination.routeId == data.route);
+        var dest = obj.destinations.Where(dest => !dest.isPickup && dest.routeId == data.route).OrderBy(e => PlannerController.GetShortestDistance(obj, e.coordinate)).First();
+        obj.destinations.Remove(dest);
 
         var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj);
         await Program.client.InvokeMethodAsync(message2);
-
-        var address = await PlannerController.GetPathService(obj).GetClosestAddress(new Coordinate
-            { longitude = data.longitude, latitude = data.latitude });
-
-        Console.WriteLine("Vehicle " + obj.id + " has delivered a package to " + address + " on route " + data.route);
         return Ok();
     }
 

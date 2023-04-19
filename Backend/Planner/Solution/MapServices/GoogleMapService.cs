@@ -115,13 +115,13 @@ public class GoogleMapService : IMapService
 
         if (response.Status == Status.Ok)
         {
-            var fastestRow = response.Rows
-                .Select((row, index) => new { index, row.Elements.First().Duration.Value })
-                .OrderBy(x => x.Value)
-                .First();
-
-            var fastestVehicle = vehicles[fastestRow.index];
-            return fastestVehicle;
+            var rows = response.Rows.Select((row, index) => new { index, row.Elements.First().Duration.Value });
+            var tempList = new List<Vehicle>(filteredList);
+            filteredList = filteredList
+                .OrderBy((e) => rows.ElementAt(tempList.IndexOf(e)).Value)
+                .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e))
+                .ToList();
+            return filteredList.First();
         }
 
         return null;
