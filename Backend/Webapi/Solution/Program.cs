@@ -139,6 +139,9 @@ public class Program
                         longitude = vehicle.coordinate.longitude + lngDif
                     };
 
+
+                    //TODO Multiply gain by distance duration
+                    
                     if (vehicleProgress[vehicle.id] >= 1)
                     {
                         vehicle.coordinate = cords;
