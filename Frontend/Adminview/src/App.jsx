@@ -5,8 +5,22 @@ import Chatlog from "./Chatlog.jsx";
 
 const css3Colors = [
     'aqua', 'black', 'blue', 'fuchsia', 'gray', 'green', 'lime', 'maroon', 'navy',
-    'olive', 'orange', 'purple', 'red', 'silver', 'teal', 'white', 'yellow',
+    'olive', 'orange', 'purple', 'red', 'teal', 'yellow',
 ];
+
+
+//Custom map markers: https://github.com/Concept211/Google-Maps-Markers
+
+
+const mapMarkers= [
+    'http://maps.gstatic.com/mapfiles/markers2/marker.png',
+    'http://maps.gstatic.com/mapfiles/markers2/icon_green.png',
+    'http://maps.gstatic.com/mapfiles/markers2/icon_purple.png',
+    'http://maps.gstatic.com/mapfiles/markers2/icon_yellow.png',
+    'http://maps.gstatic.com/mapfiles/markers2/icon_orange.png',
+    'http://maps.gstatic.com/mapfiles/markers2/icon_pink.png',
+    'http://maps.gstatic.com/mapfiles/markers2/icon_brown.png',
+]
 
 function getColor(num) {
     return css3Colors[num % css3Colors.length];
@@ -29,6 +43,7 @@ const DAPR_URL = `http://localhost:5000/dapr`;
 const GOOGLE_API_TOKEN = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
 
 function MapComponent() {
+    const vehicleRefs = useRef([]);
     const topSectionRef = useRef(null);
     const mapRef = useRef(null);
 
@@ -71,7 +86,6 @@ function MapComponent() {
                     nodes: []
                 };
             setVehicles([...vehicles, vehicle]);
-            setSelectedVehicle(vehicle)
             await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/add`, {
                 method: 'POST',
                 headers: {
@@ -304,6 +318,18 @@ function MapComponent() {
         };
     }, [vehicles]);
 
+    function focusVehicle(vehicle){
+        setSelectedVehicle(vehicle);
+        let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
+        let index = vehicles.findIndex((v) => v.id === vehicleId);
+        console.log(vehicleRefs[index])
+        vehicleRefs[index].scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+
+    }
+
     const items = vehicles.map((vehicle) => {
         let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
         let path = []
@@ -312,18 +338,14 @@ function MapComponent() {
             vehicle.destinations.forEach(async (destination, index) => {
                 if (destination.coordinate) {
                     let pos = {lat: destination.coordinate.latitude, lng: destination.coordinate.longitude}
-                    path.push(<Circle key={`Destination ${vehicleId}-${index}`} center={pos} options={
-                        {
-                            fillColor: destination.isPickup ? "green" : "red",
-                            strokeColor: "white",
-                            fillOpacity: 0.5,
-                            strokeOpacity: 0,
-                            visible: true,
-                            radius: selectedVehicle && selectedVehicle.id === vehicle.id ? 500 : 100,
-                            zIndex: selectedVehicle && selectedVehicle.id === vehicle.id ? 2000 : 1000
-                        }
-                    } onClick={() => setSelectedVehicle(vehicle)}
-                    />)
+                    if(!selectedVehicle || selectedVehicle.id === vehicle.id) {
+                        path.push(<Marker key={`Destination ${vehicleId}-${index}`} position={pos}
+                                          icon={{
+                                              url: `https://raw.githubusercontent.com/Concept211/Google-Maps-Markers/master/images/marker_${destination.isPickup ? "green" : "red"}${destination.routeId}.png`,
+                                          }}
+                                          onClick={() => focusVehicle(vehicle)}
+                        />)
+                    }
                     position = pos;
                 }
             });
@@ -339,7 +361,7 @@ function MapComponent() {
                 zIndex: selectedVehicle && selectedVehicle.id === vehicle.id ? 1000 : -1000,
                 strokeColor: getColor(vehicleId - 1),
                 strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
-            }} onClick={() => setSelectedVehicle(vehicle)} />)
+            }} onClick={() => focusVehicle(vehicle)} />)
 
         } else if (vehicle.destinations && Array.isArray(vehicle.destinations) && vehicle.destinations.length > 0) {
             path.push(<Polyline key={`Path ${vehicleId}`} path={vehicle.destinations.map((destination) => {
@@ -351,7 +373,7 @@ function MapComponent() {
                 zIndex: -1000,
                 strokeColor: getColor(vehicleId - 1),
                 strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
-            }} onClick={() => setSelectedVehicle(vehicle)}/>)
+            }} onClick={() => focusVehicle(vehicle)}/>)
         }
 
         return <Marker key={`Vehicle ${vehicleId}`}
@@ -361,10 +383,14 @@ function MapComponent() {
                            color: getColor(vehicleId - 1),
                            fontSize: "18px",
                        }}
+                       icon={{
+                            url: "",
+                           scaledSize: new window.google.maps.Size(0, 0),
+                       }}
                        title={`Vehicle ${vehicleId}`}
                        position={{lat: vehicle.coordinate?.latitude, lng: vehicle.coordinate?.longitude}}
                        onClick={(e) => {
-                           setSelectedVehicle(vehicle)
+                           focusVehicle(vehicle)
                        }}>
             {path}
         </Marker>
@@ -426,8 +452,6 @@ function MapComponent() {
         }
     }
 
-    //<TrafficLayer key="Traffic"/>
-
     return (
         <div className="layout-container">
             <div className="sidebar">
@@ -435,7 +459,7 @@ function MapComponent() {
                     {vehicles.map((vehicle, index) => {
                         let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
                         return (
-                            <div
+                            <div ref={(el) => vehicleRefs[index] = el}
                                 className={"vehicle-button " + (selectedVehicle && selectedVehicle.id === vehicle.id ? "selected" : "")}>
                                 <div className="vehicle-button-row">
                                 <span className="vehicle-text">
@@ -459,7 +483,7 @@ function MapComponent() {
                                     <br></br>
                                     <div className="action-buttons">
                                         <button onClick={() => {
-                                            setSelectedVehicle(vehicle)
+                                            focusVehicle(vehicle)
                                             setCenter({
                                                 lat: vehicle.coordinate.latitude,
                                                 lng: vehicle.coordinate.longitude
@@ -547,6 +571,8 @@ function MapComponent() {
                         onClick={onClick}
                         clickableIcons={false}
                     >
+                        <TrafficLayer key="Traffic"/>
+
                         {currentLocation ? <Marker key={"current-pos"} position={currentLocation} icon={{
                             path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
                             scale: 7,
@@ -554,27 +580,13 @@ function MapComponent() {
 
                         {items}
                         {pathPreview && pathPreview.pickup ?
-                            <Circle key="Pickup" center={pathPreview.pickup} options={
-                                {
-                                    fillColor: "green",
-                                    strokeColor: "white",
-                                    fillOpacity: 1,
-                                    strokeOpacity: 0,
-                                    radius: 100,
-                                    visible: true,
-                                }
-                            }/> : <></>}
+                            <Marker key="Pickup" position={pathPreview.pickup} icon={{
+                                url: 'http://maps.gstatic.com/mapfiles/markers2/icon_green.png',
+                            }}/> : <></>}
                         {pathPreview && pathPreview.dropoff ?
-                            <Circle key="Dropoff" center={pathPreview.dropoff} options={
-                                {
-                                    fillColor: "red",
-                                    strokeColor: "white",
-                                    fillOpacity: 1,
-                                    strokeOpacity: 0,
-                                    radius: 100,
-                                    visible: true,
-                                }
-                            }/> : <></>}
+                            <Marker key="Dropoff" position={pathPreview.dropoff} icon={{
+                                url: 'http://maps.gstatic.com/mapfiles/markers2/marker.png',
+                            }}/> : <></>}
                     </GoogleMap>
                 </LoadScript>
                 <Chatlog key="chatlog" messages={logMessages}/>

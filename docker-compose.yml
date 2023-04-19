@@ -136,7 +136,6 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: rabbitmq
     healthcheck:
       test: rabbitmq-diagnostics -q ping
       interval: 5s
