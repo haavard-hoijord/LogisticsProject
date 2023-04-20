@@ -53,6 +53,8 @@ function MapComponent() {
     const [center, setCenter] = useState(null);
     const [zoom, setZoom] = useState(12);
 
+    const [simSpeed, setSimSpeed] = useState(1);
+
     const [mapModes, setMapModes] = useState([]);
     const [mapMode, setMapMode] = useState(null);
 
@@ -159,37 +161,6 @@ function MapComponent() {
             .then(response => response.json())
             .then(data => setVehicles([...data]));
     }
-    async function fetchCompanies() {
-        await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/companies`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                setCompanies([...data])
-                if (company === null && data.length > 0) {
-                    setCompany(data[0]);
-                }
-            });
-
-    }
-    async function fetchMapModes() {
-        await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/mapmodes`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                setMapModes([...data])
-                if (mapMode === null && data.length > 0) {
-                    setMapMode(data[0]);
-                }
-            });
-    }
 
     //Resize handling
     React.useEffect(() => {
@@ -217,10 +188,46 @@ function MapComponent() {
         }
     };
 
-    useEffect(() => {
+    useEffect( () => {
         fetchVehicles();
-        fetchCompanies();
-        fetchMapModes();
+        fetch(`${DAPR_URL}/v1.0/invoke/backend/method/companies`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                setCompanies([...data])
+                if (company === null && data.length > 0) {
+                    setCompany(data[0]);
+                }
+            });
+
+        fetch(`${DAPR_URL}/v1.0/invoke/planner/method/mapmodes`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                setMapModes([...data])
+                if (mapMode === null && data.length > 0) {
+                    setMapMode(data[0]);
+                }
+            });
+
+        fetch(`${DAPR_URL}/v1.0/invoke/backend/method/simulation/speed`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                setSimSpeed(data)
+            });
     }, []);
 
     useEffect(() => {
@@ -352,12 +359,17 @@ function MapComponent() {
         }
 
         if (vehicle.nodes && Array.isArray(vehicle.nodes) && vehicle.nodes.length > 0) {
-            path.push(<Polyline key={`Path ${vehicleId}`} path={vehicle.nodes.map((node) => {
+            let paths = vehicle.nodes.map((node) => {
                 return {
                     lat: node.latitude,
                     lng: node.longitude
                 }
-            })} options={{
+            });
+            paths.unshift({
+                lat: vehicle.coordinate.latitude,
+                lng: vehicle.coordinate.longitude
+            });
+            path.push(<Polyline key={`Path ${vehicleId}`} path={paths} options={{
                 zIndex: selectedVehicle && selectedVehicle.id === vehicle.id ? 1000 : -1000,
                 strokeColor: getColor(vehicleId - 1),
                 strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
@@ -451,7 +463,15 @@ function MapComponent() {
             }
         }
     }
-
+    async function postSimSpeed(e){
+        await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/simulation/speed`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(e)
+        });
+    }
     return (
         <div className="layout-container">
             <div className="sidebar">
@@ -508,6 +528,17 @@ function MapComponent() {
                 </div>
                 <div className="sidebar-divider" onMouseDown={handleMouseDown}></div>
                 <div className="sidebar-bottom">
+                    <div className="input-container">
+                        <label className="label" htmlFor="sim-speed">Simulation speed</label>
+                        <input id="sim-speed" type="number" min="0.00" step="1.0" value={simSpeed}
+                               onChange={e => {
+                                   setSimSpeed(e.target.value)
+                                   postSimSpeed(e.target.value)
+                               }} required/>
+                    </div>
+
+                    <div className="sidebar-divider-2"></div>
+
                     <div className="input-container">
                         <label className="label" htmlFor="companies">Vehicle company</label>
                         <select id="companies" value={company || undefined}

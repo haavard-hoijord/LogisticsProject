@@ -1,6 +1,4 @@
-using System.Timers;
 using Dapr.Client;
-using Solution.Models;
 using Timer = System.Timers.Timer;
 
 // ReSharper disable All
@@ -15,7 +13,7 @@ public class Program
         client.WaitForSidecarAsync().Wait();
 
         Timer timer = new Timer(1 * 1000);
-        timer.Elapsed += Simulate;
+        timer.Elapsed += (e1, e2) => SimulationController.RunSimulationTick();
         timer.AutoReset = true;
         timer.Enabled = true;
 
@@ -69,6 +67,8 @@ public class Program
         app.MapControllers();
 
 
+
+        //Serverside dapr proxy
         app.Use(async (context, next) =>
         {
             if (context.Request.Path.StartsWithSegments("/dapr"))
@@ -118,92 +118,6 @@ public class Program
         app.Run();
     }
 
-    private static readonly Dictionary<int, double> vehicleProgress = new Dictionary<int, double>();
-
-    private static async void Simulate(object sender, ElapsedEventArgs e)
-    {
-        try
-        {
-            List<Vehicle> obj = await client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "tracker", "track/all");
-
-            foreach (var vehicle in obj)
-            {
-                if (vehicle.nodes.Count > 0)
-                {
-                    Coordinate cords = vehicle.nodes.First();
-                    var latDif = (cords.latitude - vehicle.coordinate.latitude) * 0.1;
-                    var lngDif = (cords.longitude - vehicle.coordinate.longitude) * 0.1;
-                    vehicle.coordinate = new Coordinate
-                    {
-                        latitude = vehicle.coordinate.latitude + latDif,
-                        longitude = vehicle.coordinate.longitude + lngDif
-                    };
-
-
-                    //TODO Multiply gain by distance duration
-                    
-                    if (vehicleProgress[vehicle.id] >= 1)
-                    {
-                        vehicle.coordinate = cords;
-                        vehicle.nodes.RemoveAt(0);
-                        vehicleProgress.Remove(vehicle.id);
-                    }
-
-                    if (vehicleProgress.ContainsKey(vehicle.id))
-                    {
-                        vehicleProgress.Add(vehicle.id, vehicleProgress[vehicle.id] + 0.1);
-                    }
-                    else
-                    {
-                        vehicleProgress.Add(vehicle.id, 0.1);
-                    }
-
-                    foreach (var dest in vehicle.destinations)
-                    {
-                        if (dest.closestNode != null)
-                        {
-                            if (dest.closestNode.latitude == cords.latitude &&
-                                dest.closestNode.longitude == cords.longitude)
-                            {
-                                var messageData = new MessageData
-                                {
-                                    id = vehicle.id,
-                                    route = dest.routeId,
-                                    latitude = dest.coordinate.latitude,
-                                    longitude = dest.coordinate.longitude
-                                };
-
-                                if (dest.isPickup)
-                                {
-                                    client.PublishEventAsync("status", "pickup", messageData);
-                                }
-                                else
-                                {
-                                    client.PublishEventAsync("status", "delivery", messageData);
-                                }
-                            }
-                        }
-                    }
-
-                    if (vehicle.nodes.Count == 0)
-                    {
-                        vehicle.destinations.Clear();
-                    }
-
-                    await client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
-                }
-                else if (vehicle.destinations.Count > 0)
-                {
-                    vehicle.destinations.Clear();
-                    await client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.ToString());
-        }
-    }
 
     public class MessageData
     {
