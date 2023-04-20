@@ -58,7 +58,7 @@ public class SimulationController : ControllerBase
                         if (remainingDistance >= distanceToNextNode)
                         {
                             remainingDistance -= distanceToNextNode;
-                            vehicle.coordinate = nextNode;
+                            vehicle.coordinate = nextNode; //TODO This causes vehicle to bounce back on the map if it had already gone past it
                             vehicle.nodes.RemoveAt(0);
 
                             foreach (var dest in vehicle.destinations)
@@ -76,8 +76,7 @@ public class SimulationController : ControllerBase
                                             longitude = dest.coordinate.longitude
                                         };
 
-                                        Program.client.PublishEventAsync("status", dest.isPickup ? "pickup" : "delivery",
-                                            messageData);
+                                        Program.client.PublishEventAsync("status", dest.isPickup ? "pickup" : "delivery", messageData);
                                     }
                                 }
                             }

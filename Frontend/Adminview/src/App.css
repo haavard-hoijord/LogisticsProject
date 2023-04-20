@@ -66,6 +66,9 @@
 .sidebar-divider-2 {
   height: 4px;
   background: #7d7d7d;
+  user-select: none;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .selected {

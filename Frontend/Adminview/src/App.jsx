@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react'
-import {Circle, GoogleMap, LoadScript, Marker, Polyline, TrafficLayer} from '@react-google-maps/api';
+import {GoogleMap, LoadScript, Marker, Polyline, TrafficLayer} from '@react-google-maps/api';
 import './App.css'
 import Chatlog from "./Chatlog.jsx";
 
@@ -12,7 +12,7 @@ const css3Colors = [
 //Custom map markers: https://github.com/Concept211/Google-Maps-Markers
 
 
-const mapMarkers= [
+const mapMarkers = [
     'http://maps.gstatic.com/mapfiles/markers2/marker.png',
     'http://maps.gstatic.com/mapfiles/markers2/icon_green.png',
     'http://maps.gstatic.com/mapfiles/markers2/icon_purple.png',
@@ -65,6 +65,7 @@ function MapComponent() {
     const [pathMode, setPathMode] = useState("start");
     const [vehicles, setVehicles] = useState([]);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
+    const [followedVehicle, setFollowedVehicle] = useState(null);
     const [vehicleLoad, setVehicleLoad] = useState(50);
     const [pathLoad, setPathLoad] = useState(5);
 
@@ -73,7 +74,7 @@ function MapComponent() {
     const [pathPreview, setPathPreview] = useState({dropoff: null, pickup: null});
 
     const onClick = async (...args) => {
-        setSelectedVehicle(null)
+        focusVehicle(null)
         if (mode === "car") {
             let vehicle =
                 {
@@ -137,6 +138,7 @@ function MapComponent() {
         });
         fetchVehicles();
     }
+
     async function clear() {
         for (let vehicle of vehicles) {
             await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/delete`, {
@@ -151,6 +153,7 @@ function MapComponent() {
         setPathPreview({dropoff: null, pickup: null})
         window.location.reload();
     }
+
     async function fetchVehicles() {
         await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/track/all`, {
             method: 'GET',
@@ -188,7 +191,7 @@ function MapComponent() {
         }
     };
 
-    useEffect( () => {
+    useEffect(() => {
         fetchVehicles();
         fetch(`${DAPR_URL}/v1.0/invoke/backend/method/companies`, {
             method: 'GET',
@@ -268,6 +271,13 @@ function MapComponent() {
                         }
                     });
                     await setVehicles([...vehicles]);
+
+                    if (followedVehicle && followedVehicle.id === data.vehicle.id) {
+                        setCenter({
+                            lat: data.vehicle.coordinate.latitude,
+                            lng: data.vehicle.coordinate.longitude
+                        })
+                    }
                 }
             }
 
@@ -318,26 +328,37 @@ function MapComponent() {
             }
         }
 
-        ws.onclose = (event) => {}
+        ws.onclose = (event) => {
+        }
 
         return () => {
             ws.close()
         };
     }, [vehicles]);
 
-    function focusVehicle(vehicle){
+    function focusVehicle(vehicle) {
         setSelectedVehicle(vehicle);
-        let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
-        let index = vehicles.findIndex((v) => v.id === vehicleId);
-        console.log(vehicleRefs[index])
-        vehicleRefs[index].scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-        });
+        setFollowedVehicle(vehicle);
 
+        if (vehicle) {
+            let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
+            let index = vehicles.findIndex((v) => v.id === vehicleId);
+            vehicleRefs[index].scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+            setCenter({
+                lat: vehicle.coordinate.latitude,
+                lng: vehicle.coordinate.longitude
+            })
+        }
     }
 
     const items = vehicles.map((vehicle) => {
+        if (selectedVehicle && selectedVehicle.id !== vehicle.id) {
+            return null;
+        }
+
         let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
         let path = []
         if (vehicle.destinations) {
@@ -345,14 +366,12 @@ function MapComponent() {
             vehicle.destinations.forEach(async (destination, index) => {
                 if (destination.coordinate) {
                     let pos = {lat: destination.coordinate.latitude, lng: destination.coordinate.longitude}
-                    if(!selectedVehicle || selectedVehicle.id === vehicle.id) {
-                        path.push(<Marker key={`Destination ${vehicleId}-${index}`} position={pos}
-                                          icon={{
-                                              url: `https://raw.githubusercontent.com/Concept211/Google-Maps-Markers/master/images/marker_${destination.isPickup ? "green" : "red"}${destination.routeId}.png`,
-                                          }}
-                                          onClick={() => focusVehicle(vehicle)}
-                        />)
-                    }
+                    path.push(<Marker key={`Destination ${vehicleId}-${index}`} position={pos}
+                                      icon={{
+                                          url: `https://raw.githubusercontent.com/Concept211/Google-Maps-Markers/master/images/marker_${destination.isPickup ? "green" : "red"}${destination.routeId}.png`,
+                                      }}
+                                      onClick={() => focusVehicle(vehicle)}
+                    />)
                     position = pos;
                 }
             });
@@ -370,10 +389,10 @@ function MapComponent() {
                 lng: vehicle.coordinate.longitude
             });
             path.push(<Polyline key={`Path ${vehicleId}`} path={paths} options={{
-                zIndex: selectedVehicle && selectedVehicle.id === vehicle.id ? 1000 : -1000,
+                zIndex: -1000,
                 strokeColor: getColor(vehicleId - 1),
-                strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
-            }} onClick={() => focusVehicle(vehicle)} />)
+                strokeWeight: 3
+            }} onClick={() => focusVehicle(vehicle)}/>)
 
         } else if (vehicle.destinations && Array.isArray(vehicle.destinations) && vehicle.destinations.length > 0) {
             path.push(<Polyline key={`Path ${vehicleId}`} path={vehicle.destinations.map((destination) => {
@@ -396,7 +415,7 @@ function MapComponent() {
                            fontSize: "18px",
                        }}
                        icon={{
-                            url: "",
+                           url: "",
                            scaledSize: new window.google.maps.Size(0, 0),
                        }}
                        title={`Vehicle ${vehicleId}`}
@@ -435,7 +454,10 @@ function MapComponent() {
                 }
             }
         }
+
+        setPathPreview({dropoff: null, pickup: null});
     }
+
     async function dropOffAddress(e) {
         e.preventDefault();
         let val = e.target[0].value;
@@ -462,8 +484,10 @@ function MapComponent() {
                 }
             }
         }
+        setPathPreview({dropoff: null, pickup: null});
     }
-    async function postSimSpeed(e){
+
+    async function postSimSpeed(e) {
         await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/simulation/speed`, {
             method: 'POST',
             headers: {
@@ -472,6 +496,7 @@ function MapComponent() {
             body: JSON.stringify(e)
         });
     }
+
     return (
         <div className="layout-container">
             <div className="sidebar">
@@ -480,7 +505,7 @@ function MapComponent() {
                         let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
                         return (
                             <div ref={(el) => vehicleRefs[index] = el}
-                                className={"vehicle-button " + (selectedVehicle && selectedVehicle.id === vehicle.id ? "selected" : "")}>
+                                 className={"vehicle-button " + (selectedVehicle && selectedVehicle.id === vehicle.id ? "selected" : "")}>
                                 <div className="vehicle-button-row">
                                 <span className="vehicle-text">
                                     <b>Vehicle {vehicle.id}</b>
@@ -503,12 +528,12 @@ function MapComponent() {
                                     <br></br>
                                     <div className="action-buttons">
                                         <button onClick={() => {
-                                            focusVehicle(vehicle)
-                                            setCenter({
-                                                lat: vehicle.coordinate.latitude,
-                                                lng: vehicle.coordinate.longitude
-                                            })
-                                        }}>Focus
+                                            if (selectedVehicle && selectedVehicle.id === vehicle.id) {
+                                                focusVehicle(null)
+                                            } else {
+                                                focusVehicle(vehicle)
+                                            }
+                                        }}>{selectedVehicle && selectedVehicle.id === vehicle.id ? "Unfocus" : "Focus"}
                                         </button>
                                         <button onClick={async () => {
                                             await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/delete`, {
@@ -526,7 +551,7 @@ function MapComponent() {
                             </div>)
                     })}
                 </div>
-                <div className="sidebar-divider" onMouseDown={handleMouseDown}></div>
+                <div className="sidebar-divider" onMouseDown={handleMouseDown}/>
                 <div className="sidebar-bottom">
                     <div className="input-container">
                         <label className="label" htmlFor="sim-speed">Simulation speed</label>
@@ -537,7 +562,7 @@ function MapComponent() {
                                }} required/>
                     </div>
 
-                    <div className="sidebar-divider-2"></div>
+                    <div className="sidebar-divider-2"/>
 
                     <div className="input-container">
                         <label className="label" htmlFor="companies">Vehicle company</label>
@@ -564,7 +589,7 @@ function MapComponent() {
                                onChange={e => setVehicleLoad(e.target.value)} required/>
                     </div>
                     <button className={"form-element " + (mode === "car" ? "selected" : "")}
-                            onClick={() => setMode(mode === "car" ? null : "car")}>Add car
+                            onClick={() => setMode(mode === "car" ? null : "car")}>Add vehicle
                     </button>
 
                     <form className="input-container" onSubmit={pickupAddress}>
@@ -601,6 +626,12 @@ function MapComponent() {
                         zoom={zoom}
                         onClick={onClick}
                         clickableIcons={false}
+                        onDrag={(e) => {
+                            setFollowedVehicle(null)
+                        }}
+                        onDragStart={(e) => {
+                            setFollowedVehicle(null)
+                        }}
                     >
                         <TrafficLayer key="Traffic"/>
 
