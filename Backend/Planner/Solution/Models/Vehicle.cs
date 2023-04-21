@@ -10,5 +10,5 @@ public class Vehicle
 
     public Coordinate coordinate { get; set; }
     public List<Destination> destinations { get; set; }
-    public List<Coordinate> nodes { get; set; }
+    public List<Node> nodes { get; set; }
 }

@@ -3,12 +3,18 @@ using GoogleApi.Entities.Common.Enums;
 using GoogleApi.Entities.Maps.Common;
 using GoogleApi.Entities.Maps.Common.Enums;
 using GoogleApi.Entities.Maps.Directions.Request;
+using GoogleApi.Entities.Maps.Directions.Response;
 using GoogleApi.Entities.Maps.DistanceMatrix.Request;
 using GoogleApi.Entities.Maps.Geocoding.Address.Request;
 using GoogleApi.Entities.Maps.Geocoding.Location.Request;
+using GoogleApi.Entities.Maps.Roads.NearestRoads.Request;
+using GoogleApi.Entities.Maps.Roads.SnapToRoads.Request;
 using PolylineEncoder.Net.Utility;
 using Solution.Controllers;
 using Solution.Models;
+using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
+using Vehicle = Solution.Models.Vehicle;
+using WayPoint = GoogleApi.Entities.Maps.Directions.Request.WayPoint;
 
 namespace Solution.Pathfinder;
 
@@ -17,7 +23,7 @@ public class GoogleMapService : IMapService
     public static string API_KEY = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
     private static readonly PolylineUtility polylineEncoder = new();
 
-    public async Task<List<Coordinate>> GetPath(Vehicle vehicle)
+    public async Task<List<Node>> GetPath(Vehicle vehicle)
     {
         var lastPos = vehicle.destinations.Last().coordinate;
         var wayPoints = new List<WayPoint>();
@@ -39,15 +45,100 @@ public class GoogleMapService : IMapService
 
         if (response.Status == Status.Ok)
         {
-            var points = response.Routes.First().OverviewPath.Points;
-            var cords = polylineEncoder.Decode(points)
-                .Select(e => new Coordinate { longitude = e.Longitude, latitude = e.Latitude }).ToList();
-            return cords;
+            Route route = response.Routes.First();
+            var points = route.OverviewPath.Points;
+            var pathPoints = polylineEncoder.Decode(points).Select(e => new Coordinate { longitude = e.Longitude, latitude = e.Latitude }).ToList();
+
+            var snappedPath = new List<Coordinate>();
+
+            for (var i = 0; i <= (pathPoints.Count / 100); i++)
+            {
+                if(pathPoints.Count <= (i*100))
+                {
+                    break;
+                }
+
+                var requestPath = pathPoints.GetRange(i * 100, Math.Min(100, (pathPoints.Count - (i*100)) - 1));
+                var roadsRequest = new SnapToRoadsRequest
+                {
+                    Key = API_KEY,
+                    Path = requestPath.Select(point => new GoogleApi.Entities.Maps.Roads.Common.Coordinate()
+                    {
+                        Latitude = point.latitude,
+                        Longitude = point.longitude
+                    }).ToList(),
+                    Interpolate = true
+                };
+
+                var roadResult = await GoogleMaps.Roads.SnapToRoad.QueryAsync(roadsRequest);
+
+                if (response.Status == Status.Ok)
+                {
+                    //pathPoints = roadResult.SnappedPoints.Select(e => new Coordinate { longitude = e.Location.Longitude, latitude = e.Location.Latitude }).ToList();
+                    snappedPath.AddRange(roadResult.SnappedPoints.Select(e => new Coordinate { longitude = e.Location.Longitude, latitude = e.Location.Latitude }));
+                }
+            }
+
+            if (snappedPath.Count > 0)
+            {
+                pathPoints = snappedPath;
+            }
+
+            double totalDistance = 0;
+            for (int i = 0; i < pathPoints.Count - 1; i++)
+            {
+                totalDistance += await ((IMapService)this).GetDistance(pathPoints[i], pathPoints[i + 1]);
+            }
+
+            // 2. Calculate the cumulative distance for each node in the OverviewPath.Points
+            List<double> cumulativeDistances = new List<double> { 0 };
+            double cumulativeDistance = 0;
+            for (int i = 0; i < pathPoints.Count - 1; i++)
+            {
+                cumulativeDistance += await ((IMapService)this).GetDistance(pathPoints[i], pathPoints[i + 1]);
+                cumulativeDistances.Add(cumulativeDistance);
+            }
+
+            // 3. Iterate through the steps and assign the average speed to nodes in the OverviewPath.Points
+            List<Node> nodesWithSpeedLimits = pathPoints.Select(point => new Node
+            {
+                coordinate = new Coordinate{
+                    latitude = point.latitude,
+                    longitude = point.longitude
+                },
+                speedLimit = 1
+            }).ToList();
+
+            double stepStartDistance = 0;
+
+            foreach (Leg leg in response.Routes.First().Legs)
+            {
+                foreach (Step step in leg.Steps)
+                {
+                    double stepDistanceKm = step.Distance.Value / 1000.0; // Convert meters to kilometers
+                    double stepDurationHours = step.Duration.Value / 3600.0; // Convert seconds to hours
+                    double averageSpeedKmPerHour = stepDistanceKm / stepDurationHours;
+
+                    double stepEndDistance = stepStartDistance + stepDistanceKm;
+
+                    for (int i = 0; i < cumulativeDistances.Count; i++)
+                    {
+                        if (cumulativeDistances[i] >= stepStartDistance && cumulativeDistances[i] < stepEndDistance)
+                        {
+                            nodesWithSpeedLimits[i].speedLimit = averageSpeedKmPerHour;
+                        }
+                    }
+
+                    stepStartDistance = stepEndDistance;
+                }
+            }
+
+            return nodesWithSpeedLimits;
         }
 
         Console.WriteLine($"Google maps error: {response.Status}");
         Console.WriteLine(response.ErrorMessage);
-        return new List<Coordinate>();
+        return new List<Node>();
     }
 
     public async Task<Coordinate> GetAddressCoordinates(string address)

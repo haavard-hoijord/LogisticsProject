@@ -1,32 +1,19 @@
 import React, { useRef, useEffect, useState } from 'react';
-import './ChatLog.css';
+import '../assets/ChatLog.css';
 
 const ChatLog = ({ messages }) => {
     const messagesEndRef = useRef(null);
-    const [visible, setVisible] = useState(true);
-    const [hovered, setHovered] = useState(false);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
     useEffect(() => {
-        setVisible(true);
         scrollToBottom();
-        const timer = setTimeout(() => {
-            if (!hovered) {
-                setVisible(false);
-            }
-        }, 5000);
-        return () => clearTimeout(timer);
-    }, [messages, hovered]);
+    }, [messages]);
 
     return (
-        <div
-            className={`chat-log ${visible || hovered ? 'visible' : 'hidden'}`}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-        >
+        <div className="chat-log">
             {messages.map((message, index) => (
                 <div key={index} className="message">
                     <div className="timestamp">{message.timestamp}</div>

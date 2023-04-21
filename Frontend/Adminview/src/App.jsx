@@ -1,7 +1,8 @@
 import React, {useEffect, useRef, useState} from 'react'
 import {GoogleMap, LoadScript, Marker, Polyline, TrafficLayer} from '@react-google-maps/api';
 import './App.css'
-import Chatlog from "./Chatlog.jsx";
+import Chatlog from "./components/Chatlog.jsx";
+import Sidebar from "./components/Sidebar.jsx";
 
 const css3Colors = [
     'aqua', 'black', 'blue', 'fuchsia', 'gray', 'green', 'lime', 'maroon', 'navy',
@@ -10,7 +11,6 @@ const css3Colors = [
 
 
 //Custom map markers: https://github.com/Concept211/Google-Maps-Markers
-
 
 const mapMarkers = [
     'http://maps.gstatic.com/mapfiles/markers2/marker.png',
@@ -44,30 +44,16 @@ const GOOGLE_API_TOKEN = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
 
 function MapComponent() {
     const vehicleRefs = useRef([]);
-    const topSectionRef = useRef(null);
-    const mapRef = useRef(null);
-
-    const [isResizing, setIsResizing] = useState(false);
 
     const [currentLocation, setCurrentLocation] = useState(null);
     const [center, setCenter] = useState(null);
     const [zoom, setZoom] = useState(12);
-
-    const [simSpeed, setSimSpeed] = useState(1);
-
-    const [mapModes, setMapModes] = useState([]);
-    const [mapMode, setMapMode] = useState(null);
-
-    const [companies, setCompanies] = useState([]);
-    const [company, setCompany] = useState(null);
 
     const [mode, setMode] = useState(null);
     const [pathMode, setPathMode] = useState("start");
     const [vehicles, setVehicles] = useState([]);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [followedVehicle, setFollowedVehicle] = useState(null);
-    const [vehicleLoad, setVehicleLoad] = useState(50);
-    const [pathLoad, setPathLoad] = useState(5);
 
     const [logMessages, setLogMessages] = useState([]);
 
@@ -165,79 +151,10 @@ function MapComponent() {
             .then(data => setVehicles([...data]));
     }
 
-    //Resize handling
-    React.useEffect(() => {
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
-
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isResizing]);
-
-    const handleMouseDown = () => {
-        setIsResizing(true);
-    };
-
-    const handleMouseUp = () => {
-        setIsResizing(false);
-    };
-
-    const handleMouseMove = (event) => {
-        if (isResizing && topSectionRef.current) {
-            topSectionRef.current.style.height = `${event.clientY}px`;
-            sessionStorage.setItem('topSectionHeight', `${event.clientY}`);
-        }
-    };
-
     useEffect(() => {
         fetchVehicles();
-        fetch(`${DAPR_URL}/v1.0/invoke/backend/method/companies`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                setCompanies([...data])
-                if (company === null && data.length > 0) {
-                    setCompany(data[0]);
-                }
-            });
-
-        fetch(`${DAPR_URL}/v1.0/invoke/planner/method/mapmodes`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                setMapModes([...data])
-                if (mapMode === null && data.length > 0) {
-                    setMapMode(data[0]);
-                }
-            });
-
-        fetch(`${DAPR_URL}/v1.0/invoke/backend/method/simulation/speed`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                setSimSpeed(data)
-            });
     }, []);
 
-    useEffect(() => {
-        if (topSectionRef.current && sessionStorage.getItem('topSectionHeight')) {
-            topSectionRef.current.style.height = `${sessionStorage.getItem('topSectionHeight')}px`;
-        }
-    }, []);
 
     useEffect(() => {
         navigator.geolocation.getCurrentPosition(
@@ -339,14 +256,17 @@ function MapComponent() {
     function focusVehicle(vehicle) {
         setSelectedVehicle(vehicle);
         setFollowedVehicle(vehicle);
+        setZoom(15);
 
         if (vehicle) {
             let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
             let index = vehicles.findIndex((v) => v.id === vehicleId);
-            vehicleRefs[index].scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-            });
+            if(vehicleRefs[index]){
+                vehicleRefs[index].scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }
             setCenter({
                 lat: vehicle.coordinate.latitude,
                 lng: vehicle.coordinate.longitude
@@ -380,8 +300,8 @@ function MapComponent() {
         if (vehicle.nodes && Array.isArray(vehicle.nodes) && vehicle.nodes.length > 0) {
             let paths = vehicle.nodes.map((node) => {
                 return {
-                    lat: node.latitude,
-                    lng: node.longitude
+                    lat: node.coordinate.latitude,
+                    lng: node.coordinate.longitude
                 }
             });
             paths.unshift({
@@ -457,7 +377,6 @@ function MapComponent() {
 
         setPathPreview({dropoff: null, pickup: null});
     }
-
     async function dropOffAddress(e) {
         e.preventDefault();
         let val = e.target[0].value;
@@ -486,7 +405,6 @@ function MapComponent() {
         }
         setPathPreview({dropoff: null, pickup: null});
     }
-
     async function postSimSpeed(e) {
         await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/simulation/speed`, {
             method: 'POST',
@@ -497,8 +415,8 @@ function MapComponent() {
         });
     }
 
-    return (
-        <div className="layout-container">
+    if(false){
+        let old = (
             <div className="sidebar">
                 <div className="sidebar-top" ref={topSectionRef}>
                     {vehicles.map((vehicle, index) => {
@@ -555,7 +473,7 @@ function MapComponent() {
                 <div className="sidebar-bottom">
                     <div className="input-container">
                         <label className="label" htmlFor="sim-speed">Simulation speed</label>
-                        <input id="sim-speed" type="number" min="0.00" step="1.0" value={simSpeed}
+                        <input id="sim-speed" type="number" min="0.00" step="0.5" value={simSpeed}
                                onChange={e => {
                                    setSimSpeed(e.target.value)
                                    postSimSpeed(e.target.value)
@@ -611,10 +529,14 @@ function MapComponent() {
                     <button className="form-element" onClick={() => clear()}>Clear</button>
                 </div>
             </div>
+        )
+    }
+    return (
+        <div className="layout-container">
+            <Sidebar vehicles={vehicles} vehicleRefs={vehicleRefs} logMessages={logMessages} selectedVehicle={selectedVehicle} setSelectedVehicle={focusVehicle} getColor={getColor}/>
             <div className="map-container">
                 <LoadScript googleMapsApiKey={GOOGLE_API_TOKEN}>
                     <GoogleMap
-                        ref={mapRef}
                         mapContainerStyle={{
                             width: '100%',
                             height: '100%'
@@ -651,7 +573,6 @@ function MapComponent() {
                             }}/> : <></>}
                     </GoogleMap>
                 </LoadScript>
-                <Chatlog key="chatlog" messages={logMessages}/>
             </div>
         </div>
     );

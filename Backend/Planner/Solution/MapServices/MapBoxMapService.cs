@@ -14,7 +14,7 @@ public class MapBoxMapService : IMapService
 
     private static readonly HttpClient httpClient = new();
     private static readonly PolylineUtility polylineEncoder = new();
-    public async Task<List<Coordinate>> GetPath(Vehicle vehicle)
+    public async Task<List<Node>> GetPath(Vehicle vehicle)
     {
         var waypoints = "";
 
@@ -40,17 +40,17 @@ public class MapBoxMapService : IMapService
             var js = JsonSerializer.Deserialize<JsonElement>(responseBody);
 
             if (js.GetProperty("code").GetString() != "Ok")
-                return new List<Coordinate>();
+                return new List<Node>();
 
             string polyline = js.GetProperty("trips").EnumerateArray().First().GetProperty("geometry").GetString();
             var cords = polylineEncoder.Decode(polyline)
                 .Select(e => new Coordinate { longitude = e.Longitude, latitude = e.Latitude }).ToList();
-            return cords;
+            return cords.Select(e => new Node{coordinate = e}).ToList();
         }
 
         Console.WriteLine($"Error: {response.StatusCode}");
 
-        return new List<Coordinate>();
+        return new List<Node>();
     }
 
     public async Task<Coordinate> GetAddressCoordinates(string address)

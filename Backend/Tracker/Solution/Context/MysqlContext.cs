@@ -35,7 +35,7 @@ public class MysqlContext : DbContext
             .Property(e => e.nodes)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, new JsonSerializerOptions { IgnoreNullValues = true }),
-                v => JsonSerializer.Deserialize<List<Coordinate>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
+                v => JsonSerializer.Deserialize<List<Node>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
             .HasColumnType("json");
     }
 }

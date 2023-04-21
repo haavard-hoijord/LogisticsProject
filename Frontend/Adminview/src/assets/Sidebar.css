@@ -1,0 +1,162 @@
+.sidebar {
+    width: calc(min(100%, 530px));
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #ccc;
+}
+
+.sidebar-wide {
+    width: calc(min(60%, calc(530px * 2)));
+}
+
+.sidebar-top {
+    display: flex;
+    flex-direction: row;
+    height: 200px;
+}
+
+.sidebar-top-vehicles {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-top-info {
+    overflow-y: scroll;
+    margin-left: 5px;
+}
+
+.company {
+    padding: 10px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.sidebar-companies {
+    width: calc(min(100%, 530px));
+    flex-grow: 1;
+    overflow-y: scroll;
+}
+
+.vehicle-buttons {
+    display: flex;
+    flex-wrap: wrap;
+}
+.sidebar-bottom {
+    display: flex;
+}
+
+.sidebar-divider {
+    height: 8px;
+    background: #ccc;
+    cursor: row-resize;
+    user-select: none;
+}
+
+.sidebar-buttons {
+    width: calc(min(100%, 530px));
+}
+
+.new-vehicle {
+    margin: 10px;
+    align-items: center;
+    justify-content: center;
+    background: palegreen;
+    color: black;
+    cursor: pointer;
+}
+
+.new-delivery {
+    margin: 10px;
+    align-items: center;
+    justify-content: center;
+    background: lightblue;
+    color: black;
+    cursor: pointer;
+}
+
+.title {
+    font-size: 25px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.sub-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.sub-text {
+    font-size: 18px;
+}
+
+.sidebar-top-info .title{
+    margin-top: 50px;
+    text-align: left;
+}
+
+.sidebar-top-info .sub-title {
+    margin-top: 20px;
+    margin-bottom: 5px;
+    text-align: left;
+}
+
+.sidebar-top-info .sub-text {
+    color: black;
+    margin-left: 10px;
+}
+
+.pickup-points {
+    text-align: left;
+    overflow-y: scroll;
+    width: 500px;
+    height: 300px;
+    background: #ccc;
+    margin-bottom: 50px;
+}
+
+.pickup-point {
+    margin: 10px;
+    align-items: center;
+    justify-content: center;
+    background: lightblue;
+    color: black;
+    cursor: pointer;
+}
+
+.dropoff-points {
+    text-align: left;
+    overflow-y: scroll;
+    width: 500px;
+    height: 300px;
+    background: #ccc;
+}
+
+.add-pickup-point {
+    margin: 10px;
+    align-items: center;
+    justify-content: center;
+    background: palegreen;
+    color: black;
+    cursor: pointer;
+    width: 480px;
+}
+
+.remove-pickup-point {
+    margin: 10px;
+    align-items: center;
+    justify-content: center;
+    background: lightcoral;
+    color: black;
+    cursor: pointer;
+}
+
+.label {
+    margin-top: 0.5rem;
+}
+
+.input-container {
+    display: flex;
+    flex-direction: column;
+    margin: 10px;
+}

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Solution.Models;
 
 namespace Solution.Controllers;
 
@@ -6,16 +7,36 @@ namespace Solution.Controllers;
 [Route("[controller]")]
 public class CompanyController
 {
-    public static readonly List<string> companies = new()
+    public static readonly List<Company> companies = new()
     {
-        "Company A",
-        "Company B",
-        "Company C",
-        "Company D"
+        new Company
+        {
+            name = "Company A",
+            id = "c1",
+            image = "https://picsum.photos/seed/c1/100?grayscale&blur=5"
+        },
+        new Company
+        {
+            name = "Company B",
+            id = "c2",
+            image = "https://picsum.photos/seed/c2/100?grayscale&blur=5"
+        },
+        new Company
+        {
+            name = "Company C",
+            id = "c3",
+            image = "https://picsum.photos/seed/c3/100?grayscale&blur=5"
+        },
+        new Company
+        {
+            name = "Company D",
+            id = "c4",
+            image = "https://picsum.photos/seed/c4/100?grayscale&blur=5"
+        }
     };
 
     [HttpGet("/companies")]
-    public async Task<List<string>> GetCompanies()
+    public async Task<List<Company>> GetCompanies()
     {
         return companies;
     }

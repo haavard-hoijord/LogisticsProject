@@ -40,7 +40,7 @@ public class SimulationController : ControllerBase
             {
                 if (vehicle.nodes.Count > 0)
                 {
-                    var speedLimit = 50; //50 km/h
+                    var speedLimit = 1; //50 km/h
                     var incrementDistance = speedLimit / (3600.0 / simSpeed); //1 km/s
                     var remainingDistance = baseDistance * incrementDistance;
 
@@ -51,22 +51,22 @@ public class SimulationController : ControllerBase
                             break; // No more nodes to visit
                         }
 
-                        Coordinate nextNode = vehicle.nodes.First();
-                        double distanceToNextNode = Util.CalculateDistance(vehicle.coordinate, nextNode);
+                        Node nextNode = vehicle.nodes.First();
+                        double distanceToNextNode = Util.CalculateDistance(vehicle.coordinate, nextNode.coordinate);
+                        double adjustedRemainingDistance = remainingDistance * nextNode.speedLimit;
 
-
-                        if (remainingDistance >= distanceToNextNode)
+                        if (adjustedRemainingDistance >= distanceToNextNode)
                         {
-                            remainingDistance -= distanceToNextNode;
-                            vehicle.coordinate = nextNode; //TODO This causes vehicle to bounce back on the map if it had already gone past it
+                            remainingDistance -= distanceToNextNode / nextNode.speedLimit;
+                            vehicle.coordinate = nextNode.coordinate; //TODO This causes vehicle to bounce back on the map if it had already gone past it
                             vehicle.nodes.RemoveAt(0);
 
                             foreach (var dest in vehicle.destinations)
                             {
                                 if (dest.closestNode != null)
                                 {
-                                    if (dest.closestNode.latitude == nextNode.latitude &&
-                                        dest.closestNode.longitude == nextNode.longitude)
+                                    if (dest.closestNode.latitude == nextNode.coordinate.latitude &&
+                                        dest.closestNode.longitude == nextNode.coordinate.longitude)
                                     {
                                         var messageData = new Program.MessageData
                                         {
@@ -83,9 +83,9 @@ public class SimulationController : ControllerBase
                         }
                         else
                         {
-                            double gain = remainingDistance / distanceToNextNode;
-                            double latitudeDifference = (nextNode.latitude - vehicle.coordinate.latitude) * gain;
-                            double longitudeDifference = (nextNode.longitude - vehicle.coordinate.longitude) * gain;
+                            double gain = adjustedRemainingDistance / distanceToNextNode;
+                            double latitudeDifference = (nextNode.coordinate.latitude - vehicle.coordinate.latitude) * gain;
+                            double longitudeDifference = (nextNode.coordinate.longitude - vehicle.coordinate.longitude) * gain;
 
                             vehicle.coordinate = new Coordinate
                             {
@@ -93,7 +93,7 @@ public class SimulationController : ControllerBase
                                 longitude = vehicle.coordinate.longitude + longitudeDifference
                             };
 
-                            remainingDistance = 0;
+                            remainingDistance -= adjustedRemainingDistance / nextNode.speedLimit;
                         }
                     }
 
