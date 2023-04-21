@@ -174,11 +174,11 @@ public class GoogleMapService : IMapService
 
     public async Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data)
     {
-        var tripDistance = await ((IMapService)this).GetDistance(data.pickup, data.dropoff);
+        var tripDistance = await ((IMapService)this).GetDistance(PlannerController.GetDeliveryCoordinates(this, data.pickup), PlannerController.GetDeliveryCoordinates(this, data.dropoff));
         var filteredList = vehicles
-            .Where(e => PlannerController.GetCurrentVehicleLoad(e) + data.size < e.maxLoad)
+            .Where(e => PlannerController.GetCurrentVehicleLoad(e) + data.pickup.size < e.maxLoad)
             .Where(e => e.destinations.Count <= 6)//Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
-            .OrderBy(e => PlannerController.GetShortestDistance(e, data.pickup).Result + tripDistance)
+            .OrderBy(e => PlannerController.GetShortestDistance(e, PlannerController.GetDeliveryCoordinates(this, data.pickup)).Result + tripDistance)
             .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e))
             .ToList();
 
@@ -187,16 +187,21 @@ public class GoogleMapService : IMapService
             filteredList = filteredList.GetRange(0, 10);
         }
 
+        if(filteredList.Count == 0)
+        {
+            return null;
+        }
+
         List<LocationEx> coordinates = new List<LocationEx>();
         filteredList.ForEach(e => coordinates.Add(new LocationEx(new CoordinateEx(e.coordinate.latitude, e.coordinate.longitude))));
-
+        Coordinate pickupCoordinate = PlannerController.GetDeliveryCoordinates(this, data.pickup);
         var request = new DistanceMatrixRequest
         {
             Key = API_KEY,
             Origins = coordinates,
             Destinations = new List<LocationEx>
             {
-                new(new CoordinateEx(data.pickup.latitude, data.pickup.longitude))
+                new(new CoordinateEx(pickupCoordinate.latitude, pickupCoordinate.longitude))
             },
             TravelMode = TravelMode.Driving,
             DepartureTime = DateTime.Now

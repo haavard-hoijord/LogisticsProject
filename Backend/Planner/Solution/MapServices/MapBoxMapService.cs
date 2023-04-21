@@ -98,10 +98,10 @@ public class MapBoxMapService : IMapService
 
     public async Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data)
     {
-        var tripDistance = await ((IMapService)this).GetDistance(data.pickup, data.dropoff);
+        var tripDistance = await ((IMapService)this).GetDistance(PlannerController.GetDeliveryCoordinates(this, data.pickup), PlannerController.GetDeliveryCoordinates(this, data.dropoff));
         var sortedVehicles = vehicles
-            .Where(e => PlannerController.GetCurrentVehicleLoad(e) + data.size < e.maxLoad)
-            .OrderBy(e => PlannerController.GetShortestDistance(e, data.pickup).Result + tripDistance)
+            .Where(e => PlannerController.GetCurrentVehicleLoad(e) + data.pickup.size < e.maxLoad)
+            .OrderBy(e => PlannerController.GetShortestDistance(e, PlannerController.GetDeliveryCoordinates(this, data.pickup)).Result + tripDistance)
             .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e)).ToList();
 
         return sortedVehicles.Count == 0 ? null : sortedVehicles.First();

@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react'
 import {GoogleMap, LoadScript, Marker, Polyline, TrafficLayer} from '@react-google-maps/api';
+
 import './App.css'
-import Chatlog from "./components/Chatlog.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 
 const css3Colors = [
@@ -39,15 +39,19 @@ function getCurrentTimestamp() {
 }
 
 
-const DAPR_URL = `http://localhost:5000/dapr`;
-const GOOGLE_API_TOKEN = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
+export const DAPR_URL = `http://localhost:5000/dapr`;
+export const GOOGLE_API_TOKEN = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
 
 function MapComponent() {
     const vehicleRefs = useRef([]);
 
+    const [mapPicker, setMapPicker] = useState(null);
+    const [dirty, setDirty] = useState(false);
+
     const [currentLocation, setCurrentLocation] = useState(null);
     const [center, setCenter] = useState(null);
     const [zoom, setZoom] = useState(12);
+    const [mousePosition, setMousePosition] = useState(null);
 
     const [mode, setMode] = useState(null);
     const [pathMode, setPathMode] = useState("start");
@@ -61,45 +65,55 @@ function MapComponent() {
 
     const onClick = async (...args) => {
         focusVehicle(null)
-        if (mode === "car") {
-            let vehicle =
-                {
-                    coordinate: {
-                        latitude: args[0].latLng.lat(),
-                        longitude: args[0].latLng.lng(),
+
+        if(mapPicker){
+            mapPicker(args[0].latLng.lat(), args[0].latLng.lng());
+            setMapPicker(null);
+        }
+
+        if(false){
+            if (mode === "car") {
+                let vehicle =
+                    {
+                        coordinate: {
+                            latitude: args[0].latLng.lat(),
+                            longitude: args[0].latLng.lng(),
+                        },
+                        company: company,
+                        mapService: mapMode,
+                        maxLoad: vehicleLoad,
+                        destinations: [],
+                        nodes: []
+                    };
+                setVehicles([...vehicles, vehicle]);
+                await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/add`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
                     },
-                    company: company,
-                    mapService: mapMode,
-                    maxLoad: vehicleLoad,
-                    destinations: [],
-                    nodes: []
-                };
-            setVehicles([...vehicles, vehicle]);
-            await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/add`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(vehicle)
-            });
-            fetchVehicles();
-            if (!args[0].domEvent.shiftKey) setMode(null);
-        } else if (mode === "path") {
-            if (pathMode === "start") {
-                await setPathPreview({
-                    pickup: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()},
-                    dropoff: pathPreview.dropoff
+                    body: JSON.stringify(vehicle)
                 });
-                setPathMode("end");
-            } else if (pathMode === "end") {
-                setPathMode("start");
-                await setPathPreview({
-                    pickup: pathPreview.pickup,
-                    dropoff: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()}
-                });
-                await addPath(pathPreview.pickup, {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()});
+                fetchVehicles();
                 if (!args[0].domEvent.shiftKey) setMode(null);
-                setPathPreview({dropoff: null, pickup: null});
+            }
+            else if (mode === "path") {
+                if (pathMode === "start") {
+                    await setPathPreview({
+                        pickup: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()},
+                        dropoff: pathPreview.dropoff
+                    });
+                    setPathMode("end");
+                }
+                else if (pathMode === "end") {
+                    setPathMode("start");
+                    await setPathPreview({
+                        pickup: pathPreview.pickup,
+                        dropoff: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()}
+                    });
+                    await addPath(pathPreview.pickup, {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()});
+                    if (!args[0].domEvent.shiftKey) setMode(null);
+                    setPathPreview({dropoff: null, pickup: null});
+                }
             }
         }
     }
@@ -170,6 +184,13 @@ function MapComponent() {
         );
     }, []);
 
+
+    useEffect(() => {
+        if(dirty){
+            fetchVehicles();
+            setDirty(false);
+        }
+    }, [dirty]);
 
     useEffect(() => {
         const ws = new WebSocket("ws://localhost:5000/ws");
@@ -483,25 +504,6 @@ function MapComponent() {
                     <div className="sidebar-divider-2"/>
 
                     <div className="input-container">
-                        <label className="label" htmlFor="companies">Vehicle company</label>
-                        <select id="companies" value={company || undefined}
-                                onChange={(e) => setCompany(e.target.value)}>
-                            {companies.map((mode) => {
-                                return <option key={mode} value={mode}>{mode}</option>
-                            })}
-                        </select>
-                    </div>
-                    <div className="input-container">
-                        <label className="label" htmlFor="map-modes">Vehicle map service</label>
-                        <select id="map-modes" value={mapMode?.toLowerCase() || undefined}
-                                onChange={(e) => setMapMode(e.target.value)}>
-                            {mapModes.map((mode) => {
-                                return <option key={mode}
-                                               value={mode.toLowerCase()}>{mode.charAt(0).toUpperCase() + mode.slice(1)}</option>
-                            })}
-                        </select>
-                    </div>
-                    <div className="input-container">
                         <label className="label" htmlFor="load-size">Vehicle max capacity</label>
                         <input id="load-size" type="number" min="1" value={vehicleLoad}
                                onChange={e => setVehicleLoad(e.target.value)} required/>
@@ -533,7 +535,7 @@ function MapComponent() {
     }
     return (
         <div className="layout-container">
-            <Sidebar vehicles={vehicles} vehicleRefs={vehicleRefs} logMessages={logMessages} selectedVehicle={selectedVehicle} setSelectedVehicle={focusVehicle} getColor={getColor}/>
+            <Sidebar vehicles={vehicles} setDirty={setDirty} vehicleRefs={vehicleRefs} setMapPicker={setMapPicker} logMessages={logMessages} selectedVehicle={selectedVehicle} setSelectedVehicle={focusVehicle} getColor={getColor}/>
             <div className="map-container">
                 <LoadScript googleMapsApiKey={GOOGLE_API_TOKEN}>
                     <GoogleMap
@@ -548,6 +550,18 @@ function MapComponent() {
                         zoom={zoom}
                         onClick={onClick}
                         clickableIcons={false}
+                        onMouseOver={(e) => {
+                            setMousePosition({
+                                lat: e.latLng.lat(),
+                                lng: e.latLng.lng()
+                            })
+                        }}
+                        onMouseMove={(e) => {
+                            setMousePosition({
+                                lat: e.latLng.lat(),
+                                lng: e.latLng.lng()
+                            })
+                        }}
                         onDrag={(e) => {
                             setFollowedVehicle(null)
                         }}
@@ -557,10 +571,8 @@ function MapComponent() {
                     >
                         <TrafficLayer key="Traffic"/>
 
-                        {currentLocation ? <Marker key={"current-pos"} position={currentLocation} icon={{
-                            path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-                            scale: 7,
-                        }}/> : <></>}
+                        {currentLocation ? <Marker key={"current-pos"} position={currentLocation}/> : <></>}
+                        {mapPicker !== null && mousePosition ? <Marker key={"pick-pos"} position={mousePosition} /> : <></>}
 
                         {items}
                         {pathPreview && pathPreview.pickup ?

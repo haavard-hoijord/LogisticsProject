@@ -96,14 +96,39 @@ public class PlannerController : ControllerBase
             .FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
     }
 
+    public static Coordinate GetDeliveryCoordinates(IMapService service , DeliveryDestination destination)
+    {
+        if (destination.type == "address")
+        {
+            if (destination.coordinate == null)
+            {
+                destination.coordinate = service.GetAddressCoordinates(destination.address).Result;
+            }
+        }
+
+        return destination.coordinate;
+    }
+
+    private static Coordinate GetDeliveryCoordinates(DeliveryDestination destination)
+    {
+        if(destination.type == "address")
+            return GetDefaultPathSerivce().GetAddressCoordinates(destination.address).Result;
+
+        return new Coordinate
+        {
+            latitude = destination.coordinate.latitude,
+            longitude = destination.coordinate.longitude
+        };
+    }
+
     private static async void AddDestination(Delivery data, Vehicle vehicle)
     {
         var routeId = 1;
 
         if (vehicle.destinations.Count > 0) routeId = vehicle.destinations.Max(e => e.routeId) + 1;
 
-        vehicle.destinations.Add(new Destination { coordinate = data.pickup, load = data.size, isPickup = true, routeId = routeId, address = await GetPathService(vehicle).GetClosestAddress(data.pickup)});
-        vehicle.destinations.Add(new Destination { coordinate = data.dropoff, load = data.size, isPickup = false, routeId = routeId, address = await GetPathService(vehicle).GetClosestAddress(data.dropoff)});
+        vehicle.destinations.Add(new Destination { coordinate = GetDeliveryCoordinates(data.pickup), load = data.pickup.size, isPickup = true, routeId = routeId, address = data.pickup.type == "map" ? data.pickup.address : await GetPathService(vehicle).GetClosestAddress(data.pickup.coordinate)});
+        vehicle.destinations.Add(new Destination { coordinate = GetDeliveryCoordinates(data.dropoff), load = data.dropoff.size, isPickup = false, routeId = routeId, address = data.dropoff.type == "map" ? data.dropoff.address : await GetPathService(vehicle).GetClosestAddress(data.dropoff.coordinate)});
 
         var destinations = new List<Destination>(vehicle.destinations);
         vehicle.destinations = new List<Destination>();

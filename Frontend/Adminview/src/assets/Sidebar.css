@@ -63,6 +63,7 @@
     background: palegreen;
     color: black;
     cursor: pointer;
+    font-weight: bolder;
 }
 
 .new-delivery {
@@ -72,6 +73,7 @@
     background: lightblue;
     color: black;
     cursor: pointer;
+    font-weight: bolder;
 }
 
 .title {
@@ -106,13 +108,13 @@
     margin-left: 10px;
 }
 
-.pickup-points {
+.pickup-points, .dropoff-points, .vehicle-points {
     text-align: left;
     overflow-y: scroll;
     width: 500px;
-    height: 300px;
     background: #ccc;
     margin-bottom: 50px;
+    border-radius: 10px;
 }
 
 .pickup-point {
@@ -123,13 +125,42 @@
     color: black;
     cursor: pointer;
 }
+.label {
+    margin-top: 0.5rem;
+}
 
-.dropoff-points {
-    text-align: left;
-    overflow-y: scroll;
-    width: 500px;
-    height: 300px;
-    background: #ccc;
+.input-container {
+    display: flex;
+    flex-direction: column;
+    margin: 10px;
+    border-radius: 10px;
+}
+
+.pickup-points .input-container, .dropoff-points .input-container, .vehicle-points .input-container {
+    background: lightblue;
+    color: black;
+    padding: 10px;
+    border-radius: 10px;
+    font-weight: bolder;
+}
+
+.input {
+    margin: 5px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    outline: none;
+    background: gray;
+    border-radius: 10px;
+}
+
+.add-delivery-button, .add-vehicle-button {
+    margin: 10px;
+    align-items: center;
+    justify-content: center;
+    background: palegreen;
+    color: black;
+    font-weight: bolder;
+    cursor: pointer;
 }
 
 .add-pickup-point {
@@ -140,23 +171,4 @@
     color: black;
     cursor: pointer;
     width: 480px;
-}
-
-.remove-pickup-point {
-    margin: 10px;
-    align-items: center;
-    justify-content: center;
-    background: lightcoral;
-    color: black;
-    cursor: pointer;
-}
-
-.label {
-    margin-top: 0.5rem;
-}
-
-.input-container {
-    display: flex;
-    flex-direction: column;
-    margin: 10px;
 }

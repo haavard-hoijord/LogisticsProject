@@ -60,24 +60,23 @@ public class SimulationController : ControllerBase
                             remainingDistance -= distanceToNextNode / nextNode.speedLimit;
                             vehicle.coordinate = nextNode.coordinate; //TODO This causes vehicle to bounce back on the map if it had already gone past it
                             vehicle.nodes.RemoveAt(0);
+                            vehicle.destinations.First().distance -= distanceToNextNode / nextNode.speedLimit;
 
                             foreach (var dest in vehicle.destinations)
                             {
-                                if (dest.closestNode != null)
+                                if (dest.closestNode != null && dest.closestNode.latitude == nextNode.coordinate.latitude &&
+                                    dest.closestNode.longitude == nextNode.coordinate.longitude
+                                    || dest.distance <= 0)
                                 {
-                                    if (dest.closestNode.latitude == nextNode.coordinate.latitude &&
-                                        dest.closestNode.longitude == nextNode.coordinate.longitude)
+                                    var messageData = new Program.MessageData
                                     {
-                                        var messageData = new Program.MessageData
-                                        {
-                                            id = vehicle.id,
-                                            route = dest.routeId,
-                                            latitude = dest.coordinate.latitude,
-                                            longitude = dest.coordinate.longitude
-                                        };
+                                        id = vehicle.id,
+                                        route = dest.routeId,
+                                        latitude = dest.coordinate.latitude,
+                                        longitude = dest.coordinate.longitude
+                                    };
 
-                                        Program.client.PublishEventAsync("status", dest.isPickup ? "pickup" : "delivery", messageData);
-                                    }
+                                    Program.client.PublishEventAsync("status", dest.isPickup ? "pickup" : "delivery", messageData);
                                 }
                             }
                         }
@@ -87,11 +86,15 @@ public class SimulationController : ControllerBase
                             double latitudeDifference = (nextNode.coordinate.latitude - vehicle.coordinate.latitude) * gain;
                             double longitudeDifference = (nextNode.coordinate.longitude - vehicle.coordinate.longitude) * gain;
 
-                            vehicle.coordinate = new Coordinate
+                            var cord = new Coordinate
                             {
                                 latitude = vehicle.coordinate.latitude + latitudeDifference,
                                 longitude = vehicle.coordinate.longitude + longitudeDifference
                             };
+
+                            vehicle.destinations.First().distance -= Util.CalculateDistance(vehicle.coordinate, cord);
+
+                            vehicle.coordinate = cord;
 
                             remainingDistance -= adjustedRemainingDistance / nextNode.speedLimit;
                         }
