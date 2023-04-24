@@ -3,10 +3,21 @@ import '../assets/Sidebar.css';
 import Chatlog from "./Chatlog.jsx";
 import VehicleButton from "./VehicleButton.jsx";
 import GoogleMapsAutocomplete from "./GoogleMapsAutocomplete.jsx";
+import {GOOGLE_API_TOKEN} from "../App.jsx";
 
 const DAPR_URL = `http://localhost:5000/dapr`;
 
-const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, getColor, vehicleRefs, setMapPicker, setDirty}) => {
+const Sidebar = ({
+                     vehicles,
+                     selectedVehicle,
+                     setSelectedVehicle,
+                     logMessages,
+                     getColor,
+                     vehicleRefs,
+                     setMapPicker,
+                     reRender,
+                     currentLocation
+                 }) => {
     const topSectionRef = useRef(null);
     const [isResizing, setIsResizing] = useState(false);
 
@@ -20,6 +31,9 @@ const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, ge
     const [pickupPoint, setPickupPoint] = useState({});
     const [deliveryPoint, setDeliveryPoint] = useState({});
     const [vehiclePoint, setVehiclePoint] = useState({});
+
+    const [randomVehicles, setRandomVehicles] = useState(1);
+    const [randomDeliveries, setRandomDeliveries] = useState(1);
 
     useEffect(() => {
         fetch(`${DAPR_URL}/v1.0/invoke/backend/method/companies`, {
@@ -85,6 +99,30 @@ const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, ge
         }
     }, []);
 
+
+    let veh = vehicles.find((v) => v.id === selectedVehicle?.id)
+    let routes = [];
+    if (veh) {
+        veh.destinations.forEach((dest, index) => {
+            if (routes.length > 0 && routes[routes.length - 1][0].routeId === dest.routeId) {
+                routes[routes.length - 1].push(dest);
+            } else {
+                routes.push([dest]);
+            }
+        });
+    }
+
+
+    async function postSimSpeed(e) {
+        await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/simulation/speed`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(e)
+        });
+    }
+
     return (<div className={`sidebar ${(selectedVehicle || addMode) ? "sidebar-wide" : ""}`}>
         <div className="sidebar-top" ref={topSectionRef}>
             <div className="sidebar-top-vehicles" style={{
@@ -113,6 +151,29 @@ const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, ge
                             }}>
                         Add Delivery
                     </button>
+
+                    <button className="new-simulate"
+                            onClick={() => {
+                                setSelectedVehicle(null);
+                                if (addMode === "simulate") {
+                                    setAddMode(null);
+                                } else {
+                                    setAddMode("simulate")
+                                }
+                            }}>
+                        Add Randoms
+                    </button>
+
+                    <br/>
+                    {[0, 1, 2, 5, 10].map((speed) => {
+                        return (<button key={`sim-speed${speed}`}
+                                        className={`sim-speed ${simSpeed === speed ? "selected" : ""}`} onClick={() => {
+                            setSimSpeed(speed);
+                            postSimSpeed(speed);
+                        }}>
+                            {speed}x
+                        </button>)
+                    })}
                 </div>
                 <div className="sidebar-companies">
                     {companies.filter(e => vehicles.filter(e1 => e1.company === e.id).length > 0).map((company, index) => (
@@ -120,7 +181,8 @@ const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, ge
                             <p>{company.name}</p>
                             <div className="vehicle-buttons">
                                 {vehicles.filter(e => e.company === company.id).map((vehicle, index) => (
-                                    <VehicleButton key={`vehicle ${vehicle.id}`} vehicle={vehicle} vehicles={vehicles} company={company} index={index}
+                                    <VehicleButton key={`vehicle ${vehicle.id}`} vehicle={vehicle} vehicles={vehicles}
+                                                   company={company} index={index}
                                                    setAddMode={setAddMode} vehicleRefs={vehicleRefs}
                                                    selectedVehicle={selectedVehicle}
                                                    setSelectedVehicle={setSelectedVehicle} getColor={getColor}/>))}
@@ -132,7 +194,34 @@ const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, ge
             {addMode || selectedVehicle ? (<div className="sidebar-top-info">
                 {selectedVehicle ?
                     (<div className="vehicle-view">
-                        <p>Vehicle: {selectedVehicle.id}</p>
+                        <div className="title">Vehicle {selectedVehicle.id}</div>
+                        {routes.map((rt, index) => {
+                            return (
+                                <div>
+                                    <div className="route">
+                                        <div className="route-index">Route {routes[index][0].routeId}</div>
+                                        <div className="route-destinations">
+                                            {routes[index].map((dest, index) => {
+                                                return (
+                                                    <div className="destination">
+                                                        <div
+                                                            className="destination-type">{dest.isPickup ? "Pickup" : "Deliver"}</div>
+                                                        <div className="destination-title">{dest.address}</div>
+                                                        <div
+                                                            className="destination-distance">Distance: {Math.round(dest.distance * 1000) / 1000.0}km
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    {index !== routes.length - 1 && (<div className="destination-arrow">
+                                        <div className="destination-arrow-line"/>
+                                        <div className="destination-arrow-head"/>
+                                    </div>)}
+                                </div>
+                            )
+                        })}
                     </div>) : (<> </>)}
 
                 {addMode ?
@@ -217,7 +306,7 @@ const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, ge
                                                 </div>
                                             )
                                         }
-                                </div>
+                                    </div>
 
                                     <div className="input-container">
                                         <label className="label">Max size</label>
@@ -231,7 +320,7 @@ const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, ge
                                     </div>
 
                                     <div className="input-container">
-                                        <label className="label" >Company</label>
+                                        <label className="label">Company</label>
                                         <select value={vehiclePoint?.company || undefined}
                                                 onChange={(e) =>
                                                     setVehiclePoint(prevState => ({
@@ -246,7 +335,7 @@ const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, ge
 
 
                                     <div className="input-container">
-                                        <label className="label" >Map service</label>
+                                        <label className="label">Map service</label>
                                         <select value={vehiclePoint?.mapMode?.toLowerCase() || undefined}
                                                 onChange={(e) =>
                                                     setVehiclePoint(prevState => ({
@@ -254,7 +343,8 @@ const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, ge
                                                         mapMode: e.target.value
                                                     }))}>
                                             {mapModes.map((mode) => {
-                                                return <option key={mode} value={mode.toLowerCase()}>{mode.charAt(0).toUpperCase() + mode.slice(1)}</option>
+                                                return <option key={mode}
+                                                               value={mode.toLowerCase()}>{mode.charAt(0).toUpperCase() + mode.slice(1)}</option>
                                             })}
                                         </select>
                                     </div>
@@ -278,232 +368,350 @@ const Sidebar = ({vehicles, selectedVehicle, setSelectedVehicle, logMessages, ge
                                                 setPickupPoint({});
                                                 setDeliveryPoint({});
                                                 setAddMode(null);
-                                                setDirty(true)
+                                                reRender()
                                             });
                                         }}>Add Vehicle
                                 </button>
                             </div>
                         )
                         :
-                        (
-                            <div className="add-delivery-view">
-                                <div className="title">Add Delivery</div>
-                                <div className="sub-title">Pickup points</div>
+                        addMode === "delivery" ? (
+                                <div className="add-delivery-view">
+                                    <div className="title">Add Delivery</div>
+                                    <div className="sub-title">Pickup points</div>
 
-                                <div className="pickup-points">
-                                    <div className="input-container">
-                                        <label className="label">Destination type</label>
-                                        <select value={pickupPoint?.type || "address"} onChange={(e) => {
-                                            setPickupPoint(prevState => ({...prevState, type: e.target.value}))
-                                        }}>
-                                            <option key="o1" value="address">Address</option>
-                                            <option key="o2" value="cords">Coordinates</option>
-                                        </select>
-                                    </div>
+                                    <div className="pickup-points">
+                                        <div className="input-container">
+                                            <label className="label">Destination type</label>
+                                            <select value={pickupPoint?.type || "address"} onChange={(e) => {
+                                                setPickupPoint(prevState => ({...prevState, type: e.target.value}))
+                                            }}>
+                                                <option key="o1" value="address">Address</option>
+                                                <option key="o2" value="cords">Coordinates</option>
+                                            </select>
+                                        </div>
 
-                                    <div className="input">
-                                        {pickupPoint?.type === "cords" ?
-                                            (
-                                                <div>
-                                                    <div className="input-container">
-                                                        <label className="label">Latitude</label>
-                                                        <input type="number"
-                                                               value={pickupPoint?.coordinate?.latitude || 0}
-                                                               onChange={e => {
-                                                                   setPickupPoint(prevState => ({
-                                                                       ...prevState,
-                                                                       coordinate: {
-                                                                           ...prevState?.coordinate || {},
-                                                                           latitude: e.target.value
-                                                                       }
-                                                                   }))
-                                                               }} required/>
-                                                    </div>
-                                                    <div className="input-container">
-                                                        <label className="label">Longitude</label>
-                                                        <input type="number"
-                                                               value={pickupPoint?.coordinate?.longitude || 0}
-                                                               onChange={e => {
-                                                                   setPickupPoint(prevState => ({
-                                                                       ...prevState,
-                                                                       coordinate: {
-                                                                           ...prevState?.coordinate || {},
-                                                                           longitude: e.target.value
-                                                                       }
-                                                                   }))
-                                                               }} required/>
-                                                    </div>
+                                        <div className="input">
+                                            {pickupPoint?.type === "cords" ?
+                                                (
+                                                    <div>
+                                                        <div className="input-container">
+                                                            <label className="label">Latitude</label>
+                                                            <input type="number"
+                                                                   value={pickupPoint?.coordinate?.latitude || 0}
+                                                                   onChange={e => {
+                                                                       setPickupPoint(prevState => ({
+                                                                           ...prevState,
+                                                                           coordinate: {
+                                                                               ...prevState?.coordinate || {},
+                                                                               latitude: e.target.value
+                                                                           }
+                                                                       }))
+                                                                   }} required/>
+                                                        </div>
+                                                        <div className="input-container">
+                                                            <label className="label">Longitude</label>
+                                                            <input type="number"
+                                                                   value={pickupPoint?.coordinate?.longitude || 0}
+                                                                   onChange={e => {
+                                                                       setPickupPoint(prevState => ({
+                                                                           ...prevState,
+                                                                           coordinate: {
+                                                                               ...prevState?.coordinate || {},
+                                                                               longitude: e.target.value
+                                                                           }
+                                                                       }))
+                                                                   }} required/>
+                                                        </div>
 
-                                                    <div className="input-container">
-                                                        <button className="pick-coords" onClick={() => {
-                                                            setMapPicker(() => {
-                                                                return (lat, lng) => {
-                                                                    setPickupPoint(prevState => ({
-                                                                        ...prevState,
-                                                                        coordinate: {
-                                                                            ...prevState?.coordinate || {},
-                                                                            latitude: lat,
-                                                                            longitude: lng
-                                                                        }
-                                                                    }))
-                                                                }
-                                                            });
-                                                        }}>Pick from map
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )
-                                            :
-                                            (
-                                                <div className="input-container">
-                                                    <label className="label">Address: </label>
-                                                    <GoogleMapsAutocomplete
-                                                        onComplete={(e) => setPickupPoint(prevState => ({
-                                                            ...prevState,
-                                                            address: e.formatted_address,
-                                                            type: "address"
-                                                        }))}/>
-                                                </div>
-                                            )
-                                        }
-                                    </div>
-
-                                    <div className="input-container">
-                                        <label className="label">Load size</label>
-                                        <input type="number" min="1" value={pickupPoint?.size || 1}
-                                               onChange={e => {
-                                                   setPickupPoint(prevState => ({...prevState, size: e.target.value}))
-                                               }} required/>
-                                    </div>
-                                </div>
-
-                                <div className="sub-title">Dropoff points</div>
-                                <div className="dropoff-points">
-                                    <div className="input-container">
-                                        <label className="label">Destination type</label>
-                                        <select value={deliveryPoint?.type || "address"} onChange={(e) => {
-                                            setDeliveryPoint(prevState => ({...prevState, type: e.target.value}))
-                                        }}>
-                                            <option key="o1" value="address">Address</option>
-                                            <option key="o2" value="cords">Coordinates</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="input">
-                                        {deliveryPoint?.type === "cords" ?
-                                            (
-                                                <div>
-                                                    <div className="input-container">
-                                                        <label className="label">Latitude</label>
-                                                        <input type="number"
-                                                               value={deliveryPoint?.coordinate?.latitude || 0}
-                                                               onChange={e => {
-                                                                   setDeliveryPoint(prevState => ({
-                                                                       ...prevState,
-                                                                       coordinate: {
-                                                                           ...prevState?.coordinate || {},
-                                                                           latitude: e.target.value
-                                                                       }
-                                                                   }))
-                                                               }} required/>
-                                                    </div>
-                                                    <div className="input-container">
-                                                        <label className="label">Longitude</label>
-                                                        <input type="number"
-                                                               value={deliveryPoint?.coordinate?.longitude || 0}
-                                                               onChange={e => {
-                                                                   setDeliveryPoint(prevState => ({
-                                                                       ...prevState,
-                                                                       coordinate: {
-                                                                           ...prevState?.coordinate || {},
-                                                                           longitude: e.target.value
-                                                                       }
-                                                                   }))
-                                                               }} required/>
-                                                    </div>
-
-                                                    <div className="input-container">
-                                                        <button className="pick-coords" onClick={() => {
-                                                            function setDelivery(lat, lng) {
-                                                                setDeliveryPoint(prevState => ({
-                                                                    ...prevState,
-                                                                    coordinate: {
-                                                                        ...prevState?.coordinate || {},
-                                                                        latitude: lat,
-                                                                        longitude: lng
+                                                        <div className="input-container">
+                                                            <button className="pick-coords" onClick={() => {
+                                                                setMapPicker(() => {
+                                                                    return (lat, lng) => {
+                                                                        setPickupPoint(prevState => ({
+                                                                            ...prevState,
+                                                                            coordinate: {
+                                                                                ...prevState?.coordinate || {},
+                                                                                latitude: lat,
+                                                                                longitude: lng
+                                                                            }
+                                                                        }))
                                                                     }
-                                                                }))
-                                                            }
-                                                            setMapPicker(setDelivery);
-                                                        }}>Pick from map
-                                                        </button>
+                                                                });
+                                                            }}>Pick from map
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )
-                                            :
-                                            (
-                                                <div className="input-container">
-                                                    <label className="label">Address: </label>
-                                                    <GoogleMapsAutocomplete
-                                                        onComplete={(e) => setDeliveryPoint(prevState => ({
-                                                            ...prevState,
-                                                            address: e.formatted_address,
-                                                            type: "address"
-                                                        }))}/>
-                                                </div>
-                                            )
-                                        }
+                                                )
+                                                :
+                                                (
+                                                    <div className="input-container">
+                                                        <label className="label">Address: </label>
+                                                        <GoogleMapsAutocomplete
+                                                            onComplete={(e) => setPickupPoint(prevState => ({
+                                                                ...prevState,
+                                                                address: e.formatted_address,
+                                                                type: "address"
+                                                            }))}
+                                                            onChange={(e) => {
+                                                                setPickupPoint(prevState => ({
+                                                                    ...prevState,
+                                                                    address: e,
+                                                                    type: "address"
+                                                                }))
+                                                            }}/>
+                                                    </div>
+                                                )
+                                            }
+                                        </div>
 
                                         <div className="input-container">
                                             <label className="label">Load size</label>
-                                            <input type="number" min="1" value={deliveryPoint?.size || 1}
+                                            <input type="number" min="1" value={pickupPoint?.size || 1}
                                                    onChange={e => {
-                                                       setDeliveryPoint(prevState => ({
-                                                           ...prevState,
-                                                           size: e.target.value
-                                                       }))
+                                                       setPickupPoint(prevState => ({...prevState, size: e.target.value}))
                                                    }} required/>
                                         </div>
                                     </div>
+
+                                    <div className="sub-title">Dropoff points</div>
+                                    <div className="dropoff-points">
+                                        <div className="input-container">
+                                            <label className="label">Destination type</label>
+                                            <select value={deliveryPoint?.type || "address"} onChange={(e) => {
+                                                setDeliveryPoint(prevState => ({...prevState, type: e.target.value}))
+                                            }}>
+                                                <option key="o1" value="address">Address</option>
+                                                <option key="o2" value="cords">Coordinates</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="input">
+                                            {deliveryPoint?.type === "cords" ?
+                                                (
+                                                    <div>
+                                                        <div className="input-container">
+                                                            <label className="label">Latitude</label>
+                                                            <input type="number"
+                                                                   value={deliveryPoint?.coordinate?.latitude || 0}
+                                                                   onChange={e => {
+                                                                       setDeliveryPoint(prevState => ({
+                                                                           ...prevState,
+                                                                           coordinate: {
+                                                                               ...prevState?.coordinate || {},
+                                                                               latitude: e.target.value
+                                                                           }
+                                                                       }))
+                                                                   }} required/>
+                                                        </div>
+                                                        <div className="input-container">
+                                                            <label className="label">Longitude</label>
+                                                            <input type="number"
+                                                                   value={deliveryPoint?.coordinate?.longitude || 0}
+                                                                   onChange={e => {
+                                                                       setDeliveryPoint(prevState => ({
+                                                                           ...prevState,
+                                                                           coordinate: {
+                                                                               ...prevState?.coordinate || {},
+                                                                               longitude: e.target.value
+                                                                           }
+                                                                       }))
+                                                                   }} required/>
+                                                        </div>
+
+                                                        <div className="input-container">
+                                                            <button className="pick-coords" onClick={() => {
+                                                                setMapPicker(() => {
+                                                                    return (lat, lng) => {
+                                                                        setDeliveryPoint(prevState => ({
+                                                                            ...prevState,
+                                                                            coordinate: {
+                                                                                ...prevState?.coordinate || {},
+                                                                                latitude: lat,
+                                                                                longitude: lng
+                                                                            }
+                                                                        }))
+                                                                    }
+                                                                });
+                                                            }}>Pick from map
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )
+                                                :
+                                                (
+                                                    <div className="input-container">
+                                                        <label className="label">Address: </label>
+                                                        <GoogleMapsAutocomplete
+                                                            onComplete={(e) => setDeliveryPoint(prevState => ({
+                                                                ...prevState,
+                                                                address: e.formatted_address,
+                                                                type: "address"
+                                                            }))}
+                                                            onChange={(e) => {
+                                                                setDeliveryPoint(prevState => ({
+                                                                    ...prevState,
+                                                                    address: e,
+                                                                    type: "address"
+                                                                }))
+                                                            }}/>
+                                                    </div>
+                                                )
+                                            }
+
+                                            <div className="input-container">
+                                                <label className="label">Load size</label>
+                                                <input type="number" min="1" value={deliveryPoint?.size || 1}
+                                                       onChange={e => {
+                                                           setDeliveryPoint(prevState => ({
+                                                               ...prevState,
+                                                               size: e.target.value
+                                                           }))
+                                                       }} required/>
+                                            </div>
+                                        </div>
+                                    </div>
+
+
+                                    <button className="add-delivery-button" disabled={!pickupPoint || !deliveryPoint}
+                                            onClick={() => {
+                                                fetch(`${DAPR_URL}/v1.0/invoke/planner/method/add`, {
+                                                    method: 'POST', headers: {
+                                                        'Content-Type': 'application/json'
+                                                    },
+                                                    body: JSON.stringify({
+                                                        pickup: {
+                                                            ...pickupPoint,
+                                                            size: pickupPoint.size || 1
+                                                        },
+                                                        dropoff: {
+                                                            ...deliveryPoint,
+                                                            size: deliveryPoint.size || 1
+                                                        }
+                                                    })
+                                                }).then((e) => {
+                                                    setPickupPoint({});
+                                                    setDeliveryPoint({});
+                                                    setAddMode(null);
+                                                    reRender();
+                                                });
+                                            }}>Add Delivery
+                                    </button>
                                 </div>
+                            )
+                            :
+                            (
+                                <div className="add-randoms-view">
+                                    <div className="title">Add Randoms</div>
 
+                                    <div className="sub-title">Add Vehicles</div>
+                                    <div className="input">
+                                        <div className="input-container">
+                                            <label className="label">Amount of Vehicles</label>
+                                            <input type="number" min="1" value={randomVehicles}
+                                                   onChange={e => {
+                                                       setRandomVehicles(e.target.value);
+                                                   }} required/>
+                                        </div>
 
-                                <button className="add-delivery-button" disabled={!pickupPoint || !deliveryPoint}
-                                        onClick={() => {
-                                            fetch(`${DAPR_URL}/v1.0/invoke/planner/method/add`, {
-                                                method: 'POST', headers: {
+                                        <button className="add-random-vehicle-button"
+                                        onClick={async () => {
+                                            await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/random/vehicle`, {
+                                                method: 'POST',
+                                                headers: {
                                                     'Content-Type': 'application/json'
                                                 },
                                                 body: JSON.stringify({
-                                                    pickup: {
-                                                        ...pickupPoint,
-                                                        size: pickupPoint.size || 1
-                                                    },
-                                                    dropoff: {
-                                                        ...deliveryPoint,
-                                                        size: deliveryPoint.size || 1
+                                                    amount: randomVehicles,
+                                                    location: currentLocation
+                                                })
+                                            });
+                                            reRender();
+
+                                        }}>
+                                            Add Random Vehicles
+                                        </button>
+                                    </div>
+
+
+                                    <div className="sub-title">Add Deliveries</div>
+                                    <div className="input">
+                                        <div className="input-container">
+                                            <label className="label">Amount of Deliveries</label>
+                                            <input type="number" min="1" value={randomDeliveries}
+                                                   onChange={e => {
+                                                       setRandomDeliveries(e.target.value);
+                                                   }} required/>
+                                        </div>
+
+                                        <button className="add-random-delivery-button" onClick={() => {
+                                            fetch(
+                                                `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${currentLocation.lat},${currentLocation.lng}&radius=${100000}&key=${GOOGLE_API_TOKEN}`
+                                            )
+                                                .then((response) => {
+                                                    if (response.ok) {
+                                                        return response.json();
+                                                    } else {
+                                                        throw new Error('Error fetching nearby locations: ' + response.statusText);
                                                     }
                                                 })
-                                            }).then((e) => {
-                                                setPickupPoint({});
-                                                setDeliveryPoint({});
-                                                setAddMode(null);
-                                            });
-                                        }}>Add Delivery
-                                </button>
-                            </div>
-                        )
+                                                .then((data) => {
+                                                    if (data.status === 'OK') {
+
+                                                        for(let i = 0; i < randomDeliveries; i++) {
+                                                            let randomResult1 = data.results[Math.random() * data.results.length | 0];
+                                                            let point1 = {latitude: randomResult1.geometry.location.lat, longitude: randomResult1.geometry.location.lng};
+
+                                                            let randomResult2 = data.results[Math.random() * data.results.length | 0];
+                                                            let point2 = {latitude: randomResult2.geometry.location.lat, longitude: randomResult2.geometry.location.lng};
+
+                                                            let size = Math.round(1 + Math.random() * 30);
+                                                            fetch(`${DAPR_URL}/v1.0/invoke/planner/method/add`, {
+                                                                method: 'POST', headers: {
+                                                                    'Content-Type': 'application/json'
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    pickup: {
+                                                                        coordinate: point1,
+                                                                        type: "cords",
+                                                                        size: size
+                                                                    },
+                                                                    dropoff: {
+                                                                        coordinate: point2,
+                                                                        type: "cords",
+                                                                        size: size
+                                                                    }
+                                                                })
+                                                            });
+                                                        }
+
+                                                        reRender();
+
+                                                    } else {
+                                                        console.error('Error fetching nearby locations:', data.status);
+                                                    }
+                                                })
+                                                .catch((error) => {
+                                                    console.error('Error fetching nearby locations:', error);
+                                                });
+                                        }}>
+                                            Add Random Deliveries
+                                        </button>
+                                    </div>
+                                </div>
+                            )
                     : (<> </>)}
 
             </div>) : (<></>)}
         </div>
+    </div>);
+};
 
+/*
         <div className="sidebar-divider" onMouseDown={handleMouseDown}/>
 
         <div className="sidebar-bottom">
             <Chatlog key="chat-log" messages={logMessages}/>
         </div>
-    </div>);
-};
-
+ */
 export default Sidebar;

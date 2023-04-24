@@ -4,7 +4,7 @@ import {GOOGLE_API_TOKEN} from '../App.jsx';
 
 const libraries = ['places'];
 
-const  GoogleMapsAutocomplete = ({onComplete}) => {
+const  GoogleMapsAutocomplete = ({onComplete, onChange}) => {
     const inputRef = useRef(null);
     const { isLoaded, loadError } = useLoadScript({
         googleMapsApiKey: GOOGLE_API_TOKEN,
@@ -29,6 +29,8 @@ const  GoogleMapsAutocomplete = ({onComplete}) => {
             ref={inputRef}
             type="text"
             placeholder="Search for a place"
+            onChange={(e) => onChange(e.target.value)}
+            onSubmit={(e) => onChange(e.target.value)}
         />
     );
 }

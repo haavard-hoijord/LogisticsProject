@@ -211,7 +211,12 @@ public class GoogleMapService : IMapService
 
         if (response.Status == Status.Ok)
         {
-            var rows = response.Rows.Select((row, index) => new { index, row.Elements.First().Duration.Value });
+            if (!response.Rows.Any())
+            {
+                return null;
+            }
+
+            var rows = response.Rows.Where(e => e.Elements != null && e.Elements.Any()).Select((row, index) => new { index, row?.Elements?.First()?.Duration?.Value });
             var tempList = new List<Vehicle>(filteredList);
             filteredList = filteredList
                 .OrderBy((e) => rows.ElementAt(tempList.IndexOf(e)).Value)

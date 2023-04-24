@@ -15,7 +15,7 @@ const ChatLog = ({ messages }) => {
     return (
         <div className="chat-log">
             {messages.map((message, index) => (
-                <div key={index} className="message">
+                <div key={index} className={`message ${index % 2 === 1 ? "message-even" : ""}`}>
                     <div className="timestamp">{message.timestamp}</div>
                     <div>{message.text}</div>
                 </div>

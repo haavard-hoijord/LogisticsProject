@@ -53,7 +53,7 @@ public class TrackerController : ControllerBase
             entity.coordinate = vehicle.coordinate;
             entity.destinations = vehicle.destinations;
             entity.maxLoad = vehicle.maxLoad;
-            entity.nodes = vehicle.nodes;;
+            entity.nodes = vehicle.nodes;
 
             context.Vehicles.Update(entity);
             context.SaveChanges();

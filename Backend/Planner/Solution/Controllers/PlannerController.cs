@@ -59,8 +59,10 @@ public class PlannerController : ControllerBase
 
             await GeneratePathNodes(vehicle);
             await FindClosetsDestinationNodes(vehicle);
+            await GenerateDistanceValues(vehicle);
 
-            await Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
+            var request =  Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle);
+            var response = Program.client.InvokeMethodWithResponseAsync(request);
 
             Program.client.PublishEventAsync("status", "new_path", new Dictionary<string, string>
             {
@@ -163,11 +165,6 @@ public class PlannerController : ControllerBase
             destinations.Remove(lastDestination);
             vehicle.destinations.Add(lastDestination);
         }
-
-        for (int i = 0; i < vehicle.destinations.Count - 1; i++)
-        {
-            vehicle.destinations[i].distance = await GetPathService(vehicle).GetDistance(vehicle.destinations[i].coordinate, vehicle.destinations[i + 1].coordinate) / baseDistance;
-        }
     }
 
     private async Task GeneratePathNodes(Vehicle vehicle)
@@ -191,6 +188,29 @@ public class PlannerController : ControllerBase
                     closestNode = node.coordinate;
 
             if (closestNode != null) dest.closestNode = closestNode;
+        }
+    }
+
+    private async Task GenerateDistanceValues(Vehicle vehicle)
+    {
+        for (int i = 0; i < vehicle.destinations.Count; i++)
+        {
+            var dist = 0.0;
+
+            if (vehicle.destinations[i].closestNode != null)
+            {
+                for(int j = i; j < vehicle.nodes.Count - 1; j++)
+                {
+                    if(vehicle.nodes[j + 1].coordinate.latitude == vehicle.destinations[i].closestNode.latitude
+                       && vehicle.nodes[j + 1].coordinate.longitude == vehicle.destinations[i].closestNode.longitude)
+                    {
+                        vehicle.destinations[i].distance = dist;
+                        break;
+                    }
+
+                    dist += await GetPathService(vehicle).GetDistance(vehicle.nodes[j].coordinate, vehicle.nodes[j + 1].coordinate);
+                }
+            }
         }
     }
 

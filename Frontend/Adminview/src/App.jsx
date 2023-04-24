@@ -46,22 +46,25 @@ function MapComponent() {
     const vehicleRefs = useRef([]);
 
     const [mapPicker, setMapPicker] = useState(null);
-    const [dirty, setDirty] = useState(false);
+    const [reRenderValue, setReRender] = useState(false);
 
     const [currentLocation, setCurrentLocation] = useState(null);
     const [center, setCenter] = useState(null);
     const [zoom, setZoom] = useState(12);
     const [mousePosition, setMousePosition] = useState(null);
 
-    const [mode, setMode] = useState(null);
-    const [pathMode, setPathMode] = useState("start");
     const [vehicles, setVehicles] = useState([]);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [followedVehicle, setFollowedVehicle] = useState(null);
 
     const [logMessages, setLogMessages] = useState([]);
 
-    const [pathPreview, setPathPreview] = useState({dropoff: null, pickup: null});
+    const [ws, setWs] = useState(null);
+
+    async function reRender(){
+        await setReRender(!reRenderValue);
+        //window.location.reload();
+    }
 
     const onClick = async (...args) => {
         focusVehicle(null)
@@ -70,90 +73,7 @@ function MapComponent() {
             mapPicker(args[0].latLng.lat(), args[0].latLng.lng());
             setMapPicker(null);
         }
-
-        if(false){
-            if (mode === "car") {
-                let vehicle =
-                    {
-                        coordinate: {
-                            latitude: args[0].latLng.lat(),
-                            longitude: args[0].latLng.lng(),
-                        },
-                        company: company,
-                        mapService: mapMode,
-                        maxLoad: vehicleLoad,
-                        destinations: [],
-                        nodes: []
-                    };
-                setVehicles([...vehicles, vehicle]);
-                await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/add`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(vehicle)
-                });
-                fetchVehicles();
-                if (!args[0].domEvent.shiftKey) setMode(null);
-            }
-            else if (mode === "path") {
-                if (pathMode === "start") {
-                    await setPathPreview({
-                        pickup: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()},
-                        dropoff: pathPreview.dropoff
-                    });
-                    setPathMode("end");
-                }
-                else if (pathMode === "end") {
-                    setPathMode("start");
-                    await setPathPreview({
-                        pickup: pathPreview.pickup,
-                        dropoff: {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()}
-                    });
-                    await addPath(pathPreview.pickup, {lat: args[0].latLng.lat(), lng: args[0].latLng.lng()});
-                    if (!args[0].domEvent.shiftKey) setMode(null);
-                    setPathPreview({dropoff: null, pickup: null});
-                }
-            }
-        }
     }
-
-    async function addPath(pickup, dropoff) {
-        await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/add`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                size: pathLoad,
-                pickup: {
-                    latitude: pickup.lat,
-                    longitude: pickup.lng
-                },
-                dropoff: {
-                    latitude: dropoff.lat,
-                    longitude: dropoff.lng
-                }
-            })
-        });
-        fetchVehicles();
-    }
-
-    async function clear() {
-        for (let vehicle of vehicles) {
-            await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/delete`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(vehicle)
-            });
-        }
-        setVehicles([]);
-        setPathPreview({dropoff: null, pickup: null})
-        window.location.reload();
-    }
-
     async function fetchVehicles() {
         await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/track/all`, {
             method: 'GET',
@@ -184,17 +104,14 @@ function MapComponent() {
         );
     }, []);
 
-
     useEffect(() => {
-        if(dirty){
-            fetchVehicles();
-            setDirty(false);
-        }
-    }, [dirty]);
+        const webSocket = new WebSocket("ws://localhost:5000/ws");
 
-    useEffect(() => {
-        const ws = new WebSocket("ws://localhost:5000/ws");
-        ws.onmessage = async (event) => {
+        webSocket.onopen = () => {
+            setWs(webSocket);
+        };
+
+        webSocket.onmessage = async (event) => {
             let mes = JSON.parse(event.data);
 
             let type = mes.type;
@@ -266,18 +183,25 @@ function MapComponent() {
             }
         }
 
-        ws.onclose = (event) => {
-        }
+        webSocket.onclose = (event) => {
+            setWs(null);
+        };
+
+        webSocket.onerror = (error) => {
+            console.log('WebSocket error:', error);
+        };
 
         return () => {
-            ws.close()
+            if (webSocket) {
+                webSocket.close();
+            }
         };
     }, [vehicles]);
 
     function focusVehicle(vehicle) {
         setSelectedVehicle(vehicle);
         setFollowedVehicle(vehicle);
-        setZoom(15);
+        //setZoom(15);
 
         if (vehicle) {
             let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
@@ -368,174 +292,9 @@ function MapComponent() {
         </Marker>
     });
 
-    async function pickupAddress(e) {
-        e.preventDefault();
-        let val = e.target[0].value;
-
-        if (val) {
-            let response = await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/address`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({address: val})
-
-            });
-
-            if (response.ok) {
-                let js = await response.json();
-                await setPathPreview({
-                    pickup: {lat: js.latitude, lng: js.longitude},
-                    dropoff: pathPreview.dropoff
-                })
-                if (pathPreview.dropoff) {
-                    await addPath({lat: js.latitude, lng: js.longitude}, pathPreview.dropoff);
-                } else {
-                    setPathMode("end")
-                }
-            }
-        }
-
-        setPathPreview({dropoff: null, pickup: null});
-    }
-    async function dropOffAddress(e) {
-        e.preventDefault();
-        let val = e.target[0].value;
-
-        if (val) {
-            let response = await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/address`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({address: val})
-            });
-
-            if (response.ok) {
-                let js = await response.json();
-                await setPathPreview({
-                    pickup: pathPreview.pickup,
-                    dropoff: {lat: js.latitude, lng: js.longitude}
-                })
-                if (pathPreview.pickup) {
-                    await addPath(pathPreview.pickup, {lat: js.latitude, lng: js.longitude});
-                } else {
-                    setPathMode("start")
-                }
-            }
-        }
-        setPathPreview({dropoff: null, pickup: null});
-    }
-    async function postSimSpeed(e) {
-        await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/simulation/speed`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(e)
-        });
-    }
-
-    if(false){
-        let old = (
-            <div className="sidebar">
-                <div className="sidebar-top" ref={topSectionRef}>
-                    {vehicles.map((vehicle, index) => {
-                        let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
-                        return (
-                            <div ref={(el) => vehicleRefs[index] = el}
-                                 className={"vehicle-button " + (selectedVehicle && selectedVehicle.id === vehicle.id ? "selected" : "")}>
-                                <div className="vehicle-button-row">
-                                <span className="vehicle-text">
-                                    <b>Vehicle {vehicle.id}</b>
-                                    <div className="color-cube" style={{
-                                        float: "right",
-                                        height: "25px",
-                                        width: "25px",
-                                        borderRadius: "50%",
-                                        backgroundColor: getColor(vehicleId - 1)
-                                    }}/>
-                                    <br/>
-                                    Status:
-                                    <br/>
-                                    <b>
-                                        {vehicle.nodes.length > 0 && vehicle.destinations.length > 0 ? vehicle.destinations[0].isPickup ? `Picking up ${vehicle.destinations[0].routeId}` : `Delivering ${vehicle.destinations[0].routeId}` : "IDLE"}
-                                    </b>
-                                    <br/>
-                                    Capacity: <b>{vehicle.maxLoad - vehicle.destinations.filter(e => !e.isPickup).map(e => e.load).reduce((acc, x) => acc + x, 0)} / {vehicle.maxLoad}</b>
-                                </span>
-                                    <br></br>
-                                    <div className="action-buttons">
-                                        <button onClick={() => {
-                                            if (selectedVehicle && selectedVehicle.id === vehicle.id) {
-                                                focusVehicle(null)
-                                            } else {
-                                                focusVehicle(vehicle)
-                                            }
-                                        }}>{selectedVehicle && selectedVehicle.id === vehicle.id ? "Unfocus" : "Focus"}
-                                        </button>
-                                        <button onClick={async () => {
-                                            await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/delete`, {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Content-Type': 'application/json'
-                                                },
-                                                body: JSON.stringify(vehicle)
-                                            });
-                                            fetchVehicles();
-                                        }}>Remove
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>)
-                    })}
-                </div>
-                <div className="sidebar-divider" onMouseDown={handleMouseDown}/>
-                <div className="sidebar-bottom">
-                    <div className="input-container">
-                        <label className="label" htmlFor="sim-speed">Simulation speed</label>
-                        <input id="sim-speed" type="number" min="0.00" step="0.5" value={simSpeed}
-                               onChange={e => {
-                                   setSimSpeed(e.target.value)
-                                   postSimSpeed(e.target.value)
-                               }} required/>
-                    </div>
-
-                    <div className="sidebar-divider-2"/>
-
-                    <div className="input-container">
-                        <label className="label" htmlFor="load-size">Vehicle max capacity</label>
-                        <input id="load-size" type="number" min="1" value={vehicleLoad}
-                               onChange={e => setVehicleLoad(e.target.value)} required/>
-                    </div>
-                    <button className={"form-element " + (mode === "car" ? "selected" : "")}
-                            onClick={() => setMode(mode === "car" ? null : "car")}>Add vehicle
-                    </button>
-
-                    <form className="input-container" onSubmit={pickupAddress}>
-                        <label className="label" htmlFor="pickup-address">Pickup address</label>
-                        <input id="pickup-address" type="text" placeholder="Address"/>
-                    </form>
-                    <form className="input-container" onSubmit={dropOffAddress}>
-                        <label className="label" htmlFor="dropoff-address">Dropoff address</label>
-                        <input id="dropoff-address" type="text" placeholder="Address"/>
-                    </form>
-                    <div className="input-container">
-                        <label className="label" htmlFor="load-size">Delivery size</label>
-                        <input id="load-size" type="number" min="1" value={pathLoad}
-                               onChange={e => setPathLoad(e.target.value)} required/>
-                    </div>
-                    <button className={"form-element " + (mode === "path" ? "selected" : "")}
-                            onClick={() => setMode(mode === "path" ? null : "path")}>Add delivery
-                    </button>
-                    <button className="form-element" onClick={() => clear()}>Clear</button>
-                </div>
-            </div>
-        )
-    }
     return (
         <div className="layout-container">
-            <Sidebar vehicles={vehicles} setDirty={setDirty} vehicleRefs={vehicleRefs} setMapPicker={setMapPicker} logMessages={logMessages} selectedVehicle={selectedVehicle} setSelectedVehicle={focusVehicle} getColor={getColor}/>
+            <Sidebar vehicles={vehicles} currentLocation={currentLocation} reRender={reRender} vehicleRefs={vehicleRefs} setMapPicker={setMapPicker} logMessages={logMessages} selectedVehicle={selectedVehicle} setSelectedVehicle={focusVehicle} getColor={getColor}/>
             <div className="map-container">
                 <LoadScript googleMapsApiKey={GOOGLE_API_TOKEN}>
                     <GoogleMap
@@ -575,14 +334,6 @@ function MapComponent() {
                         {mapPicker !== null && mousePosition ? <Marker key={"pick-pos"} position={mousePosition} /> : <></>}
 
                         {items}
-                        {pathPreview && pathPreview.pickup ?
-                            <Marker key="Pickup" position={pathPreview.pickup} icon={{
-                                url: 'http://maps.gstatic.com/mapfiles/markers2/icon_green.png',
-                            }}/> : <></>}
-                        {pathPreview && pathPreview.dropoff ?
-                            <Marker key="Dropoff" position={pathPreview.dropoff} icon={{
-                                url: 'http://maps.gstatic.com/mapfiles/markers2/marker.png',
-                            }}/> : <></>}
                     </GoogleMap>
                 </LoadScript>
             </div>

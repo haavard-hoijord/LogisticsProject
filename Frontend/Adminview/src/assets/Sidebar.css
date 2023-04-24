@@ -76,6 +76,16 @@
     font-weight: bolder;
 }
 
+.new-simulate {
+    margin: 10px;
+    align-items: center;
+    justify-content: center;
+    background: lightcoral;
+    color: black;
+    cursor: pointer;
+    font-weight: bolder;
+}
+
 .title {
     font-size: 25px;
     font-weight: bold;
@@ -136,7 +146,10 @@
     border-radius: 10px;
 }
 
-.pickup-points .input-container, .dropoff-points .input-container, .vehicle-points .input-container {
+.pickup-points .input-container,
+.dropoff-points .input-container,
+.vehicle-points .input-container,
+.add-randoms-view .input-container{
     background: lightblue;
     color: black;
     padding: 10px;
@@ -153,7 +166,7 @@
     border-radius: 10px;
 }
 
-.add-delivery-button, .add-vehicle-button {
+.add-delivery-button, .add-vehicle-button, .add-random-vehicle-button, .add-random-delivery-button {
     margin: 10px;
     align-items: center;
     justify-content: center;
@@ -171,4 +184,78 @@
     color: black;
     cursor: pointer;
     width: 480px;
+}
+
+.route {
+    display: flex;
+    align-items: center;
+    margin: 5px;
+    margin-bottom: 50px;
+    padding: 5px;
+    outline: none;
+    background: gray;
+    border-radius: 10px;
+    width: 500px;
+}
+
+.route-destinations {
+    display: flex;
+    flex-direction: column;
+}
+
+.destination-title, .destination-distance {
+    margin: 5px;
+    text-align: start;
+}
+
+.route-index{
+    margin: 10px;
+    padding: 15px;
+    outline: none;
+    background: darkgray;
+    border-radius: 100%;
+}
+
+.destination-type {
+    padding: 10px;
+    outline: none;
+    background: #5d8989;
+    border-radius: 10px;
+    width: 350px;
+    font-weight: bold;
+}
+
+.destination {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    margin: 5px;
+    padding: 5px;
+    outline: none;
+    background: darkgray;
+    border-radius: 10px;
+    width: 370px;
+    position: relative;
+    z-index: 1;
+}
+
+.destination-arrow {
+    margin-left: 44px;
+    z-index: 2;
+    margin-top: -45px;
+}
+
+.destination-arrow-line {
+    width: 20px;
+    height: 30px;
+    margin-left: 10px;
+    background-color: coral;
+}
+
+.destination-arrow-head{
+    width: 0;
+    height: 0;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-top: 40px solid coral;
 }
