@@ -67,16 +67,16 @@ const Sidebar = ({
             });
     }, []);
 
-    //Resize handling
-    React.useEffect(() => {
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
-
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isResizing]);
+    // //Resize handling
+    // React.useEffect(() => {
+    //     window.addEventListener('mousemove', handleMouseMove);
+    //     window.addEventListener('mouseup', handleMouseUp);
+    //
+    //     return () => {
+    //         window.removeEventListener('mousemove', handleMouseMove);
+    //         window.removeEventListener('mouseup', handleMouseUp);
+    //     };
+    // }, [isResizing]);
 
     const handleMouseDown = () => {
         setIsResizing(true);
@@ -86,18 +86,18 @@ const Sidebar = ({
         setIsResizing(false);
     };
 
-    const handleMouseMove = (event) => {
-        if (isResizing && topSectionRef.current) {
-            topSectionRef.current.style.height = `${event.clientY}px`;
-            sessionStorage.setItem('topSectionHeight', `${event.clientY}`);
-        }
-    };
+    // const handleMouseMove = (event) => {
+    //     if (isResizing && topSectionRef.current) {
+    //         topSectionRef.current.style.height = `${event.clientY}px`;
+    //         sessionStorage.setItem('topSectionHeight', `${event.clientY}`);
+    //     }
+    // };
 
-    React.useEffect(() => {
-        if (sessionStorage.getItem('topSectionHeight')) {
-            topSectionRef.current.style.height = `${sessionStorage.getItem('topSectionHeight')}px`;
-        }
-    }, []);
+    // React.useEffect(() => {
+    //     if (sessionStorage.getItem('topSectionHeight')) {
+    //         topSectionRef.current.style.height = `${sessionStorage.getItem('topSectionHeight')}px`;
+    //     }
+    // }, []);
 
 
     let veh = vehicles.find((v) => v.id === selectedVehicle?.id)
@@ -195,6 +195,7 @@ const Sidebar = ({
                 {selectedVehicle ?
                     (<div className="vehicle-view">
                         <div className="title">Vehicle {selectedVehicle.id}</div>
+                        //TODO Add Vehicle capacity
                         {routes.map((rt, index) => {
                             return (
                                 <div>
@@ -204,6 +205,8 @@ const Sidebar = ({
                                             {routes[index].map((dest, index) => {
                                                 return (
                                                     <div className="destination">
+                                                        //TODO Add Destination load
+                                                        //TODO Add Delete button
                                                         <div
                                                             className="destination-type">{dest.isPickup ? "Pickup" : "Deliver"}</div>
                                                         <div className="destination-title">{dest.address}</div>
@@ -616,6 +619,7 @@ const Sidebar = ({
 
                                         <button className="add-random-vehicle-button"
                                         onClick={async () => {
+                                            //TODO Set is adding loading icon
                                             await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/random/vehicle`, {
                                                 method: 'POST',
                                                 headers: {
@@ -626,6 +630,7 @@ const Sidebar = ({
                                                     location: {latitude: currentLocation.lat, longitude: currentLocation.lng}
                                                 })
                                             });
+                                            //TODO Remove loading icon again
                                             reRender();
 
                                         }}>
@@ -651,7 +656,7 @@ const Sidebar = ({
                                                     'Content-Type': 'application/json'
                                                 },
                                                 body: JSON.stringify({
-                                                    amount: randomVehicles,
+                                                    amount: randomDeliveries,
                                                     location: {latitude: currentLocation.lat, longitude: currentLocation.lng}
                                                 })
                                             });

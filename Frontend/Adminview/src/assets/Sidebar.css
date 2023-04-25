@@ -12,7 +12,7 @@
 .sidebar-top {
     display: flex;
     flex-direction: row;
-    height: 200px;
+    height: 100%;
 }
 
 .sidebar-top-vehicles {

@@ -1,7 +1,10 @@
 using System.Timers;
 using GoogleApi;
 using GoogleApi.Entities.Maps.Common;
+using GoogleApi.Entities.Places.Search.Common.Enums;
 using GoogleApi.Entities.Places.Search.NearBy.Request;
+using GoogleApi.Entities.Places.Search.NearBy.Request.Enums;
+using GoogleApi.Entities.Places.Search.NearBy.Response;
 using Microsoft.AspNetCore.Mvc;
 using Solution.Controllers;
 using Solution.Models;
@@ -130,15 +133,10 @@ public class SimulationController : ControllerBase
     [HttpPost("/random/vehicle")]
     public async void AddRandomVehicle([FromBody] RandomRequest request)
     {
-        var searchRequest = new PlacesNearBySearchRequest
-        {
-            Key = GOOGLE_API_KEY,
-            Location = new GoogleApi.Entities.Common.Coordinate(request.location.latitude, request.location.longitude),
-            Radius = 1000,
-        };
+        var results = await GetNearbyPlacesAsync(GOOGLE_API_KEY, request.location, 50000, null);
 
-        var response = await GooglePlaces.Search.NearBySearch.QueryAsync(searchRequest);
-        var results = response.Results.ToList();
+        Console.WriteLine("Found " + results.Count + " results");
+        Console.WriteLine("Adding " + request.amount + " vehicles");
 
         if(results.Count == 0)
         {
@@ -146,10 +144,11 @@ public class SimulationController : ControllerBase
             return;
         }
 
-
         for (var i = 0; i < request.amount; i++)
         {
-            var randomPlace = results[new Random().Next(0, results.Count)].Geometry.Location;
+            var randomElement = results[new Random().Next(0, results.Count)];
+            var randomPlace = randomElement.Geometry.Location;
+            results.Remove(randomElement);
 
             var vehicle = new Vehicle
             {
@@ -158,8 +157,9 @@ public class SimulationController : ControllerBase
                     latitude = randomPlace.Latitude,
                     longitude = randomPlace.Longitude
                 },
-                maxLoad = new Random().Next(10, 100),
+                maxLoad = 50,
                 company = CompanyController.companies[new Random().Next(0, CompanyController.companies.Count)].id,
+                mapService = "google",
                 destinations = new List<Destination>(),
                 nodes = new List<Node>()
             };
@@ -171,15 +171,7 @@ public class SimulationController : ControllerBase
     [HttpPost("/random/delivery")]
     public async void AddRandomDelivery([FromBody] RandomRequest request)
     {
-        var searchRequest = new PlacesNearBySearchRequest
-        {
-            Key = GOOGLE_API_KEY,
-            Location = new GoogleApi.Entities.Common.Coordinate(request.location.latitude, request.location.longitude),
-            Radius = 1000,
-        };
-
-        var response = await GooglePlaces.Search.NearBySearch.QueryAsync(searchRequest);
-        var results = response.Results.ToList();
+        var results = await GetNearbyPlacesAsync(GOOGLE_API_KEY, request.location, 50000, null);
 
         if(results.Count == 0)
         {
@@ -187,18 +179,26 @@ public class SimulationController : ControllerBase
             return;
         }
 
+        Console.WriteLine("Found " + results.Count + " results");
+        Console.WriteLine("Adding " + request.amount + " deliveries");
+
         for (var i = 0; i < request.amount; i++)
         {
-            var randomPlace1 = results[new Random().Next(0, results.Count)].Geometry.Location;
+            var randomElement1 = results[new Random().Next(0, results.Count)];
+            var randomPlace1 = randomElement1.Geometry.Location;
+
             var randomPlace2 = results[new Random().Next(0, results.Count)].Geometry.Location;
 
-            int size = new Random().Next(1, 50);
+            while (randomPlace2 == randomPlace1)
+            {
+                randomPlace2 = results[new Random().Next(0, results.Count)].Geometry.Location;
+            }
 
             var delivery = new Delivery
             {
-                pickup =
+                pickup = new DeliveryDestination
                 {
-                    size = size,
+                    size = 1,
                     type = "cords",
                     coordinate = new Coordinate
                     {
@@ -206,9 +206,9 @@ public class SimulationController : ControllerBase
                         longitude = randomPlace1.Longitude
                     }
                 },
-                dropoff =
+                dropoff = new DeliveryDestination
                 {
-                    size = size,
+                    size = 1,
                     type = "cords",
                     coordinate = new Coordinate
                     {
@@ -220,6 +220,45 @@ public class SimulationController : ControllerBase
 
             Program.client.InvokeMethodAsync(HttpMethod.Post, "planner", "add", delivery);
         }
+    }
+
+    private static async Task<List<NearByResult>> GetNearbyPlacesAsync(string apiKey, Coordinate location, int radius, SearchPlaceType? type)
+    {
+        var allResults = new List<NearByResult>();
+        string nextPageToken = null;
+
+        do
+        {
+            var searchRequest = new PlacesNearBySearchRequest
+            {
+                Key = apiKey,
+                Location = new GoogleApi.Entities.Common.Coordinate(location.latitude, location.longitude),
+                Type = type,
+                Rankby = Ranking.Distance
+            };
+
+            if (!string.IsNullOrEmpty(nextPageToken))
+            {
+                searchRequest.PageToken = nextPageToken;
+            }
+
+            var response = await GooglePlaces.Search.NearBySearch.QueryAsync(searchRequest);
+
+            if (response.Results != null)
+            {
+                allResults.AddRange(response.Results);
+            }
+
+            nextPageToken = response.NextPageToken;
+
+            // There is a short delay before the NextPageToken becomes valid, wait before making the next request.
+            if (!string.IsNullOrEmpty(nextPageToken))
+            {
+                await Task.Delay(2000);
+            }
+        } while (!string.IsNullOrEmpty(nextPageToken));
+
+        return allResults;
     }
 
 
