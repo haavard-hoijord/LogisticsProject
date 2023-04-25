@@ -138,10 +138,18 @@ public class SimulationController : ControllerBase
         };
 
         var response = await GooglePlaces.Search.NearBySearch.QueryAsync(searchRequest);
+        var results = response.Results.ToList();
+
+        if(results.Count == 0)
+        {
+            Console.Error.WriteLine("No results found");
+            return;
+        }
+
 
         for (var i = 0; i < request.amount; i++)
         {
-            var randomPlace = response.Results.ToList()[new Random().Next(0, response.Results.ToList().Count)].Geometry.Location;
+            var randomPlace = results[new Random().Next(0, results.Count)].Geometry.Location;
 
             var vehicle = new Vehicle
             {
@@ -171,11 +179,18 @@ public class SimulationController : ControllerBase
         };
 
         var response = await GooglePlaces.Search.NearBySearch.QueryAsync(searchRequest);
+        var results = response.Results.ToList();
+
+        if(results.Count == 0)
+        {
+            Console.Error.WriteLine("No results found");
+            return;
+        }
 
         for (var i = 0; i < request.amount; i++)
         {
-            var randomPlace1 = response.Results.ToList()[new Random().Next(0, response.Results.ToList().Count)].Geometry.Location;
-            var randomPlace2 = response.Results.ToList()[new Random().Next(0, response.Results.ToList().Count)].Geometry.Location;
+            var randomPlace1 = results[new Random().Next(0, results.Count)].Geometry.Location;
+            var randomPlace2 = results[new Random().Next(0, results.Count)].Geometry.Location;
 
             int size = new Random().Next(1, 50);
 

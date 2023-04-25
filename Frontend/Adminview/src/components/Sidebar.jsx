@@ -623,7 +623,7 @@ const Sidebar = ({
                                                 },
                                                 body: JSON.stringify({
                                                     amount: randomVehicles,
-                                                    location: currentLocation
+                                                    location: {latitude: currentLocation.lat, longitude: currentLocation.lng}
                                                 })
                                             });
                                             reRender();
@@ -644,56 +644,18 @@ const Sidebar = ({
                                                    }} required/>
                                         </div>
 
-                                        <button className="add-random-delivery-button" onClick={() => {
-                                            fetch(
-                                                `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${currentLocation.lat},${currentLocation.lng}&radius=${100000}&key=${GOOGLE_API_TOKEN}`
-                                            )
-                                                .then((response) => {
-                                                    if (response.ok) {
-                                                        return response.json();
-                                                    } else {
-                                                        throw new Error('Error fetching nearby locations: ' + response.statusText);
-                                                    }
+                                        <button className="add-random-delivery-button" onClick={async () => {
+                                            await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/random/delivery`, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json'
+                                                },
+                                                body: JSON.stringify({
+                                                    amount: randomVehicles,
+                                                    location: {latitude: currentLocation.lat, longitude: currentLocation.lng}
                                                 })
-                                                .then((data) => {
-                                                    if (data.status === 'OK') {
-
-                                                        for(let i = 0; i < randomDeliveries; i++) {
-                                                            let randomResult1 = data.results[Math.random() * data.results.length | 0];
-                                                            let point1 = {latitude: randomResult1.geometry.location.lat, longitude: randomResult1.geometry.location.lng};
-
-                                                            let randomResult2 = data.results[Math.random() * data.results.length | 0];
-                                                            let point2 = {latitude: randomResult2.geometry.location.lat, longitude: randomResult2.geometry.location.lng};
-
-                                                            let size = Math.round(1 + Math.random() * 30);
-                                                            fetch(`${DAPR_URL}/v1.0/invoke/planner/method/add`, {
-                                                                method: 'POST', headers: {
-                                                                    'Content-Type': 'application/json'
-                                                                },
-                                                                body: JSON.stringify({
-                                                                    pickup: {
-                                                                        coordinate: point1,
-                                                                        type: "cords",
-                                                                        size: size
-                                                                    },
-                                                                    dropoff: {
-                                                                        coordinate: point2,
-                                                                        type: "cords",
-                                                                        size: size
-                                                                    }
-                                                                })
-                                                            });
-                                                        }
-
-                                                        reRender();
-
-                                                    } else {
-                                                        console.error('Error fetching nearby locations:', data.status);
-                                                    }
-                                                })
-                                                .catch((error) => {
-                                                    console.error('Error fetching nearby locations:', error);
-                                                });
+                                            });
+                                            reRender();
                                         }}>
                                             Add Random Deliveries
                                         </button>
