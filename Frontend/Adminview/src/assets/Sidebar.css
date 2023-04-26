@@ -203,7 +203,9 @@
     flex-direction: column;
 }
 
-.destination-title, .destination-distance {
+.destination-title,
+.destination-distance,
+.destination-load {
     margin: 5px;
     text-align: start;
 }
@@ -223,6 +225,30 @@
     border-radius: 10px;
     width: 350px;
     font-weight: bold;
+}
+
+.delete-destination {
+    padding: 10px;
+    align-items: center;
+    justify-content: center;
+    background: lightcoral;
+    color: black;
+    cursor: pointer;
+    font-weight: bolder;
+    width: 370px;
+}
+
+.delete-route {
+    padding: 10px;
+    margin-left: 5px;
+    margin-top: 10px;
+    align-items: center;
+    justify-content: center;
+    background: lightcoral;
+    color: black;
+    cursor: pointer;
+    font-weight: bolder;
+    width: 380px;
 }
 
 .destination {

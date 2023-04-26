@@ -21,6 +21,9 @@ public class PubsubController : ControllerBase
 
         var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj);
         await Program.client.InvokeMethodAsync(message2);
+
+        await Program.client.InvokeMethodAsync(HttpMethod.Post, "planner", "update", obj);
+
         return Ok();
     }
 
@@ -37,6 +40,9 @@ public class PubsubController : ControllerBase
 
         var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj);
         await Program.client.InvokeMethodAsync(message2);
+
+        await Program.client.InvokeMethodAsync(HttpMethod.Post, "planner", "update", obj);
+
         return Ok();
     }
 

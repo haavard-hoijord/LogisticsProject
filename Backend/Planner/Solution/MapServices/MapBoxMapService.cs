@@ -8,8 +8,7 @@ namespace Solution.Pathfinder;
 
 public class MapBoxMapService : IMapService
 {
-    public static string API_KEY =
-        "pk.eyJ1IjoiaGFhdmFyZGgiLCJhIjoiY2xnZG4wbXJiMDV1NzNlcGxzOW9sM2l6eCJ9.viXU_wJiYNSXDizV7Tu3NQ";
+    public static string API_KEY = Environment.GetEnvironmentVariable("MAPBOX_API_TOKEN");
 
 
     private static readonly HttpClient httpClient = new();

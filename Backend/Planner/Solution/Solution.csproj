@@ -9,6 +9,7 @@
     <ItemGroup>
         <PackageReference Include="Dapr.AspNetCore" Version="1.10.0" />
         <PackageReference Include="Dapr.Client" Version="1.10.0" />
+        <PackageReference Include="Google.Maps.Routing.V2" Version="1.0.0-beta09" />
         <PackageReference Include="GoogleApi" Version="4.5.4" />
         <PackageReference Include="Microsoft.AspNetCore.Cors" Version="2.2.0" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Cors" Version="2.2.0" />

@@ -9,9 +9,14 @@
     <ItemGroup>
         <PackageReference Include="Dapr.AspNetCore" Version="1.10.0" />
         <PackageReference Include="Dapr.Client" Version="1.10.0" />
-        <PackageReference Include="GoogleApi" Version="4.5.4" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.4" />
         <PackageReference Include="Microsoft.AspNetCore.WebSockets" Version="2.2.1" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Addresses.csv">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 </Project>

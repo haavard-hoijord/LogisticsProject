@@ -1,9 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import '../assets/Sidebar.css';
-import Chatlog from "./Chatlog.jsx";
 import VehicleButton from "./VehicleButton.jsx";
 import GoogleMapsAutocomplete from "./GoogleMapsAutocomplete.jsx";
-import {GOOGLE_API_TOKEN} from "../App.jsx";
 
 const DAPR_URL = `http://localhost:5000/dapr`;
 
@@ -67,47 +65,17 @@ const Sidebar = ({
             });
     }, []);
 
-    // //Resize handling
-    // React.useEffect(() => {
-    //     window.addEventListener('mousemove', handleMouseMove);
-    //     window.addEventListener('mouseup', handleMouseUp);
-    //
-    //     return () => {
-    //         window.removeEventListener('mousemove', handleMouseMove);
-    //         window.removeEventListener('mouseup', handleMouseUp);
-    //     };
-    // }, [isResizing]);
-
-    const handleMouseDown = () => {
-        setIsResizing(true);
-    };
-
-    const handleMouseUp = () => {
-        setIsResizing(false);
-    };
-
-    // const handleMouseMove = (event) => {
-    //     if (isResizing && topSectionRef.current) {
-    //         topSectionRef.current.style.height = `${event.clientY}px`;
-    //         sessionStorage.setItem('topSectionHeight', `${event.clientY}`);
-    //     }
-    // };
-
-    // React.useEffect(() => {
-    //     if (sessionStorage.getItem('topSectionHeight')) {
-    //         topSectionRef.current.style.height = `${sessionStorage.getItem('topSectionHeight')}px`;
-    //     }
-    // }, []);
-
 
     let veh = vehicles.find((v) => v.id === selectedVehicle?.id)
     let routes = [];
     if (veh) {
         veh.destinations.forEach((dest, index) => {
-            if (routes.length > 0 && routes[routes.length - 1][0].routeId === dest.routeId) {
-                routes[routes.length - 1].push(dest);
-            } else {
-                routes.push([dest]);
+            if (dest) {
+                if (routes.length > 0 && routes[routes.length - 1][0].routeId === dest.routeId) {
+                    routes[routes.length - 1].push(dest);
+                } else {
+                    routes.push([dest]);
+                }
             }
         });
     }
@@ -165,7 +133,7 @@ const Sidebar = ({
                     </button>
 
                     <br/>
-                    {[0, 1, 2, 5, 10].map((speed) => {
+                    {[0, 1, 2, 5, 10, 50, 100].map((speed) => {
                         return (<button key={`sim-speed${speed}`}
                                         className={`sim-speed ${simSpeed === speed ? "selected" : ""}`} onClick={() => {
                             setSimSpeed(speed);
@@ -177,7 +145,7 @@ const Sidebar = ({
                 </div>
                 <div className="sidebar-companies">
                     {companies.filter(e => vehicles.filter(e1 => e1.company === e.id).length > 0).map((company, index) => (
-                        <div className="company" key={company}>
+                        <div className="company" key={company.id}>
                             <p>{company.name}</p>
                             <div className="vehicle-buttons">
                                 {vehicles.filter(e => e.company === company.id).map((vehicle, index) => (
@@ -195,27 +163,76 @@ const Sidebar = ({
                 {selectedVehicle ?
                     (<div className="vehicle-view">
                         <div className="title">Vehicle {selectedVehicle.id}</div>
-                        //TODO Add Vehicle capacity
+                        <div
+                            className="sub-title">Capacity: {selectedVehicle.maxLoad -
+                            (selectedVehicle.destinations.filter(s => s && !s.isPickup).map(s => s.load).reduce((a1, a2) => a1 + a2, 0) - selectedVehicle.destinations.filter(s => s && s.isPickup).map(s => s.load).reduce((a1, a2) => a1 + a2, 0))}</div>
                         {routes.map((rt, index) => {
                             return (
                                 <div>
-                                    <div className="route">
+                                    <div key={`route ${rt}`} className="route">
                                         <div className="route-index">Route {routes[index][0].routeId}</div>
                                         <div className="route-destinations">
-                                            {routes[index].map((dest, index) => {
+                                            {routes[index].map((dest, index1) => {
                                                 return (
-                                                    <div className="destination">
-                                                        //TODO Add Destination load
-                                                        //TODO Add Delete button
+                                                    <div key={`destination-${rt}-${index1}`} className="destination">
                                                         <div
                                                             className="destination-type">{dest.isPickup ? "Pickup" : "Deliver"}</div>
                                                         <div className="destination-title">{dest.address}</div>
+                                                        <div className="destination-load">Load: {dest.load}</div>
                                                         <div
                                                             className="destination-distance">Distance: {Math.round(dest.distance * 1000) / 1000.0}km
                                                         </div>
+
+                                                        {
+                                                            routes[index].length > 1 ? (
+                                                                <button className="delete-destination"
+                                                                        onClick={async () => {
+                                                                            let destId = veh.destinations.findIndex((d) => d.id === dest.id);
+                                                                            veh.destinations.slice(destId, 1);
+                                                                            await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/update`, {
+                                                                                method: 'POST',
+                                                                                headers: {
+                                                                                    'Content-Type': 'application/json'
+                                                                                },
+                                                                                body: JSON.stringify(veh)
+                                                                            });
+
+                                                                            await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/update`, {
+                                                                                method: 'POST',
+                                                                                headers: {
+                                                                                    'Content-Type': 'application/json'
+                                                                                },
+                                                                                body: JSON.stringify(veh)
+                                                                            });
+                                                                            reRender();
+                                                                        }}>Remove Destination</button>
+                                                            ) : (<> </>)
+                                                        }
                                                     </div>
                                                 );
                                             })}
+
+                                            <button className="delete-route" onClick={async () => {
+                                                let destId = veh.destinations.findIndex((d) => d.routeId === routes[index][0].routeId);
+                                                veh.destinations.slice(destId, routes[index].length);
+                                                await fetch(`${DAPR_URL}/v1.0/invoke/tracker/method/update`, {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type': 'application/json'
+                                                    },
+                                                    body: JSON.stringify(veh)
+                                                });
+
+                                                await fetch(`${DAPR_URL}/v1.0/invoke/planner/method/update`, {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type': 'application/json'
+                                                    },
+                                                    body: JSON.stringify(veh)
+                                                });
+                                                reRender();
+                                            }}>Remove Route
+                                            </button>
                                         </div>
                                     </div>
                                     {index !== routes.length - 1 && (<div className="destination-arrow">
@@ -602,7 +619,7 @@ const Sidebar = ({
                                     </button>
                                 </div>
                             )
-                            :
+                            : addMode != null ?
                             (
                                 <div className="add-randoms-view">
                                     <div className="title">Add Randoms</div>
@@ -618,22 +635,25 @@ const Sidebar = ({
                                         </div>
 
                                         <button className="add-random-vehicle-button"
-                                        onClick={async () => {
-                                            //TODO Set is adding loading icon
-                                            await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/random/vehicle`, {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Content-Type': 'application/json'
-                                                },
-                                                body: JSON.stringify({
-                                                    amount: randomVehicles,
-                                                    location: {latitude: currentLocation.lat, longitude: currentLocation.lng}
-                                                })
-                                            });
-                                            //TODO Remove loading icon again
-                                            reRender();
+                                                onClick={async () => {
+                                                    //TODO Set is adding loading icon
+                                                    await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/random/vehicle`, {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Content-Type': 'application/json'
+                                                        },
+                                                        body: JSON.stringify({
+                                                            amount: randomVehicles,
+                                                            location: {
+                                                                latitude: currentLocation.lat,
+                                                                longitude: currentLocation.lng
+                                                            }
+                                                        })
+                                                    });
+                                                    //TODO Remove loading icon again
+                                                    reRender();
 
-                                        }}>
+                                                }}>
                                             Add Random Vehicles
                                         </button>
                                     </div>
@@ -657,7 +677,10 @@ const Sidebar = ({
                                                 },
                                                 body: JSON.stringify({
                                                     amount: randomDeliveries,
-                                                    location: {latitude: currentLocation.lat, longitude: currentLocation.lng}
+                                                    location: {
+                                                        latitude: currentLocation.lat,
+                                                        longitude: currentLocation.lng
+                                                    }
                                                 })
                                             });
                                             reRender();
@@ -667,6 +690,7 @@ const Sidebar = ({
                                     </div>
                                 </div>
                             )
+                                : (<> </>)
                     : (<> </>)}
 
             </div>) : (<></>)}

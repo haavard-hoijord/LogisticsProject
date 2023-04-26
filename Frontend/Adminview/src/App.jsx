@@ -41,7 +41,7 @@ function getCurrentTimestamp() {
 
 export const DAPR_URL = `http://localhost:5000/dapr`;
 export const GOOGLE_API_TOKEN = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
-
+//import.meta.env.VITE_GOOGLE_API_TOKEN
 function MapComponent() {
     const vehicleRefs = useRef([]);
 
@@ -229,7 +229,7 @@ function MapComponent() {
         if (vehicle.destinations) {
             let position = {lat: vehicle.coordinate.latitude, lng: vehicle.coordinate.longitude}
             vehicle.destinations.forEach(async (destination, index) => {
-                if (destination.coordinate) {
+                if (destination && destination.coordinate) {
                     let pos = {lat: destination.coordinate.latitude, lng: destination.coordinate.longitude}
                     path.push(<Marker key={`Destination ${vehicleId}-${index}`} position={pos}
                                       icon={{

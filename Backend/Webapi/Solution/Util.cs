@@ -2,6 +2,9 @@ public class Util
 {
     public static double CalculateDistance(Coordinate coord1, Coordinate coord2)
     {
+        if(coord1 == null || coord2 == null)
+            throw new ArgumentNullException();
+
         return CalculateDistance(coord1.latitude, coord1.longitude, coord2.latitude, coord2.longitude);
     }
 

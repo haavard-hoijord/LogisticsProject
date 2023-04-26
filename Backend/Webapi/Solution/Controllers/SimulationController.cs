@@ -1,13 +1,10 @@
 using System.Timers;
-using GoogleApi;
-using GoogleApi.Entities.Maps.Common;
-using GoogleApi.Entities.Places.Search.Common.Enums;
-using GoogleApi.Entities.Places.Search.NearBy.Request;
-using GoogleApi.Entities.Places.Search.NearBy.Request.Enums;
-using GoogleApi.Entities.Places.Search.NearBy.Response;
 using Microsoft.AspNetCore.Mvc;
 using Solution.Controllers;
 using Solution.Models;
+using System;
+using System.IO;
+using System.Collections.Generic;
 
 [ApiController]
 [Route("[controller]")]
@@ -69,46 +66,91 @@ public class SimulationController : ControllerBase
 
                         if (adjustedRemainingDistance >= distanceToNextNode)
                         {
-                            remainingDistance -= distanceToNextNode / nextNode.speedLimit;
-                            vehicle.coordinate = nextNode.coordinate; //TODO This causes vehicle to bounce back on the map if it had already gone past it
-                            vehicle.nodes.RemoveAt(0);
-                            vehicle.destinations.First().distance -= distanceToNextNode / nextNode.speedLimit;
-
-                            foreach (var dest in vehicle.destinations)
+                            try
                             {
-                                if (dest.closestNode != null && dest.closestNode.latitude == nextNode.coordinate.latitude &&
-                                    dest.closestNode.longitude == nextNode.coordinate.longitude
-                                    || dest.distance <= 0)
-                                {
-                                    var messageData = new Program.MessageData
-                                    {
-                                        id = vehicle.id,
-                                        route = dest.routeId,
-                                        latitude = dest.coordinate.latitude,
-                                        longitude = dest.coordinate.longitude
-                                    };
+                                remainingDistance -= distanceToNextNode / nextNode.speedLimit;
+                                vehicle.coordinate = nextNode.coordinate; //TODO This causes vehicle to bounce back on the map if it had already gone past it
+                                vehicle.nodes.RemoveAt(0);
 
-                                    Program.client.PublishEventAsync("status", dest.isPickup ? "pickup" : "delivery", messageData);
+                                try
+                                {
+                                    if (vehicle.destinations is { Count: > 0 } && vehicle.destinations.First() != null)
+                                    {
+                                        if (vehicle.destinations.First().distance is > 0)
+                                        {
+                                            vehicle.destinations.First().distance -= distanceToNextNode / nextNode.speedLimit;
+                                        }
+                                    }
                                 }
+                                catch (Exception e)
+                                {
+                                    Console.WriteLine(e.ToString());
+                                }
+
+                                foreach (var dest in vehicle.destinations)
+                                {
+                                    try
+                                    {
+                                        if (dest is { closestNode: { } } && nextNode != null
+                                        && dest.closestNode.latitude == nextNode.coordinate.latitude && dest.closestNode.longitude == nextNode.coordinate.longitude)
+                                        {
+                                            var messageData = new Program.MessageData
+                                            {
+                                                id = vehicle.id,
+                                                route = dest.routeId,
+                                                latitude = dest.coordinate.latitude,
+                                                longitude = dest.coordinate.longitude
+                                            };
+
+                                            Program.client.PublishEventAsync("status", dest.isPickup ? "pickup" : "delivery", messageData);
+                                        }
+                                    }catch(Exception ex)
+                                    {
+                                        Console.WriteLine(ex.ToString());
+                                    }
+                                }
+                            }catch(Exception ex)
+                            {
+                                Console.WriteLine(ex.ToString());
                             }
                         }
                         else
                         {
-                            double gain = adjustedRemainingDistance / distanceToNextNode;
-                            double latitudeDifference = (nextNode.coordinate.latitude - vehicle.coordinate.latitude) * gain;
-                            double longitudeDifference = (nextNode.coordinate.longitude - vehicle.coordinate.longitude) * gain;
-
-                            var cord = new Coordinate
+                            try
                             {
-                                latitude = vehicle.coordinate.latitude + latitudeDifference,
-                                longitude = vehicle.coordinate.longitude + longitudeDifference
-                            };
+                                double gain = adjustedRemainingDistance / distanceToNextNode;
+                                double latitudeDifference = (nextNode.coordinate.latitude - vehicle.coordinate.latitude) * gain;
+                                double longitudeDifference = (nextNode.coordinate.longitude - vehicle.coordinate.longitude) * gain;
 
-                            vehicle.destinations.First().distance -= Util.CalculateDistance(vehicle.coordinate, cord);
+                                var cord = new Coordinate
+                                {
+                                    latitude = vehicle.coordinate.latitude + latitudeDifference,
+                                    longitude = vehicle.coordinate.longitude + longitudeDifference
+                                };
 
-                            vehicle.coordinate = cord;
+                                try
+                                {
+                                    if (vehicle.destinations is { Count: > 0 } &&
+                                        vehicle.destinations.First() != null && vehicle.coordinate != null)
+                                    {
+                                        if (vehicle.destinations.First().distance is > 0)
+                                        {
+                                            vehicle.destinations.First().distance -= Util.CalculateDistance(vehicle.coordinate, cord);
+                                        }
+                                    }
 
-                            remainingDistance -= adjustedRemainingDistance / nextNode.speedLimit;
+                                }catch(Exception ex)
+                                {
+                                    Console.WriteLine(ex.ToString());
+                                }
+
+                                vehicle.coordinate = cord;
+
+                                remainingDistance -= adjustedRemainingDistance / nextNode.speedLimit;
+                            }catch(Exception ex)
+                            {
+                                Console.WriteLine(ex.ToString());
+                            }
                         }
                     }
 
@@ -127,145 +169,132 @@ public class SimulationController : ControllerBase
         }
     }
 
-    public static string GOOGLE_API_KEY = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
-
 
     [HttpPost("/random/vehicle")]
     public async void AddRandomVehicle([FromBody] RandomRequest request)
     {
-        var results = await GetNearbyPlacesAsync(GOOGLE_API_KEY, request.location, 50000, null);
+        var added = 0;
+        Console.WriteLine("Attempting to add " + request.amount + " vehicles");
 
-        Console.WriteLine("Found " + results.Count + " results");
-        Console.WriteLine("Adding " + request.amount + " vehicles");
-
-        if(results.Count == 0)
-        {
-            Console.Error.WriteLine("No results found");
-            return;
-        }
-
+        List<string> rows = ReadCsvFile("Addresses.csv");
         for (var i = 0; i < request.amount; i++)
         {
-            var randomElement = results[new Random().Next(0, results.Count)];
-            var randomPlace = randomElement.Geometry.Location;
-            results.Remove(randomElement);
+            var randomAddress = GetRandomRow(rows);
 
-            var vehicle = new Vehicle
+            Console.WriteLine("Adding vehicle at " + randomAddress);
+
+            try
             {
-                coordinate = new Coordinate
+                var data = new Dictionary<string, string>
                 {
-                    latitude = randomPlace.Latitude,
-                    longitude = randomPlace.Longitude
-                },
-                maxLoad = 50,
-                company = CompanyController.companies[new Random().Next(0, CompanyController.companies.Count)].id,
-                mapService = "google",
-                destinations = new List<Destination>(),
-                nodes = new List<Node>()
-            };
+                    { "address", randomAddress }
+                };
+                var addressRequest = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "planner", "address", data);
+                var coordinate = await Program.client.InvokeMethodAsync<Coordinate>(addressRequest);
 
-            Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "add", vehicle);
+                var vehicle = new Vehicle
+                {
+                    coordinate = new Coordinate
+                    {
+                        latitude = coordinate.latitude,
+                        longitude = coordinate.longitude
+                    },
+                    maxLoad = 50,
+                    company = CompanyController.companies[new Random().Next(0, CompanyController.companies.Count)].id,
+                    mapService = "google",
+                    destinations = new List<Destination>(),
+                    nodes = new List<Node>()
+                };
+
+                Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "add", vehicle);
+                added++;
+            }catch(Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+
+            await Task.Delay(500);
         }
+
+        Console.WriteLine("Added " + added + " vehicles");
     }
 
     [HttpPost("/random/delivery")]
     public async void AddRandomDelivery([FromBody] RandomRequest request)
     {
-        var results = await GetNearbyPlacesAsync(GOOGLE_API_KEY, request.location, 50000, null);
+        var added = 0;
+        Console.WriteLine("Attempting to add " + request.amount + " deliveries");
 
-        if(results.Count == 0)
-        {
-            Console.Error.WriteLine("No results found");
-            return;
-        }
-
-        Console.WriteLine("Found " + results.Count + " results");
-        Console.WriteLine("Adding " + request.amount + " deliveries");
+        List<string> rows = ReadCsvFile("Addresses.csv");
 
         for (var i = 0; i < request.amount; i++)
         {
-            var randomElement1 = results[new Random().Next(0, results.Count)];
-            var randomPlace1 = randomElement1.Geometry.Location;
-
-            var randomPlace2 = results[new Random().Next(0, results.Count)].Geometry.Location;
-
-            while (randomPlace2 == randomPlace1)
+            try
             {
-                randomPlace2 = results[new Random().Next(0, results.Count)].Geometry.Location;
+                var randomAddress1 = GetRandomRow(rows);
+                var randomAddress2 = GetRandomRow(rows);
+
+                Console.WriteLine("Adding delivery from " + randomAddress1 + " to " + randomAddress2);
+
+                var delivery = new Delivery
+                {
+                    pickup = new DeliveryDestination
+                    {
+                        size = 1,
+                        type = "address",
+                        address = randomAddress1
+                    },
+                    dropoff = new DeliveryDestination
+                    {
+                        size = 1,
+                        type = "address",
+                        address = randomAddress2
+                    }
+                };
+
+                Program.client.InvokeMethodAsync(HttpMethod.Post, "planner", "add", delivery);
+                added++;
+            }catch(Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
             }
 
-            var delivery = new Delivery
-            {
-                pickup = new DeliveryDestination
-                {
-                    size = 1,
-                    type = "cords",
-                    coordinate = new Coordinate
-                    {
-                        latitude = randomPlace1.Latitude,
-                        longitude = randomPlace1.Longitude
-                    }
-                },
-                dropoff = new DeliveryDestination
-                {
-                    size = 1,
-                    type = "cords",
-                    coordinate = new Coordinate
-                    {
-                        latitude = randomPlace2.Latitude,
-                        longitude = randomPlace2.Longitude
-                    }
-                }
-            };
-
-            Program.client.InvokeMethodAsync(HttpMethod.Post, "planner", "add", delivery);
+            await Task.Delay(500);
         }
+
+        Console.WriteLine("Added " + added + " deliveries");
     }
 
-    private static async Task<List<NearByResult>> GetNearbyPlacesAsync(string apiKey, Coordinate location, int radius, SearchPlaceType? type)
+    public static List<string> ReadCsvFile(string filePath)
     {
-        var allResults = new List<NearByResult>();
-        string nextPageToken = null;
+        List<string> rows = new List<string>();
 
-        do
+        using (StreamReader reader = new StreamReader(new FileStream(filePath, FileMode.Open, FileAccess.Read)))
         {
-            var searchRequest = new PlacesNearBySearchRequest
+            while (!reader.EndOfStream)
             {
-                Key = apiKey,
-                Location = new GoogleApi.Entities.Common.Coordinate(location.latitude, location.longitude),
-                Type = type,
-                Rankby = Ranking.Distance
-            };
-
-            if (!string.IsNullOrEmpty(nextPageToken))
-            {
-                searchRequest.PageToken = nextPageToken;
+                string line = reader.ReadLine().Replace(",", " ");
+                if (!String.IsNullOrWhiteSpace(line))
+                {
+                    rows.Add(line);
+                }
             }
+        }
 
-            var response = await GooglePlaces.Search.NearBySearch.QueryAsync(searchRequest);
-
-            if (response.Results != null)
-            {
-                allResults.AddRange(response.Results);
-            }
-
-            nextPageToken = response.NextPageToken;
-
-            // There is a short delay before the NextPageToken becomes valid, wait before making the next request.
-            if (!string.IsNullOrEmpty(nextPageToken))
-            {
-                await Task.Delay(2000);
-            }
-        } while (!string.IsNullOrEmpty(nextPageToken));
-
-        return allResults;
+        return rows;
     }
 
+
+    public static string GetRandomRow(List<string> rows)
+    {
+        Random random = new Random();
+        int randomIndex = random.Next(1, rows.Count); // Skipping the header row
+        return rows[randomIndex];
+    }
 
     public class RandomRequest
     {
         public int amount { get; set; }
         public Coordinate location { get; set; }
     }
-
 }

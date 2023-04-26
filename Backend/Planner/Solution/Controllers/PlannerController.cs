@@ -46,6 +46,14 @@ public class PlannerController : ControllerBase
         return Ok();
     }
 
+    [HttpPost("/update")]
+    public async Task updatePath([FromBody] Vehicle vehicle)
+    {
+        await GeneratePathNodes(vehicle);
+        await FindClosetsDestinationNodes(vehicle);
+        await GenerateDistanceValues(vehicle);
+    }
+
     [HttpPost("/add")]
     public async Task<Vehicle?> addPath([FromBody] Delivery data)
     {
@@ -216,9 +224,14 @@ public class PlannerController : ControllerBase
 
     public static async Task<double> GetShortestDistance(Vehicle vehicle, Coordinate coordinate)
     {
+        if (vehicle == null || coordinate == null)
+        {
+            return double.NaN;
+        }
+
         var distance = double.NaN;
 
-        var nodes = new List<Coordinate>(vehicle.destinations.Select(e => e.coordinate));
+        var nodes = new List<Coordinate>(vehicle?.destinations?.Select(e => e.coordinate));
         nodes.Add(vehicle.coordinate);
 
         nodes.ForEach(e =>
@@ -232,28 +245,42 @@ public class PlannerController : ControllerBase
 
     public static double CalculateDistance(Coordinate coord1, Coordinate coord2)
     {
-        return CalculateDistance(coord1.latitude, coord1.longitude, coord2.latitude, coord2.longitude);
+        try
+        {
+            return CalculateDistance(coord1.latitude, coord1.longitude, coord2.latitude, coord2.longitude);
+        }catch(Exception e)
+        {
+            Console.WriteLine(e.ToString());
+            return double.NaN;
+        }
     }
 
     public static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
     {
-        const double EarthRadiusInKm = 6371;
+        try
+        {
+            const double EarthRadiusInKm = 6371;
 
-        double lat1InRadians = DegreesToRadians(lat1);
-        double lon1InRadians = DegreesToRadians(lon1);
-        double lat2InRadians = DegreesToRadians(lat2);
-        double lon2InRadians = DegreesToRadians(lon2);
+            double lat1InRadians = DegreesToRadians(lat1);
+            double lon1InRadians = DegreesToRadians(lon1);
+            double lat2InRadians = DegreesToRadians(lat2);
+            double lon2InRadians = DegreesToRadians(lon2);
 
-        double deltaLat = lat2InRadians - lat1InRadians;
-        double deltaLon = lon2InRadians - lon1InRadians;
+            double deltaLat = lat2InRadians - lat1InRadians;
+            double deltaLon = lon2InRadians - lon1InRadians;
 
-        double a = Math.Sin(deltaLat / 2) * Math.Sin(deltaLat / 2) +
-                   Math.Cos(lat1InRadians) * Math.Cos(lat2InRadians) *
-                   Math.Sin(deltaLon / 2) * Math.Sin(deltaLon / 2);
+            double a = Math.Sin(deltaLat / 2) * Math.Sin(deltaLat / 2) +
+                       Math.Cos(lat1InRadians) * Math.Cos(lat2InRadians) *
+                       Math.Sin(deltaLon / 2) * Math.Sin(deltaLon / 2);
 
-        double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
 
-        return EarthRadiusInKm * c;
+            return EarthRadiusInKm * c;
+        }catch(Exception e)
+        {
+            Console.WriteLine(e.ToString());
+            return double.NaN;
+        }
     }
 
     private static double DegreesToRadians(double degrees)

@@ -1,3 +1,10 @@
+using Google.Api.Gax.Grpc;
+using Google.Api.Gax.Grpc.Rest;
+using Google.Apis.Auth.OAuth2;
+using Google.Maps.Routing.V2;
+using Google.Protobuf.Collections;
+using Google.Protobuf.WellKnownTypes;
+using Google.Type;
 using GoogleApi;
 using GoogleApi.Entities.Common.Enums;
 using GoogleApi.Entities.Maps.Common;
@@ -12,6 +19,7 @@ using GoogleApi.Entities.Maps.Roads.SnapToRoads.Request;
 using PolylineEncoder.Net.Utility;
 using Solution.Controllers;
 using Solution.Models;
+using DateTime = System.DateTime;
 using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
 using Vehicle = Solution.Models.Vehicle;
 using WayPoint = GoogleApi.Entities.Maps.Directions.Request.WayPoint;
@@ -20,70 +28,51 @@ namespace Solution.Pathfinder;
 
 public class GoogleMapService : IMapService
 {
-    public static string API_KEY = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
+    public static string API_KEY = Environment.GetEnvironmentVariable("GOOGLE_API_TOKEN");
     private static readonly PolylineUtility polylineEncoder = new();
+
+    RoutesClient client = new RoutesClientBuilder
+    {
+        GrpcAdapter = GrpcNetClientAdapter.Default,
+        CredentialsPath = "logisticsproject-382306-64c1c210fd2f.json"
+    }.Build();
 
     public async Task<List<Node>> GetPath(Vehicle vehicle)
     {
         var lastPos = vehicle.destinations.Last().coordinate;
-        var wayPoints = new List<WayPoint>();
+        var wayPoints = new RepeatedField<Waypoint>();
 
         foreach (var destination in vehicle.destinations)
-            wayPoints.Add(new WayPoint(new LocationEx(new CoordinateEx(destination.coordinate.latitude,
-                destination.coordinate.longitude))));
+            wayPoints.Add(new Waypoint {
+                Location = new Google.Maps.Routing.V2.Location {
+                    LatLng = new LatLng {
+                        Latitude = destination.coordinate.latitude,
+                        Longitude = destination.coordinate.longitude
+                    }
+                }
+            });
 
-        var request = new DirectionsRequest
+        CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask", "*");
+
+        ComputeRoutesRequest routeRequest = new ComputeRoutesRequest
         {
-            Key = API_KEY,
-            Origin = new LocationEx(new CoordinateEx(vehicle.coordinate.latitude, vehicle.coordinate.longitude)),
-            WayPoints = wayPoints,
-            // OptimizeWaypoints = true,
-            Destination = new LocationEx(new CoordinateEx(lastPos.latitude, lastPos.longitude))
+            Origin = new Waypoint{Location = new Google.Maps.Routing.V2.Location{LatLng = new LatLng{Latitude = vehicle.coordinate.latitude, Longitude = vehicle.coordinate.longitude}}},
+            Destination = new Waypoint{Location = new Google.Maps.Routing.V2.Location{LatLng = new LatLng{Latitude = lastPos.latitude, Longitude = lastPos.longitude}}},
+            DepartureTime = Timestamp.FromDateTime(DateTime.UtcNow),
+            TravelMode = RouteTravelMode.Drive,
+            RoutingPreference = RoutingPreference.TrafficAwareOptimal,
+            Intermediates = { wayPoints },
+            PolylineQuality = PolylineQuality.HighQuality
         };
 
-        var response = await GoogleMaps.Directions.QueryAsync(request);
+        ComputeRoutesResponse response = await client.ComputeRoutesAsync(routeRequest, callSettings);
 
-        if (response.Status == Status.Ok)
+        if (response.Routes.Count > 0)
         {
-            Route route = response.Routes.First();
-            var points = route.OverviewPath.Points;
+            Google.Maps.Routing.V2.Route route = response.Routes.First();
+            var points = route.Polyline.EncodedPolyline;
             var pathPoints = polylineEncoder.Decode(points).Select(e => new Coordinate { longitude = e.Longitude, latitude = e.Latitude }).ToList();
-
-            var snappedPath = new List<Coordinate>();
-
-            for (var i = 0; i <= (pathPoints.Count / 100); i++)
-            {
-                if(pathPoints.Count <= (i*100))
-                {
-                    break;
-                }
-
-                var requestPath = pathPoints.GetRange(i * 100, Math.Min(100, (pathPoints.Count - (i*100)) - 1));
-                var roadsRequest = new SnapToRoadsRequest
-                {
-                    Key = API_KEY,
-                    Path = requestPath.Select(point => new GoogleApi.Entities.Maps.Roads.Common.Coordinate()
-                    {
-                        Latitude = point.latitude,
-                        Longitude = point.longitude
-                    }).ToList(),
-                    Interpolate = true
-                };
-
-                var roadResult = await GoogleMaps.Roads.SnapToRoad.QueryAsync(roadsRequest);
-
-                if (response.Status == Status.Ok)
-                {
-                    //pathPoints = roadResult.SnappedPoints.Select(e => new Coordinate { longitude = e.Location.Longitude, latitude = e.Location.Latitude }).ToList();
-                    snappedPath.AddRange(roadResult.SnappedPoints.Select(e => new Coordinate { longitude = e.Location.Longitude, latitude = e.Location.Latitude }));
-                }
-            }
-
-            if (snappedPath.Count > 0)
-            {
-                pathPoints = snappedPath;
-            }
-
+            
             double totalDistance = 0;
             for (int i = 0; i < pathPoints.Count - 1; i++)
             {
@@ -111,12 +100,12 @@ public class GoogleMapService : IMapService
 
             double stepStartDistance = 0;
 
-            foreach (Leg leg in response.Routes.First().Legs)
+            foreach (RouteLeg leg in route.Legs)
             {
-                foreach (Step step in leg.Steps)
+                foreach (RouteLegStep step in leg.Steps)
                 {
-                    double stepDistanceKm = step.Distance.Value / 1000.0; // Convert meters to kilometers
-                    double stepDurationHours = step.Duration.Value / 3600.0; // Convert seconds to hours
+                    double stepDistanceKm = step.DistanceMeters / 1000.0; // Convert meters to kilometers
+                    double stepDurationHours = step.StaticDuration.Seconds / 3600.0; // Convert seconds to hours
                     double averageSpeedKmPerHour = stepDistanceKm / stepDurationHours;
 
                     double stepEndDistance = stepStartDistance + stepDistanceKm;
@@ -136,8 +125,7 @@ public class GoogleMapService : IMapService
             return nodesWithSpeedLimits;
         }
 
-        Console.WriteLine($"Google maps error: {response.Status}");
-        Console.WriteLine(response.ErrorMessage);
+        Console.WriteLine("No routes found");
         return new List<Node>();
     }
 
@@ -178,7 +166,8 @@ public class GoogleMapService : IMapService
         var filteredList = vehicles
             .Where(e => PlannerController.GetCurrentVehicleLoad(e) + data.pickup.size < e.maxLoad)
             .Where(e => e.destinations.Count <= 6)//Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
-            .OrderBy(e => PlannerController.GetShortestDistance(e, PlannerController.GetDeliveryCoordinates(this, data.pickup)).Result + tripDistance)
+            .Where(e => PlannerController.GetDeliveryCoordinates(this, data.pickup) != null)
+            .OrderBy(e => PlannerController.GetShortestDistance(e, PlannerController.GetDeliveryCoordinates(this, data.pickup))?.Result + tripDistance)
             .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e))
             .ToList();
 

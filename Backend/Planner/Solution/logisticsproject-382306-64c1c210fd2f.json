@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "logisticsproject-382306",
+  "private_key_id": "64c1c210fd2f9d0f069b3e3ccb775f33fff62b44",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDDD+AS6EWjF2vi\nxYk+nwzD0E3+wfz/jCpx5+7dkCpVMBlGrPpMVSno1nsuKWW5u5wr7tUhXxuQRamE\nD8j+p20bmhob8Il6xoNaAkAUQmLtwQ1YP68NgRRHQHea4FkiWBUZ7QEEM7QKRFPE\nPY/TXyWEp9tq3zIKD3Fc8REQDmNfGnMUASJesLZGN34AhnjMgDQfk5jl2CkMSmrH\nsSBrODfCM2q6gftdQ2RzD3bGN4J5GdZ0AK85F4UX/XAlSD7yzUqqn6sBNkn5jV/6\n+Frl3K5zFGqho2dRYdAl0q6KMwkzzZYwCG/Eu1vdYbIt+jJzAZ31zSFVdtj7S7SI\n1cdFYiU/AgMBAAECggEADrskMPQETkzL2P8SCP35+M/CaXrnoGT1ek9fEAcogJvL\n94puB1W8fy5eHx5WkFrwGwvuYewiKMMaCjR8Tr8A0796OUybv/897Djp80hlhY8O\nyEYG8lN33z7/HrMoCBqe0qu+EpMqWvF4t1lELgesIwM05DKhlMuVxBnF2sXmEJ3M\n/Qz1bfiZP92uBhsvbz+EibRAIO1hwKCWgoWyKAtRN2b1P1Ery5Xkx8HY7YUXf/PN\n4J53xuNJB5zd6q2u+DJGffKG/ML/YSbz68LKORr7XebzuWNXNuvGx/2B7bqAPeni\n5C5KX1Wnxd2tIU76KKs6luui/q7lQ2XZnTjevJmwAQKBgQDgZwIrOcxtwZReTb5j\nRWpSczDjmZbRlp/W/c4NwqjYiAnKcgKgPZG3kYZUBc25nl4sc/Iuqdw632URW7K8\nnuM7fJF29MfbkwIMhqbJvJYiXMmU2NutOmQPAyA06yWqQhGuaAH5QclEgCKk0ABY\niWiMvGXiTJn6vsZnORo53mxsVQKBgQDehz11MxAMN91wmyIBID48yFhEwRLbs1af\nNsXdiLDS8tfeTa7H+zFhapJ6yMqg3o/qDBuVzLp3c1MeZax1VYFMr4Ue2A2HA3VF\nPrrppj9rWgjR55ZRAd76C02MWbg8Bro1Zgh4A373C08sUO+aWDc+WryGxtV914g3\nFWWxQdWfQwKBgHs6delw2v8mv6gtvzBajTFrylwiGr1Lnsj8JWxPClOmGOJQS3rd\ndKi+xGpdqYSWIBb/MO5JHwRBawnmNjf4dMZU+Li/YQUGLKjeRLch1bxXAee4UqJF\nH29TAxusScm+cGE7AmJzqufwCZZCFv6Hrp8iUjy8Xg5hNyi2Jd3Dc/zlAoGABift\nnlFkT0I4YQYZobhXoGzWbEh/Eg7bBZqJTMCcS6mmKSMzA5tCWXSOStFFMcAWcR4W\noUVBn05UbVHYvII6CnoMj7bgYOzKkLjUiOQtevXJqqzibqlDlt07LvfIbfitrA5/\ni3plR8ZLUWmHx1hLZvExp/TWMR4GSafQ4V913msCgYEAjEmcnRpSbOwhRSmfgb7d\nKP4NOKbzj3t3+II2bMJU+VTUbvlAa2JHSMVnThgqoLEItl1VyMFUZdULXma22ULw\nzII+GbIvIEYzhs8JVsm2Wrdlt1njuEKWnM8HJ7l5grguKTcBeHc4hEcoU6WxBECK\nCr6BXBSyCa9zF6IY4RHnIXc=\n-----END PRIVATE KEY-----\n",
+  "client_email": "routes@logisticsproject-382306.iam.gserviceaccount.com",
+  "client_id": "102985259423461574949",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/routes%40logisticsproject-382306.iam.gserviceaccount.com"
+}

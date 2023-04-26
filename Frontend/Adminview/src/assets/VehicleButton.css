@@ -20,7 +20,7 @@
     width: 500px;
 }
 
-.icon-container {
+.vehicle-button .icon-container {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -28,29 +28,30 @@
     margin-right: 20px;
 }
 
-.icon {
+.vehicle-button .icon {
     width: 100px;
     height: 100px;
     background-color: #333;
 }
 
-.colored-square {
+.vehicle-button .colored-square {
     width: 100px;
     height: 20px;
 }
 
-.text-container {
+.vehicle-button .text-container {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
 }
 
-.title {
+.vehicle-button .title {
     font-size: 25px;
     font-weight: bold;
     margin-bottom: 15px;
 }
 
-.sub-text {
+.vehicle-button .sub-text {
     font-size: 18px;
+    text-align: start;
 }
