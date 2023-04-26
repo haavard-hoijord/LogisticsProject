@@ -69,7 +69,7 @@ public class PlannerController : ControllerBase
             await FindClosetsDestinationNodes(vehicle);
             await GenerateDistanceValues(vehicle);
 
-            var request =  Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle);
+            var request = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle);
             var response = Program.client.InvokeMethodWithResponseAsync(request);
 
             Program.client.PublishEventAsync("status", "new_path", new Dictionary<string, string>
@@ -83,6 +83,7 @@ public class PlannerController : ControllerBase
 
         return null;
     }
+
     [HttpGet("/mapmodes")]
     public async Task<List<string>> getMapModes()
     {
@@ -106,22 +107,18 @@ public class PlannerController : ControllerBase
             .FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
     }
 
-    public static Coordinate GetDeliveryCoordinates(IMapService service , DeliveryDestination destination)
+    public static Coordinate GetDeliveryCoordinates(IMapService service, DeliveryDestination destination)
     {
         if (destination.type == "address")
-        {
             if (destination.coordinate == null)
-            {
                 destination.coordinate = service.GetAddressCoordinates(destination.address).Result;
-            }
-        }
 
         return destination.coordinate;
     }
 
     private static Coordinate GetDeliveryCoordinates(DeliveryDestination destination)
     {
-        if(destination.type == "address")
+        if (destination.type == "address")
             return GetDefaultPathSerivce().GetAddressCoordinates(destination.address).Result;
 
         return new Coordinate
@@ -137,8 +134,22 @@ public class PlannerController : ControllerBase
 
         if (vehicle.destinations.Count > 0) routeId = vehicle.destinations.Max(e => e.routeId) + 1;
 
-        vehicle.destinations.Add(new Destination { coordinate = GetDeliveryCoordinates(data.pickup), load = data.pickup.size, isPickup = true, routeId = routeId, address = data.pickup.type == "map" ? data.pickup.address : await GetPathService(vehicle).GetClosestAddress(data.pickup.coordinate)});
-        vehicle.destinations.Add(new Destination { coordinate = GetDeliveryCoordinates(data.dropoff), load = data.dropoff.size, isPickup = false, routeId = routeId, address = data.dropoff.type == "map" ? data.dropoff.address : await GetPathService(vehicle).GetClosestAddress(data.dropoff.coordinate)});
+        vehicle.destinations.Add(new Destination
+        {
+            coordinate = GetDeliveryCoordinates(data.pickup), load = data.pickup.size, isPickup = true,
+            routeId = routeId,
+            address = data.pickup.type == "map"
+                ? data.pickup.address
+                : await GetPathService(vehicle).GetClosestAddress(data.pickup.coordinate)
+        });
+        vehicle.destinations.Add(new Destination
+        {
+            coordinate = GetDeliveryCoordinates(data.dropoff), load = data.dropoff.size, isPickup = false,
+            routeId = routeId,
+            address = data.dropoff.type == "map"
+                ? data.dropoff.address
+                : await GetPathService(vehicle).GetClosestAddress(data.dropoff.coordinate)
+        });
 
         var destinations = new List<Destination>(vehicle.destinations);
         vehicle.destinations = new List<Destination>();
@@ -201,33 +212,29 @@ public class PlannerController : ControllerBase
 
     private async Task GenerateDistanceValues(Vehicle vehicle)
     {
-        for (int i = 0; i < vehicle.destinations.Count; i++)
+        for (var i = 0; i < vehicle.destinations.Count; i++)
         {
             var dist = 0.0;
 
             if (vehicle.destinations[i].closestNode != null)
-            {
-                for(int j = i; j < vehicle.nodes.Count - 1; j++)
+                for (var j = i; j < vehicle.nodes.Count - 1; j++)
                 {
-                    if(vehicle.nodes[j + 1].coordinate.latitude == vehicle.destinations[i].closestNode.latitude
-                       && vehicle.nodes[j + 1].coordinate.longitude == vehicle.destinations[i].closestNode.longitude)
+                    if (vehicle.nodes[j + 1].coordinate.latitude == vehicle.destinations[i].closestNode.latitude
+                        && vehicle.nodes[j + 1].coordinate.longitude == vehicle.destinations[i].closestNode.longitude)
                     {
                         vehicle.destinations[i].distance = dist;
                         break;
                     }
 
-                    dist += await GetPathService(vehicle).GetDistance(vehicle.nodes[j].coordinate, vehicle.nodes[j + 1].coordinate);
+                    dist += await GetPathService(vehicle)
+                        .GetDistance(vehicle.nodes[j].coordinate, vehicle.nodes[j + 1].coordinate);
                 }
-            }
         }
     }
 
     public static async Task<double> GetShortestDistance(Vehicle vehicle, Coordinate coordinate)
     {
-        if (vehicle == null || coordinate == null)
-        {
-            return double.NaN;
-        }
+        if (vehicle == null || coordinate == null) return double.NaN;
 
         var distance = double.NaN;
 
@@ -248,7 +255,8 @@ public class PlannerController : ControllerBase
         try
         {
             return CalculateDistance(coord1.latitude, coord1.longitude, coord2.latitude, coord2.longitude);
-        }catch(Exception e)
+        }
+        catch (Exception e)
         {
             Console.WriteLine(e.ToString());
             return double.NaN;
@@ -261,22 +269,23 @@ public class PlannerController : ControllerBase
         {
             const double EarthRadiusInKm = 6371;
 
-            double lat1InRadians = DegreesToRadians(lat1);
-            double lon1InRadians = DegreesToRadians(lon1);
-            double lat2InRadians = DegreesToRadians(lat2);
-            double lon2InRadians = DegreesToRadians(lon2);
+            var lat1InRadians = DegreesToRadians(lat1);
+            var lon1InRadians = DegreesToRadians(lon1);
+            var lat2InRadians = DegreesToRadians(lat2);
+            var lon2InRadians = DegreesToRadians(lon2);
 
-            double deltaLat = lat2InRadians - lat1InRadians;
-            double deltaLon = lon2InRadians - lon1InRadians;
+            var deltaLat = lat2InRadians - lat1InRadians;
+            var deltaLon = lon2InRadians - lon1InRadians;
 
-            double a = Math.Sin(deltaLat / 2) * Math.Sin(deltaLat / 2) +
-                       Math.Cos(lat1InRadians) * Math.Cos(lat2InRadians) *
-                       Math.Sin(deltaLon / 2) * Math.Sin(deltaLon / 2);
+            var a = Math.Sin(deltaLat / 2) * Math.Sin(deltaLat / 2) +
+                    Math.Cos(lat1InRadians) * Math.Cos(lat2InRadians) *
+                    Math.Sin(deltaLon / 2) * Math.Sin(deltaLon / 2);
 
-            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
 
             return EarthRadiusInKm * c;
-        }catch(Exception e)
+        }
+        catch (Exception e)
         {
             Console.WriteLine(e.ToString());
             return double.NaN;

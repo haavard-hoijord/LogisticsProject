@@ -1,6 +1,5 @@
 using System.Text.Json;
 using PolylineEncoder.Net.Utility;
-using PolylineEncoder.Net.Utility.Decoders;
 using Solution.Controllers;
 using Solution.Models;
 
@@ -13,17 +12,14 @@ public class MapBoxMapService : IMapService
 
     private static readonly HttpClient httpClient = new();
     private static readonly PolylineUtility polylineEncoder = new();
+
     public async Task<List<Node>> GetPath(Vehicle vehicle)
     {
         var waypoints = "";
 
         if (vehicle.destinations.Count > 1)
-        {
             foreach (var destination in vehicle.destinations.GetRange(0, vehicle.destinations.Count - 1))
-            {
                 waypoints += $"{destination.coordinate.longitude},{destination.coordinate.latitude};";
-            }
-        }
 
         // string directionsUrl = $"https://api.mapbox.com/directions/v5/mapbox/driving/{vehicle.coordinate.longitude},{vehicle.coordinate.latitude};{waypoints}{vehicle.destinations.Last().coordinate.longitude},{vehicle.destinations.Last().coordinate.latitude}?steps=true&access_token={API_KEY}";
         var destinations =
@@ -41,10 +37,10 @@ public class MapBoxMapService : IMapService
             if (js.GetProperty("code").GetString() != "Ok")
                 return new List<Node>();
 
-            string polyline = js.GetProperty("trips").EnumerateArray().First().GetProperty("geometry").GetString();
+            var polyline = js.GetProperty("trips").EnumerateArray().First().GetProperty("geometry").GetString();
             var cords = polylineEncoder.Decode(polyline)
                 .Select(e => new Coordinate { longitude = e.Longitude, latitude = e.Latitude }).ToList();
-            return cords.Select(e => new Node{coordinate = e}).ToList();
+            return cords.Select(e => new Node { coordinate = e }).ToList();
         }
 
         Console.WriteLine($"Error: {response.StatusCode}");
@@ -97,10 +93,14 @@ public class MapBoxMapService : IMapService
 
     public async Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data)
     {
-        var tripDistance = await ((IMapService)this).GetDistance(PlannerController.GetDeliveryCoordinates(this, data.pickup), PlannerController.GetDeliveryCoordinates(this, data.dropoff));
+        var tripDistance = await ((IMapService)this).GetDistance(
+            PlannerController.GetDeliveryCoordinates(this, data.pickup),
+            PlannerController.GetDeliveryCoordinates(this, data.dropoff));
         var sortedVehicles = vehicles
             .Where(e => PlannerController.GetCurrentVehicleLoad(e) + data.pickup.size < e.maxLoad)
-            .OrderBy(e => PlannerController.GetShortestDistance(e, PlannerController.GetDeliveryCoordinates(this, data.pickup)).Result + tripDistance)
+            .OrderBy(e =>
+                PlannerController.GetShortestDistance(e, PlannerController.GetDeliveryCoordinates(this, data.pickup))
+                    .Result + tripDistance)
             .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e)).ToList();
 
         return sortedVehicles.Count == 0 ? null : sortedVehicles.First();

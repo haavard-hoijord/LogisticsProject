@@ -16,7 +16,8 @@ public class PubsubController : ControllerBase
         var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
-        var dest = obj.destinations.Where(dest => dest.isPickup && dest.routeId == data.route).OrderBy(e => PlannerController.GetShortestDistance(obj, e.coordinate)).First();
+        var dest = obj.destinations.Where(dest => dest.isPickup && dest.routeId == data.route)
+            .OrderBy(e => PlannerController.GetShortestDistance(obj, e.coordinate)).First();
         obj.destinations.Remove(dest);
 
         var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj);
@@ -35,7 +36,8 @@ public class PubsubController : ControllerBase
         var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
-        var dest = obj.destinations.Where(dest => !dest.isPickup && dest.routeId == data.route).OrderBy(e => PlannerController.GetShortestDistance(obj, e.coordinate)).First();
+        var dest = obj.destinations.Where(dest => !dest.isPickup && dest.routeId == data.route)
+            .OrderBy(e => PlannerController.GetShortestDistance(obj, e.coordinate)).First();
         obj.destinations.Remove(dest);
 
         var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj);
