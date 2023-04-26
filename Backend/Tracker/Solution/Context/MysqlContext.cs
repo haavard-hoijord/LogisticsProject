@@ -32,10 +32,10 @@ public class MysqlContext : DbContext
             .HasColumnType("json");
 
         modelBuilder.Entity<Vehicle>()
-            .Property(e => e.nodes)
+            .Property(e => e.sections)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, new JsonSerializerOptions { IgnoreNullValues = true }),
-                v => JsonSerializer.Deserialize<List<Node>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
+                v => JsonSerializer.Deserialize<List<RouteSection>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
             .HasColumnType("json");
     }
 }

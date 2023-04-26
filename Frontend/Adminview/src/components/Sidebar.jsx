@@ -9,16 +9,12 @@ const Sidebar = ({
                      vehicles,
                      selectedVehicle,
                      setSelectedVehicle,
-                     logMessages,
                      getColor,
                      vehicleRefs,
                      setMapPicker,
                      reRender,
                      currentLocation
                  }) => {
-    const topSectionRef = useRef(null);
-    const [isResizing, setIsResizing] = useState(false);
-
     const [simSpeed, setSimSpeed] = useState(1.00);
 
     const [addMode, setAddMode] = useState(null);
@@ -92,7 +88,7 @@ const Sidebar = ({
     }
 
     return (<div className={`sidebar ${(selectedVehicle || addMode) ? "sidebar-wide" : ""}`}>
-        <div className="sidebar-top" ref={topSectionRef}>
+        <div className="sidebar-top">
             <div className="sidebar-top-vehicles" style={{
                 width: `${selectedVehicle || addMode ? "50%" : "100%"}`
             }}>
@@ -381,7 +377,7 @@ const Sidebar = ({
                                                     mapService: vehiclePoint.mapMode || mapModes[0],
                                                     maxLoad: vehiclePoint.size || 50,
                                                     coordinate: vehiclePoint.coordinate,
-                                                    nodes: [],
+                                                    sections: [],
                                                     destinations: [],
                                                 })
                                             }).then((e) => {

@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react'
 import {GoogleMap, LoadScript, Marker, Polyline, TrafficLayer} from '@react-google-maps/api';
+import polyline from '@mapbox/polyline';
 
 import './App.css'
 import Sidebar from "./components/Sidebar.jsx";
@@ -242,13 +243,14 @@ function MapComponent() {
             });
         }
 
-        if (vehicle.nodes && Array.isArray(vehicle.nodes) && vehicle.nodes.length > 0) {
-            let paths = vehicle.nodes.map((node) => {
-                return {
-                    lat: node.coordinate.latitude,
-                    lng: node.coordinate.longitude
-                }
+        if (vehicle.sections && Array.isArray(vehicle.sections) && vehicle.sections.length > 0) {
+            let paths = [];
+
+            vehicle.sections.forEach((section) => {
+                let sections = polyline.decode(section.polyline).map(([lat, lng]) => ({lat, lng}));
+                paths.push(...sections);
             });
+
             paths.unshift({
                 lat: vehicle.coordinate.latitude,
                 lng: vehicle.coordinate.longitude

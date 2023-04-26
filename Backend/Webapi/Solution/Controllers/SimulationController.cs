@@ -5,11 +5,14 @@ using Solution.Models;
 using System;
 using System.IO;
 using System.Collections.Generic;
+using PolylineEncoder.Net.Utility;
 
 [ApiController]
 [Route("[controller]")]
 public class SimulationController : ControllerBase
 {
+    public static readonly PolylineUtility polylineEncoder = new();
+
     private static readonly double baseDistance = Util.CalculateDistance(new Coordinate
     {
         latitude = 40.0,
@@ -47,30 +50,51 @@ public class SimulationController : ControllerBase
 
             foreach (var vehicle in obj)
             {
-                if (vehicle.nodes.Count > 0)
+
+                if (vehicle.sections.Count > 0)
                 {
+                    var vehicleSection = vehicle.sections.First();
+
+                    while (vehicleSection.polyline == "" && vehicle.sections.Count > 0)
+                    {
+                        vehicle.sections.RemoveAt(0);
+                        vehicleSection = vehicle.sections.First();
+                    }
+
                     var speedLimit = 1; //50 km/h
                     var incrementDistance = speedLimit / (3600.0 / simSpeed); //1 km/s
                     var remainingDistance = baseDistance * incrementDistance;
 
                     while (remainingDistance > 0)
                     {
-                        if (vehicle.nodes.Count == 0)
+                        while (vehicleSection.polyline == "" && vehicle.sections.Count > 0)
+                        {
+                            vehicle.sections.RemoveAt(0);
+                            vehicleSection = vehicle.sections.First();
+                        }
+
+                        var nodes = polylineEncoder.Decode(vehicleSection.polyline).ToList().Select(e => new Coordinate
+                        {
+                            latitude = e.Latitude,
+                            longitude = e.Longitude,
+                        }).ToList();
+
+                        if (nodes.Count == 0)
                         {
                             break; // No more nodes to visit
                         }
 
-                        Node nextNode = vehicle.nodes.First();
-                        double distanceToNextNode = Util.CalculateDistance(vehicle.coordinate, nextNode.coordinate);
-                        double adjustedRemainingDistance = remainingDistance * nextNode.speedLimit;
+                        Coordinate nextNode = nodes.First();
+                        double distanceToNextNode = Util.CalculateDistance(vehicle.coordinate, nextNode);
+                        double adjustedRemainingDistance = remainingDistance * vehicleSection.speedLimit;
 
                         if (adjustedRemainingDistance >= distanceToNextNode)
                         {
                             try
                             {
-                                remainingDistance -= distanceToNextNode / nextNode.speedLimit;
-                                vehicle.coordinate = nextNode.coordinate; //TODO This causes vehicle to bounce back on the map if it had already gone past it
-                                vehicle.nodes.RemoveAt(0);
+                                remainingDistance -= distanceToNextNode / vehicleSection.speedLimit;
+                                vehicle.coordinate = nextNode; //TODO This causes vehicle to bounce back on the map if it had already gone past it
+                                nodes.RemoveAt(0);
 
                                 try
                                 {
@@ -78,7 +102,7 @@ public class SimulationController : ControllerBase
                                     {
                                         if (vehicle.destinations.First().distance is > 0)
                                         {
-                                            vehicle.destinations.First().distance -= distanceToNextNode / nextNode.speedLimit;
+                                            vehicle.destinations.First().distance -= distanceToNextNode / vehicleSection.speedLimit;
                                         }
                                     }
                                 }
@@ -92,7 +116,7 @@ public class SimulationController : ControllerBase
                                     try
                                     {
                                         if (dest is { closestNode: { } } && nextNode != null
-                                        && dest.closestNode.latitude == nextNode.coordinate.latitude && dest.closestNode.longitude == nextNode.coordinate.longitude)
+                                        && dest.closestNode.latitude == nextNode.latitude && dest.closestNode.longitude == nextNode.longitude)
                                         {
                                             var messageData = new Program.MessageData
                                             {
@@ -119,8 +143,8 @@ public class SimulationController : ControllerBase
                             try
                             {
                                 double gain = adjustedRemainingDistance / distanceToNextNode;
-                                double latitudeDifference = (nextNode.coordinate.latitude - vehicle.coordinate.latitude) * gain;
-                                double longitudeDifference = (nextNode.coordinate.longitude - vehicle.coordinate.longitude) * gain;
+                                double latitudeDifference = (nextNode.latitude - vehicle.coordinate.latitude) * gain;
+                                double longitudeDifference = (nextNode.longitude - vehicle.coordinate.longitude) * gain;
 
                                 var cord = new Coordinate
                                 {
@@ -146,12 +170,14 @@ public class SimulationController : ControllerBase
 
                                 vehicle.coordinate = cord;
 
-                                remainingDistance -= adjustedRemainingDistance / nextNode.speedLimit;
+                                remainingDistance -= adjustedRemainingDistance / vehicleSection.speedLimit;
                             }catch(Exception ex)
                             {
                                 Console.WriteLine(ex.ToString());
                             }
                         }
+
+                        vehicleSection.polyline = polylineEncoder.Encode(nodes.Select(e => new Tuple<double, double>(e.latitude, e.longitude)).ToList());
                     }
 
                     await Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
@@ -203,7 +229,7 @@ public class SimulationController : ControllerBase
                     company = CompanyController.companies[new Random().Next(0, CompanyController.companies.Count)].id,
                     mapService = "google",
                     destinations = new List<Destination>(),
-                    nodes = new List<Node>()
+                    sections = new List<RouteSection>()
                 };
 
                 Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "add", vehicle);

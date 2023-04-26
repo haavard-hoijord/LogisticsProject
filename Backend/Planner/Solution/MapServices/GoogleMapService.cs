@@ -1,7 +1,6 @@
 using Google.Api.Gax.Grpc;
 using Google.Maps.Routing.V2;
 using Google.Protobuf.Collections;
-using Google.Protobuf.WellKnownTypes;
 using Google.Type;
 using GoogleApi;
 using GoogleApi.Entities.Common.Enums;
@@ -10,7 +9,6 @@ using GoogleApi.Entities.Maps.Common.Enums;
 using GoogleApi.Entities.Maps.DistanceMatrix.Request;
 using GoogleApi.Entities.Maps.Geocoding.Address.Request;
 using GoogleApi.Entities.Maps.Geocoding.Location.Request;
-using PolylineEncoder.Net.Utility;
 using Solution.Controllers;
 using Solution.Models;
 using DateTime = System.DateTime;
@@ -21,7 +19,6 @@ namespace Solution.Pathfinder;
 public class GoogleMapService : IMapService
 {
     public static string API_KEY = Environment.GetEnvironmentVariable("GOOGLE_API_TOKEN");
-    private static readonly PolylineUtility polylineEncoder = new();
 
     private static readonly RoutesClient client = new RoutesClientBuilder
     {
@@ -31,7 +28,7 @@ public class GoogleMapService : IMapService
 
     private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask", "*");
 
-    public async Task<List<Node>> GetPath(Vehicle vehicle)
+    public async Task<List<RouteSection>> GetPath(Vehicle vehicle)
     {
         var lastPos = vehicle.destinations.Last().coordinate;
         var wayPoints = new RepeatedField<Waypoint>();
@@ -65,7 +62,7 @@ public class GoogleMapService : IMapService
                 Location = new Location
                     { LatLng = new LatLng { Latitude = lastPos.latitude, Longitude = lastPos.longitude } }
             },
-            DepartureTime = Timestamp.FromDateTime(DateTime.UtcNow),
+            //DepartureTime = Timestamp.FromDateTime(DateTime.UtcNow),
             TravelMode = RouteTravelMode.Drive,
             RoutingPreference = RoutingPreference.TrafficAwareOptimal,
             Intermediates = { wayPoints },
@@ -78,7 +75,7 @@ public class GoogleMapService : IMapService
         {
             var route = response.Routes.First();
             var points = route.Polyline.EncodedPolyline;
-            var pathPoints = polylineEncoder.Decode(points)
+            var pathPoints = PlannerController.polylineEncoder.Decode(points)
                 .Select(e => new Coordinate { longitude = e.Longitude, latitude = e.Latitude }).ToList();
 
             double totalDistance = 0;
@@ -97,15 +94,9 @@ public class GoogleMapService : IMapService
             //TODO Make it be one string that is the polyline of the specific part of the route and then the values are the speed limits
 
             // 3. Iterate through the steps and assign the average speed to nodes in the OverviewPath.Points
-            var nodesWithSpeedLimits = pathPoints.Select(point => new Node
-            {
-                coordinate = new Coordinate
-                {
-                    latitude = point.latitude,
-                    longitude = point.longitude
-                },
-                speedLimit = 1
-            }).ToList();
+            var nodesWithSpeedLimits = new Dictionary<Coordinate, double>();
+
+            foreach (var pathPoint in pathPoints) nodesWithSpeedLimits.Add(pathPoint, 0);
 
             double stepStartDistance = 0;
 
@@ -114,22 +105,53 @@ public class GoogleMapService : IMapService
             {
                 var stepDistanceKm = step.DistanceMeters / 1000.0; // Convert meters to kilometers
                 var stepDurationHours = step.StaticDuration.Seconds / 3600.0; // Convert seconds to hours
-                var averageSpeedKmPerHour = stepDistanceKm / stepDurationHours;
+                var averageSpeedKmPerHour = Math.Round(stepDistanceKm / stepDurationHours);
 
                 var stepEndDistance = stepStartDistance + stepDistanceKm;
 
                 for (var i = 0; i < cumulativeDistances.Count; i++)
                     if (cumulativeDistances[i] >= stepStartDistance && cumulativeDistances[i] < stepEndDistance)
-                        nodesWithSpeedLimits[i].speedLimit = averageSpeedKmPerHour;
+                        nodesWithSpeedLimits[nodesWithSpeedLimits.Keys.ToList()[i]] = averageSpeedKmPerHour;
 
                 stepStartDistance = stepEndDistance;
             }
 
-            return nodesWithSpeedLimits;
+            var groupedSections = new List<Tuple<List<Coordinate>, double>>();
+            List<Coordinate> currentSection = null;
+
+            for (var i = 0; i < nodesWithSpeedLimits.Keys.Count - 1; i++)
+                if (nodesWithSpeedLimits[nodesWithSpeedLimits.Keys.ToList()[i]] ==
+                    nodesWithSpeedLimits[nodesWithSpeedLimits.Keys.ToList()[i + 1]])
+                {
+                    if (currentSection == null)
+                    {
+                        currentSection = new List<Coordinate>();
+                        currentSection.Add(nodesWithSpeedLimits.Keys.ToList()[i]);
+                    }
+
+                    currentSection.Add(nodesWithSpeedLimits.Keys.ToList()[i + 1]);
+                }
+                else
+                {
+                    if (currentSection != null)
+                    {
+                        currentSection.Add(nodesWithSpeedLimits.Keys.ToList()[i]);
+                        groupedSections.Add(new Tuple<List<Coordinate>, double>(currentSection,
+                            nodesWithSpeedLimits[nodesWithSpeedLimits.Keys.ToList()[i]]));
+                        currentSection = null;
+                    }
+                }
+
+            return groupedSections.Select(e => new RouteSection
+            {
+                polyline = PlannerController.polylineEncoder.Encode(e.Item1.Select(e1 =>
+                    new Tuple<double, double>(e1.latitude, e1.longitude))),
+                speedLimit = e.Item2
+            }).ToList();
         }
 
         Console.WriteLine("No routes found");
-        return new List<Node>();
+        return new List<RouteSection>();
     }
 
     public async Task<Coordinate> GetAddressCoordinates(string address)
@@ -153,14 +175,24 @@ public class GoogleMapService : IMapService
 
     public async Task<string> GetClosestAddress(Coordinate coordinate)
     {
-        var request = new LocationGeocodeRequest
+        try
         {
-            Key = API_KEY,
-            Location = new GoogleApi.Entities.Common.Coordinate(coordinate.latitude, coordinate.longitude)
-        };
+            if (coordinate == null) return null;
 
-        var response = GoogleMaps.Geocode.LocationGeocode.Query(request);
-        return response.Status == Status.Ok ? response.Results.First().FormattedAddress : null;
+            var request = new LocationGeocodeRequest
+            {
+                Key = API_KEY,
+                Location = new GoogleApi.Entities.Common.Coordinate(coordinate.latitude, coordinate.longitude)
+            };
+
+            var response = GoogleMaps.Geocode.LocationGeocode.Query(request);
+            return response.Status == Status.Ok ? response.Results.First().FormattedAddress : null;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.ToString());
+            return null;
+        }
     }
 
     public async Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data)

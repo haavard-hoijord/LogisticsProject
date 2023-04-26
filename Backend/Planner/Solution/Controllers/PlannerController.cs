@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using PolylineEncoder.Net.Utility;
 using Solution.Models;
 using Solution.Pathfinder;
 
@@ -9,6 +10,8 @@ namespace Solution.Controllers;
 [Route("[controller]")]
 public class PlannerController : ControllerBase
 {
+    public static readonly PolylineUtility polylineEncoder = new();
+
     private static readonly double baseDistance = CalculateDistance(new Coordinate
     {
         latitude = 40.0,
@@ -188,7 +191,7 @@ public class PlannerController : ControllerBase
 
     private async Task GeneratePathNodes(Vehicle vehicle)
     {
-        vehicle.nodes = await GetPathService(vehicle).GetPath(vehicle);
+        vehicle.sections = await GetPathService(vehicle).GetPath(vehicle);
     }
 
     public static int GetCurrentVehicleLoad(Vehicle vehicle)
@@ -201,10 +204,12 @@ public class PlannerController : ControllerBase
         foreach (var dest in vehicle.destinations)
         {
             Coordinate closestNode = null;
-            foreach (var node in vehicle.nodes)
+            foreach (var node in vehicle.sections)
+            foreach (var cord in polylineEncoder.Decode(node.polyline)
+                         .Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude }))
                 if (closestNode == null || await GetPathService(vehicle).GetDistance(closestNode, dest.coordinate) >
-                    await GetPathService(vehicle).GetDistance(node.coordinate, dest.coordinate))
-                    closestNode = node.coordinate;
+                    await GetPathService(vehicle).GetDistance(cord, dest.coordinate))
+                    closestNode = cord;
 
             if (closestNode != null) dest.closestNode = closestNode;
         }
@@ -215,19 +220,29 @@ public class PlannerController : ControllerBase
         for (var i = 0; i < vehicle.destinations.Count; i++)
         {
             var dist = 0.0;
+            var found = false;
 
             if (vehicle.destinations[i].closestNode != null)
-                for (var j = i; j < vehicle.nodes.Count - 1; j++)
+                for (var j = 0; j < vehicle.sections.Count; j++)
                 {
-                    if (vehicle.nodes[j + 1].coordinate.latitude == vehicle.destinations[i].closestNode.latitude
-                        && vehicle.nodes[j + 1].coordinate.longitude == vehicle.destinations[i].closestNode.longitude)
+                    var section = vehicle.sections[j];
+                    var cords = polylineEncoder.Decode(section.polyline).Select(e => new Coordinate
+                        { latitude = e.Latitude, longitude = e.Longitude }).ToList();
+
+                    for (var k = 0; k < cords.Count - 1; k++)
                     {
-                        vehicle.destinations[i].distance = dist;
-                        break;
+                        if (cords[k + 1].latitude == vehicle.destinations[i].closestNode.latitude
+                            && cords[k + 1].longitude == vehicle.destinations[i].closestNode.longitude)
+                        {
+                            vehicle.destinations[i].distance = dist;
+                            found = true;
+                            break;
+                        }
+
+                        dist += await GetPathService(vehicle).GetDistance(cords[k], cords[k + 1]);
                     }
 
-                    dist += await GetPathService(vehicle)
-                        .GetDistance(vehicle.nodes[j].coordinate, vehicle.nodes[j + 1].coordinate);
+                    if (found) break;
                 }
         }
     }
