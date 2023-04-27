@@ -26,8 +26,8 @@ public class GoogleMapService : IMapService
         CredentialsPath = Environment.GetEnvironmentVariable("GOOGLE_API_PLANNER_FILE")
     }.Build();
 
-    //private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask","routes.legs.steps.distanceMeters,routes.legs.steps.duration,routes.polyline.encodedPolyline");
-    private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask", "*");
+    private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask","routes.legs.steps.distanceMeters,routes.legs.steps.duration,routes.polyline.encodedPolyline");
+    //private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask", "*");
 
     private static readonly RateLimiter RoutesRateLimiter = new(5);
     private static readonly RateLimiter AddressGeocodeRateLimiter = new(5);
@@ -125,7 +125,8 @@ public class GoogleMapService : IMapService
                 Intermediates = { wayPoints },
                 PolylineQuality = PolylineQuality.HighQuality,
                 TravelMode = RouteTravelMode.Drive,
-                RoutingPreference = RoutingPreference.TrafficAwareOptimal
+                RoutingPreference = RoutingPreference.TrafficAwareOptimal,
+                // RequestedReferenceRoutes = { ComputeRoutesRequest.Types.ReferenceRoute.FuelEfficient } //TODO This doesnt work with waypoints
             };
 
             Console.WriteLine(routeRequest.ToString());
