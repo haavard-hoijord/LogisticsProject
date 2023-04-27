@@ -53,13 +53,56 @@ public class GoogleMapService : IMapService
                     }
                 });
 
+            RoutesRateLimiter.Enqueue(async () =>
+            {
+                Console.WriteLine("Generating low res polyline");
+
+                var routeRequest = new ComputeRoutesRequest
+                {
+                    Origin = new Waypoint
+                    {
+                        Location = new Location
+                        {
+                            LatLng = new LatLng
+                                { Latitude = vehicle.coordinate.latitude, Longitude = vehicle.coordinate.longitude }
+                        }
+                    },
+                    Destination = new Waypoint
+                    {
+                        Location = new Location
+                        {
+                            LatLng = new LatLng
+                                { Latitude = lastPos.latitude, Longitude = lastPos.longitude }
+                        }
+                    },
+                    DepartureTime = Timestamp.FromDateTime(DateTime.UtcNow.AddMinutes(10)),
+                    Intermediates = { wayPoints },
+                    PolylineQuality = PolylineQuality.Overview,
+                    TravelMode = RouteTravelMode.Drive,
+                    RoutingPreference = RoutingPreference.TrafficAwareOptimal
+                };
+
+                var response = await client.ComputeRoutesAsync(routeRequest,
+                    CallSettings.FromHeader("X-Goog-FieldMask", "routes.polyline.encodedPolyline"));
+
+                if (response.Routes.Count > 0)
+                {
+                    var obj = await Program.client.InvokeMethodAsync<Vehicle>(
+                        Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", vehicle.id));
+                    obj.lowResPolyline = response.Routes.First().Polyline.EncodedPolyline;
+
+                    Program.client.InvokeMethodAsync(
+                        Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj));
+                    Console.WriteLine("Low res polyline generated");
+                }
+            });
+
             Console.WriteLine("Waiting for Google Maps API rate limiter");
 
             await RoutesRateLimiter.WaitForReadyAsync();
 
             Console.WriteLine("Requesting path from Google Maps API");
 
-            //TODO Invalid request arguments here
             var routeRequest = new ComputeRoutesRequest
             {
                 Origin = new Waypoint
@@ -82,7 +125,7 @@ public class GoogleMapService : IMapService
                 Intermediates = { wayPoints },
                 PolylineQuality = PolylineQuality.HighQuality,
                 TravelMode = RouteTravelMode.Drive,
-                RoutingPreference = RoutingPreference.TrafficAwareOptimal,
+                RoutingPreference = RoutingPreference.TrafficAwareOptimal
             };
 
             Console.WriteLine(routeRequest.ToString());
@@ -159,49 +202,6 @@ public class GoogleMapService : IMapService
                             currentSection = null;
                         }
                     }
-
-                RoutesRateLimiter.Enqueue(async () =>
-                {
-                    Console.WriteLine("Generating low res polyline");
-
-                    var routeRequest = new ComputeRoutesRequest
-                    {
-                        Origin = new Waypoint
-                        {
-                            Location = new Location
-                            {
-                                LatLng = new LatLng
-                                    { Latitude = vehicle.coordinate.latitude, Longitude = vehicle.coordinate.longitude }
-                            }
-                        },
-                        Destination = new Waypoint
-                        {
-                            Location = new Location
-                            {
-                                LatLng = new LatLng
-                                    { Latitude = lastPos.latitude, Longitude = lastPos.longitude }
-                            }
-                        },
-                        DepartureTime = Timestamp.FromDateTime(DateTime.UtcNow.AddMinutes(10)),
-                        Intermediates = { wayPoints },
-                        PolylineQuality = PolylineQuality.Overview,
-                        TravelMode = RouteTravelMode.Drive,
-                        RoutingPreference = RoutingPreference.TrafficAwareOptimal,
-                    };
-
-                    var response = await client.ComputeRoutesAsync(routeRequest, callSettings);
-
-                    if (response.Routes.Count > 0)
-                    {
-                        var obj = await Program.client.InvokeMethodAsync<Vehicle>(
-                            Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", vehicle.id));
-                        obj.lowResPolyline = response.Routes.First().Polyline.EncodedPolyline;
-
-                        Program.client.InvokeMethodAsync(
-                            Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj));
-                        Console.WriteLine("Low res polyline generated");
-                    }
-                });
 
                 return groupedSections.Select(e => new RouteSection
                 {

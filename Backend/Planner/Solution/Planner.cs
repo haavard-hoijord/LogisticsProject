@@ -34,6 +34,10 @@ public static class Planner
         {
             await AddDestination(data, vehicle);
             await GeneratePathNodes(vehicle);
+
+            vehicle = await Program.client.InvokeMethodAsync<Vehicle>(
+                Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", vehicle.id));
+
             await FindClosetsDestinationNodes(vehicle);
             await GenerateDistanceValues(vehicle);
 
