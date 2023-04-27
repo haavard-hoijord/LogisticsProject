@@ -17,12 +17,14 @@ public class PubsubController : ControllerBase
         var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
-        var requestAddress = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "planner", "address/closest", new Coordinate { longitude = data.longitude, latitude = data.latitude });
+        var requestAddress = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "planner", "address/closest",
+            new Coordinate { longitude = data.longitude, latitude = data.latitude });
         var res = Program.client.InvokeMethodWithResponseAsync(requestAddress);
         var address = res.Result.Content.ReadAsStringAsync().Result;
         WebSocketMiddleware.SendMessageToAllAsync(JsonSerializer.Serialize(new Dictionary<string, object>
         {
-            { "data", new MessageStatusData
+            {
+                "data", new MessageStatusData
                 {
                     id = data.id,
                     vehicle = obj,
@@ -42,13 +44,15 @@ public class PubsubController : ControllerBase
         var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
-        var requestAddress = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "planner", "address/closest", new Coordinate { longitude = data.longitude, latitude = data.latitude });
+        var requestAddress = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "planner", "address/closest",
+            new Coordinate { longitude = data.longitude, latitude = data.latitude });
         var res = Program.client.InvokeMethodWithResponseAsync(requestAddress);
         var address = res.Result.Content.ReadAsStringAsync().Result;
 
         WebSocketMiddleware.SendMessageToAllAsync(JsonSerializer.Serialize(new Dictionary<string, object>
         {
-            { "data", new MessageStatusData
+            {
+                "data", new MessageStatusData
                 {
                     id = data.id,
                     vehicle = obj,

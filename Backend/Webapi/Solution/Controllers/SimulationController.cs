@@ -1,11 +1,7 @@
-using System.Timers;
 using Microsoft.AspNetCore.Mvc;
+using PolylineEncoder.Net.Utility;
 using Solution.Controllers;
 using Solution.Models;
-using System;
-using System.IO;
-using System.Collections.Generic;
-using PolylineEncoder.Net.Utility;
 
 [ApiController]
 [Route("[controller]")]
@@ -39,18 +35,13 @@ public class SimulationController : ControllerBase
 
     public static async void RunSimulationTick()
     {
-        if(simSpeed <= 0)
-        {
-            return;
-        }
+        if (simSpeed <= 0) return;
 
         try
         {
-            List<Vehicle> obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "tracker", "track/all");
+            var obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "tracker", "track/all");
 
             foreach (var vehicle in obj)
-            {
-
                 if (vehicle.sections.Count > 0)
                 {
                     var vehicleSection = vehicle.sections.First();
@@ -76,35 +67,29 @@ public class SimulationController : ControllerBase
                         var nodes = polylineEncoder.Decode(vehicleSection.polyline).ToList().Select(e => new Coordinate
                         {
                             latitude = e.Latitude,
-                            longitude = e.Longitude,
+                            longitude = e.Longitude
                         }).ToList();
 
-                        if (nodes.Count == 0)
-                        {
-                            break; // No more nodes to visit
-                        }
+                        if (nodes.Count == 0) break; // No more nodes to visit
 
-                        Coordinate nextNode = nodes.First();
-                        double distanceToNextNode = Util.CalculateDistance(vehicle.coordinate, nextNode);
-                        double adjustedRemainingDistance = remainingDistance * vehicleSection.speedLimit;
+                        var nextNode = nodes.First();
+                        var distanceToNextNode = Util.CalculateDistance(vehicle.coordinate, nextNode);
+                        var adjustedRemainingDistance = remainingDistance * vehicleSection.speedLimit;
 
                         if (adjustedRemainingDistance >= distanceToNextNode)
-                        {
                             try
                             {
                                 remainingDistance -= distanceToNextNode / vehicleSection.speedLimit;
-                                vehicle.coordinate = nextNode; //TODO This causes vehicle to bounce back on the map if it had already gone past it
+                                vehicle.coordinate =
+                                    nextNode; //TODO This causes vehicle to bounce back on the map if it had already gone past it
                                 nodes.RemoveAt(0);
 
                                 try
                                 {
                                     if (vehicle.destinations is { Count: > 0 } && vehicle.destinations.First() != null)
-                                    {
                                         if (vehicle.destinations.First().distance is > 0)
-                                        {
-                                            vehicle.destinations.First().distance -= distanceToNextNode / vehicleSection.speedLimit;
-                                        }
-                                    }
+                                            vehicle.destinations.First().distance -=
+                                                distanceToNextNode / vehicleSection.speedLimit;
                                 }
                                 catch (Exception e)
                                 {
@@ -112,11 +97,13 @@ public class SimulationController : ControllerBase
                                 }
 
                                 foreach (var dest in vehicle.destinations)
-                                {
                                     try
                                     {
                                         if (dest is { closestNode: { } } && nextNode != null
-                                        && dest.closestNode.latitude == nextNode.latitude && dest.closestNode.longitude == nextNode.longitude)
+                                                                         && dest.closestNode.latitude ==
+                                                                         nextNode.latitude &&
+                                                                         dest.closestNode.longitude ==
+                                                                         nextNode.longitude)
                                         {
                                             var messageData = new Program.MessageData
                                             {
@@ -126,25 +113,25 @@ public class SimulationController : ControllerBase
                                                 longitude = dest.coordinate.longitude
                                             };
 
-                                            Program.client.PublishEventAsync("status", dest.isPickup ? "pickup" : "delivery", messageData);
+                                            Program.client.PublishEventAsync("status",
+                                                dest.isPickup ? "pickup" : "delivery", messageData);
                                         }
-                                    }catch(Exception ex)
+                                    }
+                                    catch (Exception ex)
                                     {
                                         Console.WriteLine(ex.ToString());
                                     }
-                                }
-                            }catch(Exception ex)
+                            }
+                            catch (Exception ex)
                             {
                                 Console.WriteLine(ex.ToString());
                             }
-                        }
                         else
-                        {
                             try
                             {
-                                double gain = adjustedRemainingDistance / distanceToNextNode;
-                                double latitudeDifference = (nextNode.latitude - vehicle.coordinate.latitude) * gain;
-                                double longitudeDifference = (nextNode.longitude - vehicle.coordinate.longitude) * gain;
+                                var gain = adjustedRemainingDistance / distanceToNextNode;
+                                var latitudeDifference = (nextNode.latitude - vehicle.coordinate.latitude) * gain;
+                                var longitudeDifference = (nextNode.longitude - vehicle.coordinate.longitude) * gain;
 
                                 var cord = new Coordinate
                                 {
@@ -156,14 +143,11 @@ public class SimulationController : ControllerBase
                                 {
                                     if (vehicle.destinations is { Count: > 0 } &&
                                         vehicle.destinations.First() != null && vehicle.coordinate != null)
-                                    {
                                         if (vehicle.destinations.First().distance is > 0)
-                                        {
-                                            vehicle.destinations.First().distance -= Util.CalculateDistance(vehicle.coordinate, cord);
-                                        }
-                                    }
-
-                                }catch(Exception ex)
+                                            vehicle.destinations.First().distance -=
+                                                Util.CalculateDistance(vehicle.coordinate, cord);
+                                }
+                                catch (Exception ex)
                                 {
                                     Console.WriteLine(ex.ToString());
                                 }
@@ -171,13 +155,15 @@ public class SimulationController : ControllerBase
                                 vehicle.coordinate = cord;
 
                                 remainingDistance -= adjustedRemainingDistance / vehicleSection.speedLimit;
-                            }catch(Exception ex)
+                            }
+                            catch (Exception ex)
                             {
                                 Console.WriteLine(ex.ToString());
                             }
-                        }
 
-                        vehicleSection.polyline = polylineEncoder.Encode(nodes.Select(e => new Tuple<double, double>(e.latitude, e.longitude)).ToList());
+                        vehicleSection.polyline =
+                            polylineEncoder.Encode(nodes.Select(e => new Tuple<double, double>(e.latitude, e.longitude))
+                                .ToList());
                     }
 
                     await Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
@@ -187,7 +173,6 @@ public class SimulationController : ControllerBase
                     vehicle.destinations.Clear();
                     await Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "update", vehicle);
                 }
-            }
         }
         catch (Exception ex)
         {
@@ -202,7 +187,7 @@ public class SimulationController : ControllerBase
         var added = 0;
         Console.WriteLine("Attempting to add " + request.amount + " vehicles");
 
-        List<string> rows = ReadCsvFile("Addresses.csv");
+        var rows = ReadCsvFile("Addresses.csv");
         for (var i = 0; i < request.amount; i++)
         {
             var randomAddress = GetRandomRow(rows);
@@ -231,10 +216,10 @@ public class SimulationController : ControllerBase
                     destinations = new List<Destination>(),
                     sections = new List<RouteSection>()
                 };
-
-                Program.client.InvokeMethodAsync(HttpMethod.Post, "tracker", "add", vehicle);
+                await Program.client.InvokeMethodWithResponseAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "add", vehicle));
                 added++;
-            }catch(Exception ex)
+            }
+            catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
             }
@@ -251,7 +236,7 @@ public class SimulationController : ControllerBase
         var added = 0;
         Console.WriteLine("Attempting to add " + request.amount + " deliveries");
 
-        List<string> rows = ReadCsvFile("Addresses.csv");
+        var rows = ReadCsvFile("Addresses.csv");
 
         for (var i = 0; i < request.amount; i++)
         {
@@ -278,9 +263,10 @@ public class SimulationController : ControllerBase
                     }
                 };
 
-                Program.client.InvokeMethodAsync(HttpMethod.Post, "planner", "add", delivery);
+                await Program.client.InvokeMethodAsync(HttpMethod.Post, "planner", "add", delivery);
                 added++;
-            }catch(Exception ex)
+            }
+            catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
             }
@@ -293,17 +279,14 @@ public class SimulationController : ControllerBase
 
     public static List<string> ReadCsvFile(string filePath)
     {
-        List<string> rows = new List<string>();
+        var rows = new List<string>();
 
-        using (StreamReader reader = new StreamReader(new FileStream(filePath, FileMode.Open, FileAccess.Read)))
+        using (var reader = new StreamReader(new FileStream(filePath, FileMode.Open, FileAccess.Read)))
         {
             while (!reader.EndOfStream)
             {
-                string line = reader.ReadLine().Replace(",", " ");
-                if (!String.IsNullOrWhiteSpace(line))
-                {
-                    rows.Add(line);
-                }
+                var line = reader.ReadLine().Replace(",", " ");
+                if (!string.IsNullOrWhiteSpace(line)) rows.Add(line);
             }
         }
 
@@ -313,8 +296,8 @@ public class SimulationController : ControllerBase
 
     public static string GetRandomRow(List<string> rows)
     {
-        Random random = new Random();
-        int randomIndex = random.Next(1, rows.Count); // Skipping the header row
+        var random = new Random();
+        var randomIndex = random.Next(1, rows.Count); // Skipping the header row
         return rows[randomIndex];
     }
 

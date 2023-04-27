@@ -1,4 +1,5 @@
 using Dapr.Client;
+using Solution;
 using Timer = System.Timers.Timer;
 
 // ReSharper disable All
@@ -13,7 +14,11 @@ public class Program
         client.WaitForSidecarAsync().Wait();
 
         Timer timer = new Timer(1 * 1000);
-        timer.Elapsed += (e1, e2) => SimulationController.RunSimulationTick();
+        timer.Elapsed += (e1, e2) =>
+        {
+            SimulationController.RunSimulationTick();
+            BackendTicks.TickBackend();
+        };
         timer.AutoReset = true;
         timer.Enabled = true;
 
@@ -65,7 +70,6 @@ public class Program
             endpoints.MapControllers();
         });
         app.MapControllers();
-
 
 
         //Serverside dapr proxy

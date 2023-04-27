@@ -243,13 +243,20 @@ function MapComponent() {
             });
         }
 
-        if (vehicle.sections && Array.isArray(vehicle.sections) && vehicle.sections.length > 0) {
+        let overviewThreshold = 8;
+
+        if (vehicle.sections && Array.isArray(vehicle.sections) && vehicle.sections.length > 0 || (zoom >= overviewThreshold && vehicle.lowResPolyline)) {
             let paths = [];
 
-            vehicle.sections.forEach((section) => {
-                let sections = polyline.decode(section.polyline).map(([lat, lng]) => ({lat, lng}));
-                paths.push(...sections);
-            });
+            if(zoom >= overviewThreshold && vehicle.lowResPolyline){
+                paths = polyline.decode(vehicle.lowResPolyline).map(([lat, lng]) => ({lat, lng}));
+
+            }else{
+                vehicle.sections.forEach((section) => {
+                    let sections = polyline.decode(section.polyline).map(([lat, lng]) => ({lat, lng}));
+                    paths.push(...sections);
+                });
+            }
 
             paths.unshift({
                 lat: vehicle.coordinate.latitude,
@@ -308,7 +315,7 @@ function MapComponent() {
                             disableDefaultUI: true,
                         }}
                         center={center || currentLocation || {lat: 0, lng: 0}}
-                        zoom={zoom}
+                        zoom={12}
                         onClick={onClick}
                         clickableIcons={false}
                         onMouseOver={(e) => {
@@ -316,6 +323,9 @@ function MapComponent() {
                                 lat: e.latLng.lat(),
                                 lng: e.latLng.lng()
                             })
+                        }}
+                        onZoomChanged={(e) => {
+                            setZoom(e)
                         }}
                         onMouseMove={(e) => {
                             setMousePosition({

@@ -1,9 +1,6 @@
-using System.Text.Json;
-using GoogleApi.Entities.Maps.Directions.Response;
 using Microsoft.AspNetCore.Mvc;
 using Solution.Context;
-using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
-using Vehicle = Solution.Models.Vehicle;
+using Solution.Models;
 
 namespace Solution.Controllers;
 
@@ -29,7 +26,7 @@ public class TrackerController : ControllerBase
     {
         await using var context = new MysqlContext();
 
-        List<Vehicle> vehicles = new List<Vehicle>();
+        var vehicles = new List<Vehicle>();
         try
         {
             vehicles.AddRange(context.Vehicles.ToList());
@@ -38,6 +35,7 @@ public class TrackerController : ControllerBase
         {
             Console.WriteLine(e);
         }
+
         return vehicles;
     }
 

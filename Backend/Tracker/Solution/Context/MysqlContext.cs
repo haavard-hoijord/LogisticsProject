@@ -1,8 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Solution.Models;
-using Route = GoogleApi.Entities.Maps.Directions.Response.Route;
 
 namespace Solution.Context;
 
@@ -12,7 +10,7 @@ public class MysqlContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        string connectionstring = "Server=db;Database=logistics;User=root;Password=password123;";
+        var connectionstring = "Server=db;Database=logistics;User=root;Password=password123;";
         optionsBuilder.UseMySql(connectionstring, ServerVersion.AutoDetect(connectionstring));
     }
 
@@ -22,7 +20,8 @@ public class MysqlContext : DbContext
             .Property(e => e.destinations)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, new JsonSerializerOptions { IgnoreNullValues = true }),
-                v => JsonSerializer.Deserialize<List<Destination>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
+                v => JsonSerializer.Deserialize<List<Destination>>(v,
+                    new JsonSerializerOptions { IgnoreNullValues = true }))
             .HasColumnType("json");
         modelBuilder.Entity<Vehicle>()
             .Property(e => e.coordinate)
@@ -35,7 +34,8 @@ public class MysqlContext : DbContext
             .Property(e => e.sections)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, new JsonSerializerOptions { IgnoreNullValues = true }),
-                v => JsonSerializer.Deserialize<List<RouteSection>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
+                v => JsonSerializer.Deserialize<List<RouteSection>>(v,
+                    new JsonSerializerOptions { IgnoreNullValues = true }))
             .HasColumnType("json");
     }
 }

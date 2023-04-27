@@ -1,6 +1,5 @@
 using System.Text.Json;
 using PolylineEncoder.Net.Utility;
-using Solution.Controllers;
 using Solution.Models;
 
 namespace Solution.Pathfinder;
@@ -44,7 +43,7 @@ public class MapBoxMapService : IMapService
             {
                 new()
                 {
-                    polyline = PlannerController.polylineEncoder.Encode(cords.Select(e =>
+                    polyline = Planner.polylineEncoder.Encode(cords.Select(e =>
                         new Tuple<double, double>(e.latitude, e.longitude))),
                     speedLimit = 1
                 }
@@ -102,14 +101,14 @@ public class MapBoxMapService : IMapService
     public async Task<Vehicle> FindBestFittingVehicle(List<Vehicle> vehicles, Delivery data)
     {
         var tripDistance = await ((IMapService)this).GetDistance(
-            PlannerController.GetDeliveryCoordinates(this, data.pickup),
-            PlannerController.GetDeliveryCoordinates(this, data.dropoff));
+            Planner.GetDeliveryCoordinates(this, data.pickup),
+            Planner.GetDeliveryCoordinates(this, data.dropoff));
         var sortedVehicles = vehicles
-            .Where(e => PlannerController.GetCurrentVehicleLoad(e) + data.pickup.size < e.maxLoad)
+            .Where(e => Planner.GetCurrentVehicleLoad(e) + data.pickup.size < e.maxLoad)
             .OrderBy(e =>
-                PlannerController.GetShortestDistance(e, PlannerController.GetDeliveryCoordinates(this, data.pickup))
+                Planner.GetShortestDistance(e, Planner.GetDeliveryCoordinates(this, data.pickup))
                     .Result + tripDistance)
-            .ThenBy(e => e.maxLoad - PlannerController.GetCurrentVehicleLoad(e)).ToList();
+            .ThenBy(e => e.maxLoad - Planner.GetCurrentVehicleLoad(e)).ToList();
 
         return sortedVehicles.Count == 0 ? null : sortedVehicles.First();
     }

@@ -1,5 +1,4 @@
 using Dapr.Client;
-using Microsoft.EntityFrameworkCore;
 using Solution.Context;
 
 public class Program
@@ -31,7 +30,7 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
         {
-            c.ResolveConflictingActions((apiDescriptions) => apiDescriptions.First());
+            c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
         });
 
         var app = builder.Build();
@@ -46,6 +45,7 @@ public class Program
             context.Database.EnsureCreated();
             //context.Database.Migrate(); // Apply migrations
         }
+
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {

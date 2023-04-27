@@ -11,4 +11,5 @@ public class Vehicle
     public Coordinate coordinate { get; set; }
     public List<Destination> destinations { get; set; }
     public List<RouteSection> sections { get; set; }
+    public string? lowResPolyline { get; set; }
 }

@@ -7,17 +7,17 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Dapr.AspNetCore" Version="1.10.0" />
-        <PackageReference Include="Dapr.Client" Version="1.10.0" />
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.4" />
-        <PackageReference Include="Microsoft.AspNetCore.WebSockets" Version="2.2.1" />
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
-        <PackageReference Include="PolylineEncoder.Net" Version="1.0.1" />
+        <PackageReference Include="Dapr.AspNetCore" Version="1.10.0"/>
+        <PackageReference Include="Dapr.Client" Version="1.10.0"/>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.4"/>
+        <PackageReference Include="Microsoft.AspNetCore.WebSockets" Version="2.2.1"/>
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0"/>
+        <PackageReference Include="PolylineEncoder.Net" Version="1.0.1"/>
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Addresses.csv">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
+        <None Update="Addresses.csv">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 </Project>
