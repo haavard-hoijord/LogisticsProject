@@ -20,6 +20,9 @@ public class MysqlContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<MapGrid>()
+            .HasKey(e => new {e.latKey, e.lngKey});
+
         modelBuilder.Entity<Vehicle>()
             .Property(e => e.coordinate)
             .HasConversion(
@@ -29,11 +32,8 @@ public class MysqlContext : DbContext
 
         modelBuilder.Entity<Vehicle>()
             .HasOne(e => e.route)
-            .WithOne(c => c.vehicle)
-            .HasForeignKey<Vehicle>(c => c.routeId);
-
-        modelBuilder.Entity<MapGrid>()
-            .HasKey(e => new {e.latKey, e.lngKey});
+            .WithOne()
+            .HasForeignKey<Route>(c => c.id);
 
         modelBuilder.Entity<Route>()
             .HasKey(e => e.id);

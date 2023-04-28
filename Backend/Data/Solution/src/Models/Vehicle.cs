@@ -10,6 +10,6 @@ public class Vehicle
 
     public Coordinate coordinate { get; set; }
 
-    public int routeId { get; set; }
-    public Route route { get; set; }
+    public int? routeId { get; set; }
+    public Route? route { get; set; }
 }
