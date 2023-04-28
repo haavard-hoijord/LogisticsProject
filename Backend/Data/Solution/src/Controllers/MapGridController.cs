@@ -41,8 +41,8 @@ public class MapGridController : ControllerBase
             lngKey = lngCord,
             elevation = await Program.client.InvokeMethodAsync<double>(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "DeliveryPlanner", "elevation", new Coordinate
             {
-                latitude = latCord,
-                longitude = lngCord
+                latitude = latCord + (GRID_SIZE / 2),
+                longitude = lngCord + (GRID_SIZE / 2)
             }))
         };
         return grid;

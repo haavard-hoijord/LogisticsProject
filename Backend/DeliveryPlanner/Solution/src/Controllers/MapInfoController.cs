@@ -1,4 +1,6 @@
 using GoogleApi;
+using GoogleApi.Entities.Common.Enums;
+using GoogleApi.Entities.Maps.Common;
 using GoogleApi.Entities.Maps.Elevation.Request;
 using Microsoft.AspNetCore.Mvc;
 using Solution.Pathfinder;
@@ -16,16 +18,23 @@ public class MapInfoController : ControllerBase
     public async Task<double> GetElevation([FromBody] Coordinate coordinate)
     {
         await elevationRateLimiter.WaitForReadyAsync();
-        /*
+
         var request = new ElevationRequest
         {
             Key = GoogleMapService.API_KEY,
-
+            Locations = new []
+            {
+                new GoogleApi.Entities.Common.Coordinate(coordinate.latitude, coordinate.longitude)
+            }
         };
 
         var response = await GoogleMaps.Elevation.QueryAsync(request);
-        */
 
-        return 1;
+        if (response.Status == Status.Ok)
+        {
+            return response.Results.First().Elevation;
+        }
+
+        return 0;
     }
 }
