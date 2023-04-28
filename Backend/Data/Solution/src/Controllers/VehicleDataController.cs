@@ -6,19 +6,13 @@ namespace Solution.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class TrackerController : ControllerBase
+public class VehicleDataController : ControllerBase
 {
-    [HttpGet("/health")]
-    public IActionResult CheckHealth()
-    {
-        return Ok();
-    }
-
     [HttpGet("/track")]
     public async Task<Vehicle?> track([FromBody] int id)
     {
         await using var context = new MysqlContext();
-        return await context.Vehicles.FindAsync(id);
+        return await context.vehicles.FindAsync(id);
     }
 
     [HttpGet("/track/all")]
@@ -29,7 +23,7 @@ public class TrackerController : ControllerBase
         var vehicles = new List<Vehicle>();
         try
         {
-            vehicles.AddRange(context.Vehicles.ToList());
+            vehicles.AddRange(context.vehicles.ToList());
         }
         catch (Exception e)
         {
@@ -43,7 +37,7 @@ public class TrackerController : ControllerBase
     public void update([FromBody] Vehicle vehicle)
     {
         using var context = new MysqlContext();
-        var entity = context.Vehicles.Find(vehicle.id);
+        var entity = context.vehicles.Find(vehicle.id);
 
         if (entity != null)
         {
@@ -54,7 +48,7 @@ public class TrackerController : ControllerBase
             entity.sections = vehicle.sections;
             entity.lowResPolyline = vehicle.lowResPolyline;
 
-            context.Vehicles.Update(entity);
+            context.vehicles.Update(entity);
             context.SaveChanges();
 
             Program.client.PublishEventAsync("status", "update_vehicle", new MessageUpdateData
@@ -69,7 +63,7 @@ public class TrackerController : ControllerBase
     public async Task<ActionResult> add([FromBody] Vehicle vehicle)
     {
         await using var context = new MysqlContext();
-        context.Vehicles.Add(vehicle);
+        context.vehicles.Add(vehicle);
         await context.SaveChangesAsync();
 
         Program.client.PublishEventAsync("status", "new_vehicle", new MessageUpdateData
@@ -86,7 +80,7 @@ public class TrackerController : ControllerBase
     public async Task<ActionResult> delete([FromBody] Vehicle vehicle)
     {
         await using var context = new MysqlContext();
-        context.Vehicles.Remove(vehicle);
+        context.vehicles.Remove(vehicle);
         await context.SaveChangesAsync();
 
         Program.client.PublishEventAsync("status", "remove_vehicle", new MessageUpdateData

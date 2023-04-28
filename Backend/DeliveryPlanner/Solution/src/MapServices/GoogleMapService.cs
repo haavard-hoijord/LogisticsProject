@@ -1,5 +1,3 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Google.Api.Gax.Grpc;
 using Google.Maps.Routing.V2;
 using Google.Protobuf.Collections;
@@ -28,8 +26,9 @@ public class GoogleMapService : IMapService
         CredentialsPath = Environment.GetEnvironmentVariable("GOOGLE_API_PLANNER_FILE")
     }.Build();
 
-    //private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask","routes.legs.steps,routes.legs.duration,routes.legs.distanceMeters,routes.polyline.encodedPolyline");
-    private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask", "*");
+    private static readonly CallSettings callSettings =
+        CallSettings.FromHeader("X-Goog-FieldMask", "routes.legs.steps,routes.polyline.encodedPolyline");
+    //private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask", "*");
 
     private static readonly RateLimiter RoutesRateLimiter = new(5);
     private static readonly RateLimiter AddressGeocodeRateLimiter = new(5);
@@ -93,10 +92,12 @@ public class GoogleMapService : IMapService
 
                 if (response.Routes.Count > 0)
                 {
-                    var obj = await Program.client.InvokeMethodAsync<Vehicle>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "VehicleData", "track", vehicle.id));
+                    var obj = await Program.client.InvokeMethodAsync<Vehicle>(
+                        Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "VehicleData", "track", vehicle.id));
 
                     obj.lowResPolyline = response.Routes.First().Polyline.EncodedPolyline;
-                    await Program.client.InvokeMethodAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "VehicleData", "update", obj));
+                    await Program.client.InvokeMethodAsync(
+                        Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "VehicleData", "update", obj));
                     Console.WriteLine("Low res polyline generated");
                 }
             });
@@ -125,7 +126,7 @@ public class GoogleMapService : IMapService
                 Intermediates = { wayPoints },
                 PolylineQuality = PolylineQuality.HighQuality,
                 TravelMode = RouteTravelMode.Drive,
-                RoutingPreference = RoutingPreference.TrafficAwareOptimal,
+                RoutingPreference = RoutingPreference.TrafficAwareOptimal
             };
 
             // RequestedReferenceRoutes = { ComputeRoutesRequest.Types.ReferenceRoute.FuelEfficient } //TODO This doesnt work with waypoints
@@ -139,25 +140,27 @@ public class GoogleMapService : IMapService
                     var route = response.Routes.First();
                     var sections = new List<RouteSection>();
 
-                    foreach(var leg in route.Legs)
+                    foreach (var leg in route.Legs)
+                    foreach (var step in leg.Steps)
                     {
-                        foreach (var step in leg.Steps)
-                        {
-                            var stepDistanceKm = step.DistanceMeters / 1000.0; // Convert meters to kilometers
-                            var stepDurationHours = step.StaticDuration.Seconds / 3600.0; // Convert seconds to hours
-                            var averageSpeedKmPerHour = Math.Round(stepDistanceKm / stepDurationHours);
+                        var stepDistanceKm = step.DistanceMeters / 1000.0; // Convert meters to kilometers
+                        var stepDurationHours = step.StaticDuration.Seconds / 3600.0; // Convert seconds to hours
+                        var averageSpeedKmPerHour = Math.Round(stepDistanceKm / stepDurationHours);
 
-                            sections.Add(new RouteSection
-                            {
-                                polyline = step.Polyline.EncodedPolyline,
-                                speedLimit = Math.Max(MinSpeed, double.IsNaN(averageSpeedKmPerHour) || double.IsInfinity(averageSpeedKmPerHour) ? MinSpeed : averageSpeedKmPerHour)
-                            });
-                        }
+                        sections.Add(new RouteSection
+                        {
+                            polyline = step.Polyline.EncodedPolyline,
+                            speedLimit = Math.Max(MinSpeed,
+                                double.IsNaN(averageSpeedKmPerHour) || double.IsInfinity(averageSpeedKmPerHour)
+                                    ? MinSpeed
+                                    : averageSpeedKmPerHour)
+                        });
                     }
 
                     return sections;
                 }
-            }catch(Exception e)
+            }
+            catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
             }

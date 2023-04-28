@@ -1,0 +1,21 @@
+- Make vehicles have weight and volume
+    - Make deliveries have weight and volume
+    - Type of package (dangerous goods, fragile, etc)
+
+- New web service for arranging packages and which order they should be to best utilize max weight and volume
+    - Use Three.js to visualize the packages and how they are arranged
+    - Show how much weight and volume is left
+    - Show how much weight and volume is used
+    - Show how much weight and volume is used by each package
+    - Show order to pick up packages
+    - Optimize package position based on dropoff order
+
+- Grid system to store elevation data, 1x1km grid or something similar
+    - Use elevation data to calculate fuel consumption
+
+- Decouple routes from vehicles
+    - Show estimated time of arrival
+    - Show estimated fuel consumption
+    - Show distance
+    - Allow setting daparture time
+    - Route should be possible to be queued to a vehicle rather then being added instantly

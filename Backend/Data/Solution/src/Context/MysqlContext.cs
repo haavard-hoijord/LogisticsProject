@@ -6,7 +6,8 @@ namespace Solution.Context;
 
 public class MysqlContext : DbContext
 {
-    public DbSet<Vehicle> Vehicles { get; set; }
+    public DbSet<Vehicle> vehicles { get; set; }
+    public DbSet<MapGrid> mapGrid { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -37,5 +38,8 @@ public class MysqlContext : DbContext
                 v => JsonSerializer.Deserialize<List<RouteSection>>(v,
                     new JsonSerializerOptions { IgnoreNullValues = true }))
             .HasColumnType("json");
+
+        modelBuilder.Entity<MapGrid>()
+            .HasKey(e => new {e.latKey, e.lngKey});
     }
 }

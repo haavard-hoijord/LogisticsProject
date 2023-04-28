@@ -41,8 +41,8 @@ function getCurrentTimestamp() {
 
 
 export const DAPR_URL = `http://localhost:5000/dapr`;
-export const GOOGLE_API_TOKEN = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
-//import.meta.env.VITE_GOOGLE_API_TOKEN
+export const GOOGLE_API_TOKEN = import.meta.env.VITE_GOOGLE_API_TOKEN;
+
 function MapComponent() {
     const vehicleRefs = useRef([]);
     const mapRef = useRef(null);
@@ -77,7 +77,7 @@ function MapComponent() {
         }
     }
     async function fetchVehicles() {
-        await fetch(`${DAPR_URL}/v1.0/invoke/VehicleData/method/track/all`, {
+        await fetch(`${DAPR_URL}/v1.0/invoke/Data/method/track/all`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -221,7 +221,7 @@ function MapComponent() {
         }
     }
 
-    const items = vehicles.map((vehicle) => {
+    const items = !mapRef ? [(<></>)] : vehicles.map((vehicle) => {
         if (selectedVehicle && selectedVehicle.id !== vehicle.id) {
             return null;
         }
@@ -267,9 +267,8 @@ function MapComponent() {
             });
 
             path.push(<Polyline key={`${basicPath ? "Simple-Path" : "Path"} ${vehicleId}`} path={paths} options={{
-                zIndex: -1000,
                 strokeColor: getColor(vehicleId - 1),
-                strokeOpacity: basicPath ? 0.5 : 1,
+                strokeOpacity: basicPath && !(selectedVehicle && selectedVehicle.id === vehicleId) ? 0.5 : 1,
                 strokeWeight: 3
             }} onClick={() => focusVehicle(vehicle)}/>)
 
@@ -280,7 +279,6 @@ function MapComponent() {
                     lng: destination.coordinate.longitude
                 }
             })} options={{
-                zIndex: -1000,
                 strokeColor: getColor(vehicleId - 1),
                 strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
             }} onClick={() => focusVehicle(vehicle)}/>)
@@ -308,7 +306,17 @@ function MapComponent() {
 
     return (
         <div className="layout-container">
-            <Sidebar vehicles={vehicles} currentLocation={currentLocation} reRender={reRender} vehicleRefs={vehicleRefs} setMapPicker={setMapPicker} logMessages={logMessages} selectedVehicle={selectedVehicle} setSelectedVehicle={focusVehicle} getColor={getColor}/>
+            <Sidebar
+                vehicles={vehicles}
+                currentLocation={currentLocation}
+                reRender={reRender}
+                vehicleRefs={vehicleRefs}
+                setMapPicker={setMapPicker}
+                logMessages={logMessages}
+                selectedVehicle={selectedVehicle}
+                setSelectedVehicle={focusVehicle}
+                getColor={getColor}/>
+
             <div className="map-container">
                 <LoadScript googleMapsApiKey={GOOGLE_API_TOKEN}>
                     <GoogleMap
@@ -340,10 +348,10 @@ function MapComponent() {
                                 lng: e.latLng.lng()
                             })
                         }}
-                        onDrag={(e) => {
+                        onDrag={() => {
                             setFollowedVehicle(null)
                         }}
-                        onDragStart={(e) => {
+                        onDragStart={() => {
                             setFollowedVehicle(null)
                         }}
 
@@ -354,8 +362,6 @@ function MapComponent() {
                         <TrafficLayer key="Traffic"/>
 
                         {currentLocation ? <Marker key={"current-pos"} position={currentLocation}/> : <></>}
-                        {mapPicker !== null && mousePosition ? <Marker key={"pick-pos"} position={mousePosition} /> : <></>}
-
                         {items}
                     </GoogleMap>
                 </LoadScript>

@@ -34,37 +34,42 @@ public static class Planner
         Console.WriteLine("Adding path to vehicle " + vehicle.id);
 
         if (vehicle != null)
-        {
             try
             {
                 await AddDestination(data, vehicle);
+
+                vehicle = await Program.client.InvokeMethodAsync<Vehicle>(
+                    Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", vehicle.id));
+
                 await GeneratePathNodes(vehicle);
 
-                vehicle = await Program.client.InvokeMethodAsync<Vehicle>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "VehicleData", "track", vehicle.id));
+                vehicle = await Program.client.InvokeMethodAsync<Vehicle>(
+                    Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", vehicle.id));
 
                 await FindClosetsDestinationNodes(vehicle);
                 await GenerateDistanceValues(vehicle);
 
                 await Program.client.InvokeMethodAsync(
-                    Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "VehicleData", "update", vehicle));
+                    Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", vehicle));
 
-                Console.WriteLine("Added path to vehicle " + vehicle.id + " with " + vehicle.sections.Count + " sections");
+                Console.WriteLine("Added path to vehicle " + vehicle.id + " with " + vehicle.sections.Count +
+                                  " sections");
 
                 Program.client.PublishEventAsync("status", "new_path", new Dictionary<string, string>
                 {
                     { "id", vehicle.id.ToString() },
                     { "delivery", JsonSerializer.Serialize(data) }
                 });
-            }catch(Exception e)
+            }
+            catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
             }
-        }
     }
 
     private static async Task<Vehicle> FindFittingVehicle(Delivery data)
     {
-        var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "VehicleData", "track/all");
+        var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track/all");
         return await GetDefaultPathService()
             .FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
     }
@@ -162,8 +167,10 @@ public static class Planner
                 vehicle.destinations.Add(lastDestination);
             }
 
-            await Program.client.InvokeMethodAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "VehicleData", "update", vehicle));
-        }catch(Exception e)
+            await Program.client.InvokeMethodAsync(
+                Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", vehicle));
+        }
+        catch (Exception e)
         {
             Console.WriteLine(e.ToString());
             Console.WriteLine(JsonSerializer.Serialize(vehicle,
@@ -181,10 +188,13 @@ public static class Planner
         {
             var sections = await GetPathService(vehicle).GetPath(vehicle);
 
-            var obj = await Program.client.InvokeMethodAsync<Vehicle>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "VehicleData", "track", vehicle.id));
+            var obj = await Program.client.InvokeMethodAsync<Vehicle>(
+                Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", vehicle.id));
             obj.sections = sections;
-            await Program.client.InvokeMethodAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "VehicleData", "update", obj));
-        }catch(Exception e)
+            await Program.client.InvokeMethodAsync(
+                Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", obj));
+        }
+        catch (Exception e)
         {
             Console.WriteLine(e.ToString());
             Console.WriteLine(JsonSerializer.Serialize(vehicle,
@@ -219,33 +229,25 @@ public static class Planner
 
     public static async Task GenerateDistanceValues(Vehicle vehicle)
     {
-        for (var i = 0; i < vehicle.destinations.Count; i++)
+        var allCords = vehicle.sections.SelectMany(section => polylineEncoder.Decode(section.polyline).Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude })).ToList();
+
+        var lastCord = 0;
+        foreach (var dest in vehicle.destinations.Where(e => e.closestNode != null))
         {
             var dist = 0.0;
-            var found = false;
 
-            if (vehicle.destinations[i].closestNode != null)
-                for (var j = 0; j < vehicle.sections.Count; j++)
+            for (var k = lastCord; k < allCords.Count - 1; k++)
+            {
+                if (allCords[k + 1].latitude == dest.closestNode?.latitude
+                    && allCords[k + 1].longitude == dest.closestNode?.longitude)
                 {
-                    var section = vehicle.sections[j];
-                    var cords = polylineEncoder.Decode(section.polyline).Select(e => new Coordinate
-                        { latitude = e.Latitude, longitude = e.Longitude }).ToList();
-
-                    for (var k = 0; k < cords.Count - 1; k++)
-                    {
-                        if (cords[k + 1].latitude == vehicle.destinations[i].closestNode.latitude
-                            && cords[k + 1].longitude == vehicle.destinations[i].closestNode.longitude)
-                        {
-                            vehicle.destinations[i].distance = dist;
-                            found = true;
-                            break;
-                        }
-
-                        dist += await GetPathService(vehicle).GetDistance(cords[k], cords[k + 1]);
-                    }
-
-                    if (found) break;
+                    dest.distance = dist;
+                    lastCord = k;
+                    break;
                 }
+
+                dist += await GetPathService(vehicle).GetDistance(allCords[k], allCords[k + 1]);
+            }
         }
     }
 

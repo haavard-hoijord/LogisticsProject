@@ -8,16 +8,6 @@ public class SimulationController : ControllerBase
 {
     public static readonly PolylineUtility polylineEncoder = new();
 
-    private static readonly double baseDistance = Util.CalculateDistance(new Coordinate
-    {
-        latitude = 40.0,
-        longitude = -100.0
-    }, new Coordinate
-    {
-        latitude = 40.00898315,
-        longitude = -100.0
-    }); // One km distance
-
     private static double simSpeed = 1.0;
 
     [HttpGet("/simulation/speed")]
@@ -38,7 +28,7 @@ public class SimulationController : ControllerBase
 
         try
         {
-            var obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "VehicleData", "track/all");
+            var obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "Data", "track/all");
 
             foreach (var vehicle in obj)
                 if (vehicle.sections.Count > 0)
@@ -53,7 +43,7 @@ public class SimulationController : ControllerBase
 
                     var speedLimit = 1; //50 km/h
                     var incrementDistance = speedLimit / (3600.0 / simSpeed); //1 km/s
-                    var remainingDistance = baseDistance * incrementDistance;
+                    var remainingDistance = Util.baseDistance * incrementDistance;
 
                     while (remainingDistance > 0)
                     {
@@ -165,12 +155,12 @@ public class SimulationController : ControllerBase
                                 .ToList());
                     }
 
-                    await Program.client.InvokeMethodAsync(HttpMethod.Post, "VehicleData", "update", vehicle);
+                    await Program.client.InvokeMethodAsync(HttpMethod.Post, "Data", "update", vehicle);
                 }
                 else if (vehicle.destinations.Count > 0)
                 {
                     vehicle.destinations.Clear();
-                    await Program.client.InvokeMethodAsync(HttpMethod.Post, "VehicleData", "update", vehicle);
+                    await Program.client.InvokeMethodAsync(HttpMethod.Post, "Data", "update", vehicle);
                 }
         }
         catch (Exception ex)
@@ -203,8 +193,7 @@ public class SimulationController : ControllerBase
                     Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "DeliveryPlanner", "address", data);
                 var coordinate = await Program.client.InvokeMethodAsync<Coordinate>(addressRequest);
 
-                var companies = await Program.client.InvokeMethodAsync<List<Company>>(
-                    Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Backend", "companies"));
+                var companies = await Program.client.InvokeMethodAsync<List<Company>>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "backend", "companies"));
 
 
                 var vehicle = new Vehicle
@@ -221,7 +210,7 @@ public class SimulationController : ControllerBase
                     sections = new List<RouteSection>()
                 };
                 await Program.client.InvokeMethodWithResponseAsync(
-                    Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "VehicleData", "add", vehicle));
+                    Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "add", vehicle));
                 added++;
             }
             catch (Exception ex)

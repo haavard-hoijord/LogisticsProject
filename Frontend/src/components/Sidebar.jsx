@@ -2,8 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import '../assets/Sidebar.css';
 import VehicleButton from "./VehicleButton.jsx";
 import GoogleMapsAutocomplete from "./GoogleMapsAutocomplete.jsx";
-
-const DAPR_URL = `http://localhost:5000/dapr`;
+import {DAPR_URL} from "../App.jsx";
 
 const Sidebar = ({
                      vehicles,
@@ -31,7 +30,7 @@ const Sidebar = ({
 
     const [closedCompanies, setClosedCompanies] = useState({});
 
-    const [simSerivceOnline, setSimServiceOnline] = useState(false);
+    const [simServiceOnline, setSimServiceOnline] = useState(false);
 
     useEffect(() => {
         fetch(`${DAPR_URL}/v1.0/invoke/backend/method/companies`, {
@@ -139,7 +138,7 @@ const Sidebar = ({
                         Add Delivery
                     </button>
 
-                    {simSerivceOnline ? (
+                    {simServiceOnline ? (
                     <button className="new-simulate"
                             onClick={() => {
                                 setSelectedVehicle(null);
@@ -154,7 +153,7 @@ const Sidebar = ({
                     ) : (<> </>)}
 
                     <br/>
-                    {simSerivceOnline ? [0, 1, 2, 5, 10, 50, 100].map((speed) => {
+                    {simServiceOnline ? [0, 1, 2, 5, 10, 50, 100].map((speed) => {
                         return (<button key={`sim-speed${speed}`}
                                         className={`sim-speed ${simSpeed === speed ? "selected" : ""}`} onClick={() => {
                             setSimSpeed(speed);
@@ -208,57 +207,9 @@ const Sidebar = ({
                                                         <div
                                                             className="destination-distance">Distance: {Math.round(dest.distance * 1000) / 1000.0}km
                                                         </div>
-
-                                                        {
-                                                            routes[index].length > 1 ? (
-                                                                <button className="delete-destination"
-                                                                        onClick={async () => {
-                                                                            let destId = veh.destinations.findIndex((d) => d.id === dest.id);
-                                                                            veh.destinations.slice(destId, 1);
-                                                                            await fetch(`${DAPR_URL}/v1.0/invoke/VehicleData/method/update`, {
-                                                                                method: 'POST',
-                                                                                headers: {
-                                                                                    'Content-Type': 'application/json'
-                                                                                },
-                                                                                body: JSON.stringify(veh)
-                                                                            });
-
-                                                                            await fetch(`${DAPR_URL}/v1.0/invoke/DeliveryPlanner/method/update`, {
-                                                                                method: 'POST',
-                                                                                headers: {
-                                                                                    'Content-Type': 'application/json'
-                                                                                },
-                                                                                body: JSON.stringify(veh)
-                                                                            });
-                                                                            reRender();
-                                                                        }}>Remove Destination</button>
-                                                            ) : (<> </>)
-                                                        }
                                                     </div>
                                                 );
                                             })}
-
-                                            <button className="delete-route" onClick={async () => {
-                                                let destId = veh.destinations.findIndex((d) => d.routeId === routes[index][0].routeId);
-                                                veh.destinations.slice(destId, routes[index].length);
-                                                await fetch(`${DAPR_URL}/v1.0/invoke/VehicleData/method/update`, {
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type': 'application/json'
-                                                    },
-                                                    body: JSON.stringify(veh)
-                                                });
-
-                                                await fetch(`${DAPR_URL}/v1.0/invoke/DeliveryPlanner/method/update`, {
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type': 'application/json'
-                                                    },
-                                                    body: JSON.stringify(veh)
-                                                });
-                                                reRender();
-                                            }}>Remove Route
-                                            </button>
                                         </div>
                                     </div>
                                     {index !== routes.length - 1 && (<div className="destination-arrow">
@@ -398,7 +349,7 @@ const Sidebar = ({
 
                                 <button className="add-vehicle-button" disabled={!vehiclePoint}
                                         onClick={() => {
-                                            fetch(`${DAPR_URL}/v1.0/invoke/VehicleData/method/add`, {
+                                            fetch(`${DAPR_URL}/v1.0/invoke/Data/method/add`, {
                                                 method: 'POST', headers: {
                                                     'Content-Type': 'application/json'
                                                 },
@@ -663,7 +614,7 @@ const Sidebar = ({
                                         <button className="add-random-vehicle-button"
                                                 onClick={async () => {
                                                     //TODO Set is adding loading icon
-                                                    await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/random/vehicle`, {
+                                                    await fetch(`${DAPR_URL}/v1.0/invoke/simulation/method/random/vehicle`, {
                                                         method: 'POST',
                                                         headers: {
                                                             'Content-Type': 'application/json'
@@ -696,7 +647,7 @@ const Sidebar = ({
                                         </div>
 
                                         <button className="add-random-delivery-button" onClick={async () => {
-                                            await fetch(`${DAPR_URL}/v1.0/invoke/backend/method/random/delivery`, {
+                                            await fetch(`${DAPR_URL}/v1.0/invoke/simulation/method/random/delivery`, {
                                                 method: 'POST',
                                                 headers: {
                                                     'Content-Type': 'application/json'
@@ -724,11 +675,4 @@ const Sidebar = ({
     </div>);
 };
 
-/*
-        <div className="sidebar-divider" onMouseDown={handleMouseDown}/>
-
-        <div className="sidebar-bottom">
-            <Chatlog key="chat-log" messages={logMessages}/>
-        </div>
- */
 export default Sidebar;

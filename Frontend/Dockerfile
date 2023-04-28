@@ -1,8 +1,9 @@
 FROM node:14 AS build
 WORKDIR /app
-COPY package*.json ./
+COPY Frontend/package*.json ./
 RUN npm i
-COPY . .
+COPY Frontend/* .
+ADD .env ./.env
 RUN npm run build
 
 FROM node:14 as serve
