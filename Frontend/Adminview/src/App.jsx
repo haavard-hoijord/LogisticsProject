@@ -45,6 +45,7 @@ export const GOOGLE_API_TOKEN = "AIzaSyD1P03JV4_NsRfuYzsvJOW5ke_tYCu6Wh0";
 //import.meta.env.VITE_GOOGLE_API_TOKEN
 function MapComponent() {
     const vehicleRefs = useRef([]);
+    const mapRef = useRef(null);
 
     const [mapPicker, setMapPicker] = useState(null);
     const [reRenderValue, setReRender] = useState(false);
@@ -243,13 +244,15 @@ function MapComponent() {
             });
         }
 
-        let overviewThreshold = 8;
+        let overviewThreshold = 9;
 
-        if (vehicle.sections && Array.isArray(vehicle.sections) && vehicle.sections.length > 0 || (zoom >= overviewThreshold && vehicle.lowResPolyline)) {
+        if (vehicle.sections && Array.isArray(vehicle.sections) && vehicle.sections.length > 0 || (vehicle.lowResPolyline)) {
             let paths = [];
+            let basicPath = false;
 
-            if(zoom >= overviewThreshold && vehicle.lowResPolyline){
+            if(zoom <= overviewThreshold && vehicle.lowResPolyline || vehicle.lowResPolyline && !vehicle.sections){
                 paths = polyline.decode(vehicle.lowResPolyline).map(([lat, lng]) => ({lat, lng}));
+                basicPath = true;
 
             }else{
                 vehicle.sections.forEach((section) => {
@@ -262,7 +265,8 @@ function MapComponent() {
                 lat: vehicle.coordinate.latitude,
                 lng: vehicle.coordinate.longitude
             });
-            path.push(<Polyline key={`Path ${vehicleId}`} path={paths} options={{
+
+            path.push(<Polyline key={`${basicPath ? "Simple-Path" : "Path"} ${vehicleId}`} path={paths} options={{
                 zIndex: -1000,
                 strokeColor: getColor(vehicleId - 1),
                 strokeWeight: 3
@@ -290,7 +294,7 @@ function MapComponent() {
                        }}
                        icon={{
                            url: "",
-                           scaledSize: new window.google.maps.Size(0, 0),
+                           scaledSize: new Size(0, 0),
                        }}
                        title={`Vehicle ${vehicleId}`}
                        position={{lat: vehicle.coordinate?.latitude, lng: vehicle.coordinate?.longitude}}
@@ -324,8 +328,10 @@ function MapComponent() {
                                 lng: e.latLng.lng()
                             })
                         }}
-                        onZoomChanged={(e) => {
-                            setZoom(e)
+                        onZoomChanged={() => {
+                            if(mapRef.current) {
+                                setZoom(mapRef.current.getZoom())
+                            }
                         }}
                         onMouseMove={(e) => {
                             setMousePosition({
@@ -338,6 +344,10 @@ function MapComponent() {
                         }}
                         onDragStart={(e) => {
                             setFollowedVehicle(null)
+                        }}
+
+                        onLoad={(map) => {
+                            mapRef.current = map;
                         }}
                     >
                         <TrafficLayer key="Traffic"/>

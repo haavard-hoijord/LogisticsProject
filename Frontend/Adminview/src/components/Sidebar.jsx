@@ -29,6 +29,8 @@ const Sidebar = ({
     const [randomVehicles, setRandomVehicles] = useState(1);
     const [randomDeliveries, setRandomDeliveries] = useState(1);
 
+    const [closedCompanies, setClosedCompanies] = useState({});
+
     useEffect(() => {
         fetch(`${DAPR_URL}/v1.0/invoke/backend/method/companies`, {
             method: 'GET', headers: {
@@ -60,7 +62,6 @@ const Sidebar = ({
                 setSimSpeed(data)
             });
     }, []);
-
 
     let veh = vehicles.find((v) => v.id === selectedVehicle?.id)
     let routes = [];
@@ -141,8 +142,13 @@ const Sidebar = ({
                 </div>
                 <div className="sidebar-companies">
                     {companies.filter(e => vehicles.filter(e1 => e1.company === e.id).length > 0).map((company, index) => (
-                        <div className="company" key={company.id}>
+                        <div className={`company ${closedCompanies[company] ? "closed" : ""}`} key={company.id} onClick={() => {
+                            let temp = closedCompanies;
+                            temp[company.id] = !temp[company.id];
+                            setClosedCompanies({...temp});
+                        }}>
                             <p>{company.name}</p>
+                            {!closedCompanies[company.id] ? (
                             <div className="vehicle-buttons">
                                 {vehicles.filter(e => e.company === company.id).map((vehicle, index) => (
                                     <VehicleButton key={`vehicle ${vehicle.id}`} vehicle={vehicle} vehicles={vehicles}
@@ -150,7 +156,7 @@ const Sidebar = ({
                                                    setAddMode={setAddMode} vehicleRefs={vehicleRefs}
                                                    selectedVehicle={selectedVehicle}
                                                    setSelectedVehicle={setSelectedVehicle} getColor={getColor}/>))}
-                            </div>
+                            </div>) : (<></>)}
                         </div>))}
                 </div>
             </div>
@@ -165,12 +171,12 @@ const Sidebar = ({
                         {routes.map((rt, index) => {
                             return (
                                 <div>
-                                    <div key={`route ${rt}`} className="route">
+                                    <div key={`route ${index}`} className="route">
                                         <div className="route-index">Route {routes[index][0].routeId}</div>
                                         <div className="route-destinations">
                                             {routes[index].map((dest, index1) => {
                                                 return (
-                                                    <div key={`destination-${rt}-${index1}`} className="destination">
+                                                    <div key={`destination-${index}-${index1}`} className="destination">
                                                         <div
                                                             className="destination-type">{dest.isPickup ? "Pickup" : "Deliver"}</div>
                                                         <div className="destination-title">{dest.address}</div>

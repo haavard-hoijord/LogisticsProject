@@ -27,8 +27,14 @@
 
 .company {
     padding: 10px;
+    font-weight: bold;
     box-sizing: border-box;
     width: 100%;
+}
+
+.company .closed {
+    background: gray;
+    font-weight: normal;
 }
 
 .sidebar-companies {

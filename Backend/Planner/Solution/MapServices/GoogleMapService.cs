@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Google.Api.Gax.Grpc;
 using Google.Maps.Routing.V2;
 using Google.Protobuf.Collections;
@@ -26,17 +28,21 @@ public class GoogleMapService : IMapService
         CredentialsPath = Environment.GetEnvironmentVariable("GOOGLE_API_PLANNER_FILE")
     }.Build();
 
-    private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask","routes.legs.steps.distanceMeters,routes.legs.steps.duration,routes.polyline.encodedPolyline");
-    //private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask", "*");
+    //private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask","routes.legs.steps,routes.legs.duration,routes.legs.distanceMeters,routes.polyline.encodedPolyline");
+    private static readonly CallSettings callSettings = CallSettings.FromHeader("X-Goog-FieldMask", "*");
 
     private static readonly RateLimiter RoutesRateLimiter = new(5);
     private static readonly RateLimiter AddressGeocodeRateLimiter = new(5);
     private static readonly RateLimiter LocationGeocodeRateLimiter = new(5);
 
+    private static readonly double MinSpeed = 10.0;
+
     public async Task<List<RouteSection>> GetPath(Vehicle vehicle)
     {
         try
         {
+            Console.WriteLine($"Getting path for vehicle {vehicle.id}");
+
             var lastPos = vehicle.destinations.Last().coordinate;
             var wayPoints = new RepeatedField<Waypoint>();
 
@@ -87,21 +93,15 @@ public class GoogleMapService : IMapService
 
                 if (response.Routes.Count > 0)
                 {
-                    var obj = await Program.client.InvokeMethodAsync<Vehicle>(
-                        Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", vehicle.id));
-                    obj.lowResPolyline = response.Routes.First().Polyline.EncodedPolyline;
+                    var obj = await Program.client.InvokeMethodAsync<Vehicle>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", vehicle.id));
 
-                    Program.client.InvokeMethodAsync(
-                        Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj));
+                    obj.lowResPolyline = response.Routes.First().Polyline.EncodedPolyline;
+                    await Program.client.InvokeMethodAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj));
                     Console.WriteLine("Low res polyline generated");
                 }
             });
 
-            Console.WriteLine("Waiting for Google Maps API rate limiter");
-
             await RoutesRateLimiter.WaitForReadyAsync();
-
-            Console.WriteLine("Requesting path from Google Maps API");
 
             var routeRequest = new ComputeRoutesRequest
             {
@@ -126,90 +126,40 @@ public class GoogleMapService : IMapService
                 PolylineQuality = PolylineQuality.HighQuality,
                 TravelMode = RouteTravelMode.Drive,
                 RoutingPreference = RoutingPreference.TrafficAwareOptimal,
-                // RequestedReferenceRoutes = { ComputeRoutesRequest.Types.ReferenceRoute.FuelEfficient } //TODO This doesnt work with waypoints
             };
 
-            Console.WriteLine(routeRequest.ToString());
+            // RequestedReferenceRoutes = { ComputeRoutesRequest.Types.ReferenceRoute.FuelEfficient } //TODO This doesnt work with waypoints
 
             var response = await client.ComputeRoutesAsync(routeRequest, callSettings);
 
-            Console.WriteLine("Received path from Google Maps API");
-
-            if (response.Routes.Count > 0)
+            try
             {
-                var route = response.Routes.First();
-                var points = route.Polyline.EncodedPolyline;
-                var pathPoints = Planner.polylineEncoder.Decode(points)
-                    .Select(e => new Coordinate { longitude = e.Longitude, latitude = e.Latitude }).ToList();
-
-                double totalDistance = 0;
-                for (var i = 0; i < pathPoints.Count - 1; i++)
-                    totalDistance += await ((IMapService)this).GetDistance(pathPoints[i], pathPoints[i + 1]);
-
-                // Calculate the cumulative distance for each node in the Polyline
-                var cumulativeDistances = new List<double> { 0 };
-                double cumulativeDistance = 0;
-                for (var i = 0; i < pathPoints.Count - 1; i++)
+                if (response.Routes.Count > 0)
                 {
-                    cumulativeDistance += await ((IMapService)this).GetDistance(pathPoints[i], pathPoints[i + 1]);
-                    cumulativeDistances.Add(cumulativeDistance);
-                }
+                    var route = response.Routes.First();
+                    var sections = new List<RouteSection>();
 
-                // Iterate through the steps and assign the average speed to nodes in the OverviewPath.Points
-                var nodesWithSpeedLimits = new Dictionary<Coordinate, double>();
-
-                foreach (var pathPoint in pathPoints) nodesWithSpeedLimits.Add(pathPoint, 0);
-
-                double stepStartDistance = 0;
-
-                foreach (var leg in route.Legs)
-                foreach (var step in leg.Steps)
-                {
-                    var stepDistanceKm = step.DistanceMeters / 1000.0; // Convert meters to kilometers
-                    var stepDurationHours = step.StaticDuration.Seconds / 3600.0; // Convert seconds to hours
-                    var averageSpeedKmPerHour = Math.Round(stepDistanceKm / stepDurationHours);
-
-                    var stepEndDistance = stepStartDistance + stepDistanceKm;
-
-                    for (var i = 0; i < cumulativeDistances.Count; i++)
-                        if (cumulativeDistances[i] >= stepStartDistance && cumulativeDistances[i] < stepEndDistance)
-                            nodesWithSpeedLimits[nodesWithSpeedLimits.Keys.ToList()[i]] = averageSpeedKmPerHour;
-
-                    stepStartDistance = stepEndDistance;
-                }
-
-                var groupedSections = new List<Tuple<List<Coordinate>, double>>();
-                List<Coordinate> currentSection = null;
-
-                for (var i = 0; i < nodesWithSpeedLimits.Keys.Count - 1; i++)
-                    if (nodesWithSpeedLimits[nodesWithSpeedLimits.Keys.ToList()[i]] ==
-                        nodesWithSpeedLimits[nodesWithSpeedLimits.Keys.ToList()[i + 1]])
+                    foreach(var leg in route.Legs)
                     {
-                        if (currentSection == null)
+                        foreach (var step in leg.Steps)
                         {
-                            currentSection = new List<Coordinate>();
-                            currentSection.Add(nodesWithSpeedLimits.Keys.ToList()[i]);
-                        }
+                            var stepDistanceKm = step.DistanceMeters / 1000.0; // Convert meters to kilometers
+                            var stepDurationHours = step.StaticDuration.Seconds / 3600.0; // Convert seconds to hours
+                            var averageSpeedKmPerHour = Math.Round(stepDistanceKm / stepDurationHours);
 
-                        currentSection.Add(nodesWithSpeedLimits.Keys.ToList()[i + 1]);
-                    }
-                    else
-                    {
-                        if (currentSection != null)
-                        {
-                            currentSection.Add(nodesWithSpeedLimits.Keys.ToList()[i]);
-                            groupedSections.Add(new Tuple<List<Coordinate>, double>(currentSection,
-                                nodesWithSpeedLimits[nodesWithSpeedLimits.Keys.ToList()[i]]));
-                            currentSection = null;
+                            sections.Add(new RouteSection
+                            {
+                                polyline = step.Polyline.EncodedPolyline,
+                                speedLimit = Math.Max(MinSpeed, double.IsNaN(averageSpeedKmPerHour) || double.IsInfinity(averageSpeedKmPerHour) ? MinSpeed : averageSpeedKmPerHour)
+                            });
                         }
                     }
 
-                return groupedSections.Select(e => new RouteSection
-                {
-                    polyline = Planner.polylineEncoder.Encode(e.Item1.Select(e1 =>
-                        new Tuple<double, double>(e1.latitude, e1.longitude))),
-                    speedLimit = e.Item2
-                }).ToList();
+                    return sections;
+                }
+            }catch(Exception e)
+            {
+                Console.WriteLine(e.ToString());
             }
         }
         catch (Exception e)

@@ -52,6 +52,7 @@ public class TrackerController : ControllerBase
             entity.destinations = vehicle.destinations;
             entity.maxLoad = vehicle.maxLoad;
             entity.sections = vehicle.sections;
+            entity.lowResPolyline = vehicle.lowResPolyline;
 
             context.Vehicles.Update(entity);
             context.SaveChanges();

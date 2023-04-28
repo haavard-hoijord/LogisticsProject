@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using PolylineEncoder.Net.Utility;
 using Solution.Models;
 using Solution.Pathfinder;
@@ -30,25 +31,34 @@ public static class Planner
     {
         var vehicle = await FindFittingVehicle(data);
 
+        Console.WriteLine("Adding path to vehicle " + vehicle.id);
+
         if (vehicle != null)
         {
-            await AddDestination(data, vehicle);
-            await GeneratePathNodes(vehicle);
-
-            vehicle = await Program.client.InvokeMethodAsync<Vehicle>(
-                Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", vehicle.id));
-
-            await FindClosetsDestinationNodes(vehicle);
-            await GenerateDistanceValues(vehicle);
-
-            await Program.client.InvokeMethodAsync(
-                Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle));
-
-            Program.client.PublishEventAsync("status", "new_path", new Dictionary<string, string>
+            try
             {
-                { "id", vehicle.id.ToString() },
-                { "delivery", JsonSerializer.Serialize(data) }
-            });
+                await AddDestination(data, vehicle);
+                await GeneratePathNodes(vehicle);
+
+                vehicle = await Program.client.InvokeMethodAsync<Vehicle>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", vehicle.id));
+
+                await FindClosetsDestinationNodes(vehicle);
+                await GenerateDistanceValues(vehicle);
+
+                await Program.client.InvokeMethodAsync(
+                    Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle));
+
+                Console.WriteLine("Added path to vehicle " + vehicle.id + " with " + vehicle.sections.Count + " sections");
+
+                Program.client.PublishEventAsync("status", "new_path", new Dictionary<string, string>
+                {
+                    { "id", vehicle.id.ToString() },
+                    { "delivery", JsonSerializer.Serialize(data) }
+                });
+            }catch(Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
         }
     }
 
@@ -94,66 +104,96 @@ public static class Planner
 
     private static async Task AddDestination(Delivery data, Vehicle vehicle)
     {
-        var routeId = 1;
-
-        if (vehicle.destinations.Count > 0) routeId = vehicle.destinations.Max(e => e.routeId) + 1;
-
-        vehicle.destinations.Add(new Destination
+        try
         {
-            coordinate = GetDeliveryCoordinates(data.pickup), load = data.pickup.size, isPickup = true,
-            routeId = routeId,
-            address = data.pickup.type == "address"
-                ? data.pickup.address
-                : await GetPathService(vehicle).GetClosestAddress(data.pickup.coordinate)
-        });
+            var routeId = 1;
 
-        vehicle.destinations.Add(new Destination
-        {
-            coordinate = GetDeliveryCoordinates(data.dropoff), load = data.dropoff.size, isPickup = false,
-            routeId = routeId,
-            address = data.dropoff.type == "address"
-                ? data.dropoff.address
-                : await GetPathService(vehicle).GetClosestAddress(data.dropoff.coordinate)
-        });
+            if (vehicle.destinations.Count > 0) routeId = vehicle.destinations.Max(e => e.routeId) + 1;
 
-        var destinations = new List<Destination>(vehicle.destinations);
-        vehicle.destinations = new List<Destination>();
-
-        Destination? lastDestination = null;
-
-        while (destinations.Count > 0)
-        {
-            destinations.Sort((des1, des2) =>
+            vehicle.destinations.Add(new Destination
             {
-                if (des1.routeId == des2.routeId)
-                {
-                    if (des1.isPickup && !des2.isPickup)
-                        return -1;
-
-                    if (des2.isPickup && !des1.isPickup)
-                        return 1;
-                }
-
-                var dis1 = GetPathService(vehicle)
-                    .GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate,
-                        des1.coordinate).Result;
-
-                var dis2 = GetPathService(vehicle)
-                    .GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate,
-                        des2.coordinate).Result;
-
-                return dis1.CompareTo(dis2);
+                coordinate = GetDeliveryCoordinates(data.pickup), load = data.pickup.size, isPickup = true,
+                routeId = routeId,
+                address = data.pickup.type == "address"
+                    ? data.pickup.address
+                    : await GetPathService(vehicle).GetClosestAddress(data.pickup.coordinate)
             });
 
-            lastDestination = destinations.First();
-            destinations.Remove(lastDestination);
-            vehicle.destinations.Add(lastDestination);
+            vehicle.destinations.Add(new Destination
+            {
+                coordinate = GetDeliveryCoordinates(data.dropoff), load = data.dropoff.size, isPickup = false,
+                routeId = routeId,
+                address = data.dropoff.type == "address"
+                    ? data.dropoff.address
+                    : await GetPathService(vehicle).GetClosestAddress(data.dropoff.coordinate)
+            });
+
+            var destinations = new List<Destination>(vehicle.destinations);
+            vehicle.destinations = new List<Destination>();
+
+            Destination? lastDestination = null;
+
+            while (destinations.Count > 0)
+            {
+                destinations.Sort((des1, des2) =>
+                {
+                    if (des1.routeId == des2.routeId)
+                    {
+                        if (des1.isPickup && !des2.isPickup)
+                            return -1;
+
+                        if (des2.isPickup && !des1.isPickup)
+                            return 1;
+                    }
+
+                    var dis1 = GetPathService(vehicle)
+                        .GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate,
+                            des1.coordinate).Result;
+
+                    var dis2 = GetPathService(vehicle)
+                        .GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate,
+                            des2.coordinate).Result;
+
+                    return dis1.CompareTo(dis2);
+                });
+
+                lastDestination = destinations.First();
+                destinations.Remove(lastDestination);
+                vehicle.destinations.Add(lastDestination);
+            }
+
+            await Program.client.InvokeMethodAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", vehicle));
+        }catch(Exception e)
+        {
+            Console.WriteLine(e.ToString());
+            Console.WriteLine(JsonSerializer.Serialize(vehicle,
+                new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+                }));
         }
     }
 
     public static async Task GeneratePathNodes(Vehicle vehicle)
     {
-        vehicle.sections = await GetPathService(vehicle).GetPath(vehicle);
+        try
+        {
+            var sections = await GetPathService(vehicle).GetPath(vehicle);
+
+            var obj = await Program.client.InvokeMethodAsync<Vehicle>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "tracker", "track", vehicle.id));
+            obj.sections = sections;
+            await Program.client.InvokeMethodAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "tracker", "update", obj));
+        }catch(Exception e)
+        {
+            Console.WriteLine(e.ToString());
+            Console.WriteLine(JsonSerializer.Serialize(vehicle,
+                new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+                }));
+        }
     }
 
     public static int GetCurrentVehicleLoad(Vehicle vehicle)
