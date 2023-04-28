@@ -1,21 +1,6 @@
 services:
-  db:
-    image: "mysql"
-    healthcheck:
-      test: "/usr/bin/mysql --user=root --password=password123 --execute \"SHOW DATABASES;\""
-      interval: 1s
-      timeout: 3s
-      retries: 1000
-      start_period: 300s
-    env_file:
-      - .env
-    volumes:
-      - ./out/sql:/var/lib/mysql
-    ports:
-      - "3306:3306"
-
   backend:
-    build: "Backend/Webapi"
+    build: "Backend/BackendApi"
     healthcheck:
       test: [ "CMD-SHELL", "curl --fail --silent http://localhost:80/health || exit 1" ]
       interval: 1s
@@ -27,9 +12,9 @@ services:
         condition: service_started
       placement:
         condition: service_started
-      backend-planner:
+      backend-delivery-planner:
         condition: service_healthy
-      backend-tracker:
+      backend-vehicle-data:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -38,14 +23,8 @@ services:
     env_file:
       - .env
 
-  backend-dapr:
-    build: "Backend/Webapi/dapr/"
-    depends_on:
-      - backend
-    network_mode: "service:backend"
-
-  backend-tracker:
-    build: "Backend/Tracker"
+  backend-vehicle-data:
+    build: "Backend/VehicleData"
     env_file:
       - .env
     healthcheck:
@@ -66,14 +45,24 @@ services:
     ports:
       - 5001:80
 
-  backend-tracker-dapr:
-    build: "Backend/Tracker/dapr/"
+  backend-simulation:
+    build: "Backend/Simulation"
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:80/health || exit 1"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
     depends_on:
-      - backend-tracker
-    network_mode: "service:backend-tracker"
+      backend:
+        condition: service_healthy
+    ports:
+      - 5003:80
 
-  backend-planner:
-    build: "Backend/Planner"
+  backend-delivery-planner:
+    build: "Backend/DeliveryPlanner"
     healthcheck:
       test: [ "CMD-SHELL", "curl --fail --silent http://localhost:80/health || exit 1" ]
       interval: 1s
@@ -87,21 +76,39 @@ services:
           condition: service_started
       placement:
           condition: service_started
-      backend-tracker:
+      backend-vehicle-data:
           condition: service_healthy
       rabbitmq:
           condition: service_healthy
     ports:
       - 5002:80
 
-  backend-planner-dapr:
-    build: "Backend/Planner/dapr/"
+  backend-dapr:
+    build: "Backend/BackendApi/dapr/"
     depends_on:
-      - backend-planner
-    network_mode: "service:backend-planner"
+      - backend
+    network_mode: "service:backend"
 
-  frontend-web:
-    build: "Frontend/Webview"
+  backend-simulation-dapr:
+    build: "Backend/Simulation/dapr/"
+    depends_on:
+      - backend-simulation
+    network_mode: "service:backend-simulation"
+
+  backend-vehicle-data-dapr:
+    build: "Backend/VehicleData/dapr/"
+    depends_on:
+      - backend-vehicle-data
+    network_mode: "service:backend-vehicle-data"
+
+  backend-delivery-planner-dapr:
+    build: "Backend/DeliveryPlanner/dapr/"
+    depends_on:
+      - backend-delivery-planner
+    network_mode: "service:backend-delivery-planner"
+
+  frontend:
+    build: "Frontend"
     env_file:
       - .env
     depends_on:
@@ -110,15 +117,20 @@ services:
     ports:
       - 3000:3000
 
-  frontend-admin:
-    build: "Frontend/Adminview"
+  db:
+    image: "mysql"
+    healthcheck:
+      test: "/usr/bin/mysql --user=root --password=password123 --execute \"SHOW DATABASES;\""
+      interval: 1s
+      timeout: 3s
+      retries: 1000
+      start_period: 300s
     env_file:
       - .env
-    depends_on:
-      backend:
-        condition: service_healthy
+    volumes:
+      - ./out/sql:/var/lib/mysql
     ports:
-      - 3001:3001
+      - "3306:3306"
 
   zipkin:
     image: "openzipkin/zipkin"
@@ -143,6 +155,7 @@ services:
       interval: 5s
       timeout: 10s
       retries: 20
+      start_period: 10s
     environment:
       RABBITMQ_DEFAULT_PASS: password
       RABBITMQ_DEFAULT_USER: admin
