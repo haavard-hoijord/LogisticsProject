@@ -9,7 +9,7 @@ public class Vehicle
     public int maxLoad { get; set; }
 
     public Coordinate coordinate { get; set; }
-    public List<Destination> destinations { get; set; }
-    public List<RouteSection> sections { get; set; }
-    public String? lowResPolyline { get; set; }
+
+    public int routeId { get; set; }
+    public Route route { get; set; }
 }

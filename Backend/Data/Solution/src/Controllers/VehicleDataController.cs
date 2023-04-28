@@ -43,10 +43,8 @@ public class VehicleDataController : ControllerBase
         {
             entity.company = vehicle.company;
             entity.coordinate = vehicle.coordinate;
-            entity.destinations = vehicle.destinations;
+            entity.route = vehicle.route;
             entity.maxLoad = vehicle.maxLoad;
-            entity.sections = vehicle.sections;
-            entity.lowResPolyline = vehicle.lowResPolyline;
 
             context.vehicles.Update(entity);
             context.SaveChanges();
