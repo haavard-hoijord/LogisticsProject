@@ -139,6 +139,7 @@ const Sidebar = ({
                         Add Delivery
                     </button>
 
+                    {simSerivceOnline ? (
                     <button className="new-simulate"
                             onClick={() => {
                                 setSelectedVehicle(null);
@@ -150,6 +151,7 @@ const Sidebar = ({
                             }}>
                         Add Randoms
                     </button>
+                    ) : (<> </>)}
 
                     <br/>
                     {simSerivceOnline ? [0, 1, 2, 5, 10, 50, 100].map((speed) => {
