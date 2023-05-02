@@ -1,8 +1,8 @@
 FROM node:14 AS build
 WORKDIR /app
-COPY Frontend/package*.json ./
+COPY Frontend/Map/package*.json ./
 RUN npm i
-COPY Frontend/* .
+COPY Frontend/Map/* .
 ADD .env ./.env
 RUN npm run build
 

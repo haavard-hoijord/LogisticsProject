@@ -1,6 +1,7 @@
 using System.Text.Json;
 using PolylineEncoder.Net.Utility;
 using Solution.Models;
+using Route = Solution.Models.Route;
 
 namespace Solution.Pathfinder;
 
@@ -12,17 +13,17 @@ public class MapBoxMapService : IMapService
     private static readonly HttpClient httpClient = new();
     private static readonly PolylineUtility polylineEncoder = new();
 
-    public async Task<List<RouteSection>> GetPath(Vehicle vehicle)
+    public async Task<List<RouteSection>> GetPath(Coordinate currentPos, Route route)
     {
         var waypoints = "";
 
-        if (vehicle.destinations.Count > 1)
-            foreach (var destination in vehicle.destinations.GetRange(0, vehicle.destinations.Count - 1))
+        if (route.destinations.Count > 1)
+            foreach (var destination in route.destinations.GetRange(0, route.destinations.Count - 1))
                 waypoints += $"{destination.coordinate.longitude},{destination.coordinate.latitude};";
 
         // string directionsUrl = $"https://api.mapbox.com/directions/v5/mapbox/driving/{vehicle.coordinate.longitude},{vehicle.coordinate.latitude};{waypoints}{vehicle.destinations.Last().coordinate.longitude},{vehicle.destinations.Last().coordinate.latitude}?steps=true&access_token={API_KEY}";
         var destinations =
-            $"{vehicle.coordinate.longitude},{vehicle.coordinate.latitude};{waypoints}{vehicle.destinations.Last().coordinate.longitude},{vehicle.destinations.Last().coordinate.latitude}";
+            $"{currentPos.longitude},{currentPos.latitude};{waypoints}{route.destinations.Last().coordinate.longitude},{route.destinations.Last().coordinate.latitude}";
         var directionsUrl =
             $"https://api.mapbox.com/optimized-trips/v1/mapbox/driving/{destinations}?source=first&destination=last&roundtrip=false&access_token={API_KEY}";
 
@@ -104,11 +105,12 @@ public class MapBoxMapService : IMapService
             Planner.GetDeliveryCoordinates(this, data.pickup),
             Planner.GetDeliveryCoordinates(this, data.dropoff));
         var sortedVehicles = vehicles
-            .Where(e => Planner.GetCurrentVehicleLoad(e) + data.pickup.size < e.maxLoad)
+            .Where(e => Planner.PackageFits(e, data.pickup.package))
             .OrderBy(e =>
                 Planner.GetShortestDistance(e, Planner.GetDeliveryCoordinates(this, data.pickup))
                     .Result + tripDistance)
-            .ThenBy(e => e.maxLoad - Planner.GetCurrentVehicleLoad(e)).ToList();
+            //.ThenBy(e => e.maxLoad - Planner.GetCurrentVehicleLoad(e))
+            .ToList();
 
         return sortedVehicles.Count == 0 ? null : sortedVehicles.First();
     }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Solution.Context;
 using Solution.Models;
 
@@ -12,7 +13,7 @@ public class VehicleDataController : ControllerBase
     public async Task<Vehicle?> track([FromBody] int id)
     {
         await using var context = new MysqlContext();
-        return await context.vehicles.FindAsync(id);
+        return await context.vehicles.Include(v => v.route).FirstOrDefaultAsync(v => v.id == id);
     }
 
     [HttpGet("/track/all")]
@@ -23,7 +24,7 @@ public class VehicleDataController : ControllerBase
         var vehicles = new List<Vehicle>();
         try
         {
-            vehicles.AddRange(context.vehicles.ToList());
+            vehicles.AddRange(context.vehicles.Include(v => v.route).ToList());
         }
         catch (Exception e)
         {
@@ -37,38 +38,36 @@ public class VehicleDataController : ControllerBase
     public void update([FromBody] Vehicle vehicle)
     {
         using var context = new MysqlContext();
-        var entity = context.vehicles.Find(vehicle.id);
+        context.vehicles.Update(vehicle);
+        context.SaveChanges();
 
-        if (entity != null)
+        Program.client.PublishEventAsync("status", "update_vehicle", new MessageUpdateData
         {
-            entity.company = vehicle.company;
-            entity.coordinate = vehicle.coordinate;
-            entity.route = vehicle.route;
-            entity.maxLoad = vehicle.maxLoad;
-
-            context.vehicles.Update(entity);
-            context.SaveChanges();
-
-            Program.client.PublishEventAsync("status", "update_vehicle", new MessageUpdateData
-            {
-                id = vehicle.id,
-                vehicle = vehicle
-            });
-        }
+            id = vehicle.id,
+            vehicle = vehicle
+        });
     }
 
     [HttpPost("/add")]
     public async Task<ActionResult> add([FromBody] Vehicle vehicle)
     {
-        await using var context = new MysqlContext();
-        context.vehicles.Add(vehicle);
-        await context.SaveChangesAsync();
-
-        Program.client.PublishEventAsync("status", "new_vehicle", new MessageUpdateData
+        try
         {
-            id = vehicle.id,
-            vehicle = vehicle
-        });
+            Console.WriteLine("Adding vehicle");
+            await using var context = new MysqlContext();
+            context.vehicles.Add(vehicle);
+            await context.SaveChangesAsync();
+
+            Program.client.PublishEventAsync("status", "new_vehicle", new MessageUpdateData
+            {
+                id = vehicle.id,
+                vehicle = vehicle
+            });
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.ToString());
+        }
 
         return Ok();
     }

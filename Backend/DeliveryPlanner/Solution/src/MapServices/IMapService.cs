@@ -1,10 +1,11 @@
 using Solution.Models;
+using Route = Solution.Models.Route;
 
 namespace Solution.Pathfinder;
 
 public interface IMapService
 {
-    public Task<List<RouteSection>> GetPath(Vehicle vehicle);
+    public Task<List<RouteSection>> GetPath(Coordinate currentPos, Route route);
     public Task<Coordinate> GetAddressCoordinates(string address);
     public Task<string> GetClosestAddress(Coordinate coordinate);
 

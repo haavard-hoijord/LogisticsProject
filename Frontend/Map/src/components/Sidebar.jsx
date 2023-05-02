@@ -86,8 +86,8 @@ const Sidebar = ({
 
     let veh = vehicles.find((v) => v.id === selectedVehicle?.id)
     let routes = [];
-    if (veh) {
-        veh.destinations.forEach((dest, index) => {
+    if (veh && veh.route) {
+        veh.route.destinations.forEach((dest, index) => {
             if (dest) {
                 if (routes.length > 0 && routes[routes.length - 1][0].routeId === dest.routeId) {
                     routes[routes.length - 1].push(dest);
@@ -165,7 +165,7 @@ const Sidebar = ({
                 </div>
                 <div className="sidebar-companies">
                     {companies.filter(e => vehicles.filter(e1 => e1.company === e.id).length > 0).map((company, index) => (
-                        <div className={`company ${closedCompanies[company] ? "closed" : ""}`} key={company.id} onClick={() => {
+                        <div className={`company ${closedCompanies[company.id] ? "closed" : ""}`} key={company.id} onClick={() => {
                             let temp = closedCompanies;
                             temp[company.id] = !temp[company.id];
                             setClosedCompanies({...temp});
@@ -190,7 +190,7 @@ const Sidebar = ({
                         <div className="title">Vehicle {selectedVehicle.id}</div>
                         <div
                             className="sub-title">Capacity: {selectedVehicle.maxLoad -
-                            (selectedVehicle.destinations.filter(s => s && !s.isPickup).map(s => s.load).reduce((a1, a2) => a1 + a2, 0) - selectedVehicle.destinations.filter(s => s && s.isPickup).map(s => s.load).reduce((a1, a2) => a1 + a2, 0))}</div>
+                            (selectedVehicle.route?.destinations.filter(s => s && !s.isPickup).map(s => s.load).reduce((a1, a2) => a1 + a2, 0) - selectedVehicle.route?.destinations.filter(s => s && s.isPickup).map(s => s.load).reduce((a1, a2) => a1 + a2, 0))}</div>
                         {routes.map((rt, index) => {
                             return (
                                 <div>
@@ -358,8 +358,7 @@ const Sidebar = ({
                                                     mapService: vehiclePoint.mapMode || mapModes[0],
                                                     maxLoad: vehiclePoint.size || 50,
                                                     coordinate: vehiclePoint.coordinate,
-                                                    sections: [],
-                                                    destinations: [],
+                                                    route: {}
                                                 })
                                             }).then((e) => {
                                                 setPickupPoint({});
@@ -579,12 +578,17 @@ const Sidebar = ({
                                                     body: JSON.stringify({
                                                         pickup: {
                                                             ...pickupPoint,
-                                                            size: pickupPoint.size || 1
+                                                            package: {
+                                                                weight: pickupPoint.size || 1,
+                                                                volume: 1
+                                                            },
                                                         },
                                                         dropoff: {
                                                             ...deliveryPoint,
-                                                            size: deliveryPoint.size || 1
-                                                        }
+                                                            package: {
+                                                                weight: deliveryPoint.size || 1,
+                                                                volume: 1
+                                                            },                                                        }
                                                     })
                                                 }).then((e) => {
                                                     setPickupPoint({});

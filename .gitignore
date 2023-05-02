@@ -30,15 +30,15 @@ replay_pid*
 *.exe
 *.xml
 /Backend/DeliveryPlanner/Solution/obj/
-/Backend/VehicleData/Solution/obj/
+/Backend/Data/Solution/obj/
 /Backend/BackendApi/Solution/obj/
 /Backend/Simulation/Solution/obj/
 /Backend/DeliveryPlanner/Solution/.idea/
-/Backend/VehicleData/Solution/.idea/
+/Backend/Data/Solution/.idea/
 /Backend/BackendApi/Solution/.idea/
 /Backend/Simulation/Solution/.idea/
 /Backend/DeliveryPlanner/Solution/bin/
-/Backend/VehicleData/Solution/bin/
+/Backend/Data/Solution/bin/
 /Backend/BackendApi/Solution/bin/
 /Backend/Simulation/Solution/bin/
 *.dll
@@ -53,3 +53,5 @@ Backend/Webapi/Solution/.vs/Solution/v17/.suo
 *.2
 Backend/Planner/.vscode/tasks.json
 Backend/Planner/.vscode/launch.json
+Frontend/PackageLoading/Node_modules/
+Frontend/Map/Node_modules/

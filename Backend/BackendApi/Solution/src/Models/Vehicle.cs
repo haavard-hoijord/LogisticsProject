@@ -6,10 +6,14 @@ public class Vehicle
 
     public string company { get; set; }
     public string mapService { get; set; }
-    public int maxLoad { get; set; }
+
+    public int maxWeight { get; set; }
+    public int maxVolume { get; set; }
+
+    public List<Package> packages { get; set; } = new List<Package>();
 
     public Coordinate coordinate { get; set; }
-    public List<Destination> destinations { get; set; }
-    public List<RouteSection> sections { get; set; }
-    public String? lowResPolyline { get; set; }
+
+    public int? routeId { get; set; }
+    public Route? route { get; set; }
 }

@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using PolylineEncoder.Net.Utility;
 using Solution.Models;
@@ -31,14 +32,15 @@ public class SimulationController : ControllerBase
             var obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "Data", "track/all");
 
             foreach (var vehicle in obj)
-                if (vehicle.sections.Count > 0)
+                if(vehicle.route != null)
+                if (vehicle.route.sections.Count > 0)
                 {
-                    var vehicleSection = vehicle.sections.First();
+                    var vehicleSection = vehicle.route.sections.First();
 
-                    while (vehicleSection.polyline == "" && vehicle.sections.Count > 0)
+                    while (vehicleSection.polyline == "" && vehicle.route.sections.Count > 0)
                     {
-                        vehicle.sections.RemoveAt(0);
-                        vehicleSection = vehicle.sections.First();
+                        vehicle.route.sections.RemoveAt(0);
+                        vehicleSection = vehicle.route.sections.First();
                     }
 
                     var speedLimit = 1; //50 km/h
@@ -47,10 +49,10 @@ public class SimulationController : ControllerBase
 
                     while (remainingDistance > 0)
                     {
-                        while (vehicleSection.polyline == "" && vehicle.sections.Count > 0)
+                        while (vehicleSection.polyline == "" && vehicle.route.sections.Count > 0)
                         {
-                            vehicle.sections.RemoveAt(0);
-                            vehicleSection = vehicle.sections.First();
+                            vehicle.route.sections.RemoveAt(0);
+                            vehicleSection = vehicle.route.sections.First();
                         }
 
                         var nodes = polylineEncoder.Decode(vehicleSection.polyline).ToList().Select(e => new Coordinate
@@ -75,9 +77,9 @@ public class SimulationController : ControllerBase
 
                                 try
                                 {
-                                    if (vehicle.destinations is { Count: > 0 } && vehicle.destinations.First() != null)
-                                        if (vehicle.destinations.First().distance is > 0)
-                                            vehicle.destinations.First().distance -=
+                                    if (vehicle.route.destinations is { Count: > 0 } && vehicle.route.destinations.First() != null)
+                                        if (vehicle.route.destinations.First().distance is > 0)
+                                            vehicle.route.destinations.First().distance -=
                                                 distanceToNextNode / vehicleSection.speedLimit;
                                 }
                                 catch (Exception e)
@@ -85,7 +87,7 @@ public class SimulationController : ControllerBase
                                     Console.WriteLine(e.ToString());
                                 }
 
-                                foreach (var dest in vehicle.destinations)
+                                foreach (var dest in vehicle.route.destinations)
                                     try
                                     {
                                         if (dest is { closestNode: { } } && nextNode != null
@@ -130,10 +132,10 @@ public class SimulationController : ControllerBase
 
                                 try
                                 {
-                                    if (vehicle.destinations is { Count: > 0 } &&
-                                        vehicle.destinations.First() != null && vehicle.coordinate != null)
-                                        if (vehicle.destinations.First().distance is > 0)
-                                            vehicle.destinations.First().distance -=
+                                    if (vehicle.route.destinations is { Count: > 0 } &&
+                                        vehicle.route.destinations.First() != null && vehicle.coordinate != null)
+                                        if (vehicle.route.destinations.First().distance is > 0)
+                                            vehicle.route.destinations.First().distance -=
                                                 Util.CalculateDistance(vehicle.coordinate, cord);
                                 }
                                 catch (Exception ex)
@@ -157,9 +159,9 @@ public class SimulationController : ControllerBase
 
                     await Program.client.InvokeMethodAsync(HttpMethod.Post, "Data", "update", vehicle);
                 }
-                else if (vehicle.destinations.Count > 0)
+                else if (vehicle.route.destinations.Count > 0)
                 {
-                    vehicle.destinations.Clear();
+                    vehicle.route.destinations.Clear();
                     await Program.client.InvokeMethodAsync(HttpMethod.Post, "Data", "update", vehicle);
                 }
         }
@@ -189,12 +191,10 @@ public class SimulationController : ControllerBase
                 {
                     { "address", randomAddress }
                 };
-                var addressRequest =
-                    Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "DeliveryPlanner", "address", data);
+                var addressRequest = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "DeliveryPlanner", "address", data);
                 var coordinate = await Program.client.InvokeMethodAsync<Coordinate>(addressRequest);
 
                 var companies = await Program.client.InvokeMethodAsync<List<Company>>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "backend", "companies"));
-
 
                 var vehicle = new Vehicle
                 {
@@ -203,15 +203,21 @@ public class SimulationController : ControllerBase
                         latitude = coordinate.latitude,
                         longitude = coordinate.longitude
                     },
-                    maxLoad = 50,
+                    maxVolume = 50,
+                    maxWeight = 50,
                     company = companies[new Random().Next(0, companies.Count)].id,
-                    mapService = "google",
-                    destinations = new List<Destination>(),
-                    sections = new List<RouteSection>()
+                    mapService = "google"
                 };
-                await Program.client.InvokeMethodWithResponseAsync(
-                    Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "add", vehicle));
-                added++;
+                var response = await Program.client.InvokeMethodWithResponseAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "add", vehicle));
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    added++;
+                }
+                else
+                {
+                    Console.WriteLine(response.ToString());
+                    Console.WriteLine(await response.Content.ReadAsStringAsync());
+                }
             }
             catch (Exception ex)
             {
@@ -245,20 +251,37 @@ public class SimulationController : ControllerBase
                 {
                     pickup = new DeliveryDestination
                     {
-                        size = 1,
+                        package = new()
+                        {
+                            volume = 1,
+                            weight = 1
+                        },
                         type = "address",
                         address = randomAddress1
                     },
                     dropoff = new DeliveryDestination
                     {
-                        size = 1,
+                        package = new()
+                        {
+                            volume = 1,
+                            weight = 1
+                        },
                         type = "address",
                         address = randomAddress2
                     }
                 };
 
-                await Program.client.InvokeMethodAsync(HttpMethod.Post, "DeliveryPlanner", "add", delivery);
-                added++;
+                var response = await Program.client.InvokeMethodWithResponseAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "DeliveryPlanner", "add", delivery));
+
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    added++;
+                }
+                else
+                {
+                    Console.WriteLine(response.ToString());
+                    Console.WriteLine(await response.Content.ReadAsStringAsync());
+                }
             }
             catch (Exception ex)
             {

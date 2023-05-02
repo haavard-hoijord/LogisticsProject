@@ -28,11 +28,11 @@ const VehicleButton = ({vehicles, vehicle, index, selectedVehicle, setSelectedVe
         <div className="text-container">
             <div className="title">Vehicle {vehicleId}</div>
             <div className="input">
-                <div className="sub-text">Status: {veh.destinations.length > 0 ? (veh.destinations[0]?.isPickup ? `On-route to pickup at ${veh.destinations[0]?.address}` : `Currently delivering to ${veh.destinations[0]?.address}`) : "Idle"}</div>
+                <div className="sub-text">Status: {veh.route && veh.route.destinations.length > 0 ? (veh.route.destinations[0]?.isPickup ? `On-route to pickup at ${veh.route.destinations[0]?.address}` : `Currently delivering to ${veh.route.destinations[0]?.address}`) : "Idle"}</div>
             </div>
 
-            {veh.destinations.length > 0 ?  (<div className="sub-text">Distance: {Math.round(veh.destinations[0]?.distance * 1000) / 1000.0}km</div>) : (<></>)}
-            {veh.destinations.length > 0 ?  (<div className="sub-text">Stops left: {veh.destinations.length}</div>) : (<></>)}
+            {veh.route && veh.route.destinations.length > 0 ?  (<div className="sub-text">Distance: {Math.round(veh.route.destinations[0]?.distance * 1000) / 1000.0}km</div>) : (<></>)}
+            {veh.route && veh.route.destinations.length > 0 ?  (<div className="sub-text">Stops left: {veh.route.destinations.length}</div>) : (<></>)}
         </div>
     </button>);
 }

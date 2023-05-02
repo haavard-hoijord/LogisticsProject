@@ -8,9 +8,9 @@ public class BackendTicks
     {
         try
         {
-            var obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "VehicleData", "track/all");
+            var obj = await Program.client.InvokeMethodAsync<List<Vehicle>>(HttpMethod.Get, "Data", "track/all");
 
-            foreach (var vehicle in obj.Where(vehicle => vehicle.destinations.Count > 0 && vehicle.sections.Count <= 0))
+            foreach (var vehicle in obj.Where(e => e.route != null).Where(vehicle => vehicle.route.destinations.Count > 0 && vehicle.route.sections.Count <= 0))
             {
                 //Program.client.InvokeMethodAsync(HttpMethod.Post, "DeliveryPlanner", "update", vehicle);
             }

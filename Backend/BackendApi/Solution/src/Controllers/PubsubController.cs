@@ -14,7 +14,7 @@ public class PubsubController : ControllerBase
     [Topic("status", "pickup")]
     public async Task<ActionResult> Pickup([FromBody] MessageData data)
     {
-        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "VehicleData", "track", data.id);
+        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
         var requestAddress = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "DeliveryPlanner", "address/closest",
@@ -41,7 +41,7 @@ public class PubsubController : ControllerBase
     [Topic("status", "delivery")]
     public async Task<ActionResult> Delivery([FromBody] MessageData data)
     {
-        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "VehicleData", "track", data.id);
+        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
         var requestAddress = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "DeliveryPlanner", "address/closest",

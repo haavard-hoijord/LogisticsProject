@@ -11,5 +11,5 @@ public class Destination
     public string address { get; set; }
 
     public bool isPickup { get; set; }
-    public int load { get; set; }
+    public Package package { get; set; }
 }

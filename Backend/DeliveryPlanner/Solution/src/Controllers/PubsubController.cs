@@ -13,17 +13,21 @@ public class PubsubController : ControllerBase
     [Topic("status", "pickup")]
     public async Task<ActionResult> Pickup([FromBody] MessageData data)
     {
-        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "VehicleData", "track", data.id);
+        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
-        var dest = obj.destinations.Where(dest => dest.isPickup && dest.routeId == data.route)
-            .OrderBy(e => Planner.GetShortestDistance(obj, e.coordinate)).First();
-        obj.destinations.Remove(dest);
+        var dest = obj.route.destinations.Where(dest => dest.isPickup && dest.routeId == data.route).OrderBy(e => Planner.GetShortestDistance(obj, e.coordinate)).First();
+        obj.route.destinations.Remove(dest);
 
-        var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "VehicleData", "update", obj);
+        var package = dest.package;
+        package.routeId = dest.routeId;
+
+        obj.packages.Add(package);
+
+        var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", obj);
         await Program.client.InvokeMethodAsync(message2);
 
-        obj.lowResPolyline = null;
+        obj.route.overviewPolyline = null;
 
         await Program.client.InvokeMethodAsync(HttpMethod.Post, "DeliveryPlanner", "update", obj);
 
@@ -35,17 +39,17 @@ public class PubsubController : ControllerBase
     [Topic("status", "delivery")]
     public async Task<ActionResult> Delivery([FromBody] MessageData data)
     {
-        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "VehicleData", "track", data.id);
+        var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
-        var dest = obj.destinations.Where(dest => !dest.isPickup && dest.routeId == data.route)
-            .OrderBy(e => Planner.GetShortestDistance(obj, e.coordinate)).First();
-        obj.destinations.Remove(dest);
+        var dest = obj.route.destinations.Where(dest => !dest.isPickup && dest.routeId == data.route).OrderBy(e => Planner.GetShortestDistance(obj, e.coordinate)).First();
+        obj.route.destinations.Remove(dest);
+        obj.packages.RemoveAll(e => e.routeId == dest.routeId);
 
-        var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "VehicleData", "update", obj);
+        var message2 = Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", obj);
         await Program.client.InvokeMethodAsync(message2);
 
-        obj.lowResPolyline = null;
+        obj.route.overviewPolyline = null;
 
         await Program.client.InvokeMethodAsync(HttpMethod.Post, "DeliveryPlanner", "update", obj);
 

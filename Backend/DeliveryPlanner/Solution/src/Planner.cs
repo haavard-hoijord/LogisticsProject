@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using PolylineEncoder.Net.Utility;
 using Solution.Models;
 using Solution.Pathfinder;
+using Route = Solution.Models.Route;
 
 namespace Solution;
 
@@ -17,9 +18,9 @@ public static class Planner
         { "mapbox", new MapBoxMapService() }
     };
 
-    public static IMapService GetPathService(Vehicle vehicle)
+    public static IMapService GetPathService(Route route)
     {
-        return mapServices[vehicle.mapService];
+        return mapServices[route.mapService];
     }
 
     public static IMapService GetDefaultPathService()
@@ -36,24 +37,14 @@ public static class Planner
         if (vehicle != null)
             try
             {
-                await AddDestination(data, vehicle);
+                var route = await GenerateRoute(vehicle, data);
 
-                vehicle = await Program.client.InvokeMethodAsync<Vehicle>(
-                    Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", vehicle.id));
+                vehicle = await Program.client.InvokeMethodAsync<Vehicle>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", vehicle.id));
+                vehicle.route = route;
 
-                await GeneratePathNodes(vehicle);
+                await Program.client.InvokeMethodAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", vehicle));
 
-                vehicle = await Program.client.InvokeMethodAsync<Vehicle>(
-                    Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", vehicle.id));
-
-                await FindClosetsDestinationNodes(vehicle);
-                await GenerateDistanceValues(vehicle);
-
-                await Program.client.InvokeMethodAsync(
-                    Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", vehicle));
-
-                Console.WriteLine("Added path to vehicle " + vehicle.id + " with " + vehicle.sections.Count +
-                                  " sections");
+                Console.WriteLine("Added path to vehicle " + vehicle.id + " with " + vehicle.route.sections.Count + " sections");
 
                 Program.client.PublishEventAsync("status", "new_path", new Dictionary<string, string>
                 {
@@ -67,11 +58,38 @@ public static class Planner
             }
     }
 
+    public static async Task<Route> GenerateRoute(Vehicle vehicle, Delivery delivery)
+    {
+        var route = new Route();
+        route.mapService = vehicle.mapService;
+
+        await AddDestination(delivery, route);
+        await GeneratePathNodes(vehicle, route);
+        await FindClosetsDestinationNodes(route);
+        await GenerateDistanceValues(route);
+
+        return route;
+    }
+
     private static async Task<Vehicle> FindFittingVehicle(Delivery data)
     {
-        var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track/all");
-        return await GetDefaultPathService()
-            .FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
+        try
+        {
+            var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track/all");
+            return await GetDefaultPathService().FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
+        }catch(Exception e)
+        {
+            Console.WriteLine(e.ToString());
+        }
+
+        return null;
+    }
+
+    public static bool PackageFits(Vehicle vehicle, Package package)
+    {
+        var usedVolume = vehicle.packages.Sum(e => e.volume);
+        var usedWeight = vehicle.packages.Sum(e => e.weight);
+        return usedVolume + package.volume <= vehicle.maxVolume && usedWeight + package.weight <= vehicle.maxWeight;
     }
 
     public static Coordinate? GetDeliveryCoordinates(IMapService service, DeliveryDestination destination)
@@ -107,34 +125,34 @@ public static class Planner
         return null;
     }
 
-    private static async Task AddDestination(Delivery data, Vehicle vehicle)
+    private static async Task AddDestination(Delivery data, Route route)
     {
         try
         {
             var routeId = 1;
 
-            if (vehicle.destinations.Count > 0) routeId = vehicle.destinations.Max(e => e.routeId) + 1;
+            if (route.destinations.Count > 0) routeId = route.destinations.Max(e => e.routeId) + 1;
 
-            vehicle.destinations.Add(new Destination
+            route.destinations.Add(new Destination
             {
-                coordinate = GetDeliveryCoordinates(data.pickup), load = data.pickup.size, isPickup = true,
+                coordinate = GetDeliveryCoordinates(data.pickup), package = data.pickup.package, isPickup = true,
                 routeId = routeId,
                 address = data.pickup.type == "address"
                     ? data.pickup.address
-                    : await GetPathService(vehicle).GetClosestAddress(data.pickup.coordinate)
+                    : await GetPathService(route).GetClosestAddress(data.pickup.coordinate)
             });
 
-            vehicle.destinations.Add(new Destination
+            route.destinations.Add(new Destination
             {
-                coordinate = GetDeliveryCoordinates(data.dropoff), load = data.dropoff.size, isPickup = false,
+                coordinate = GetDeliveryCoordinates(data.dropoff), package = data.dropoff.package, isPickup = false,
                 routeId = routeId,
                 address = data.dropoff.type == "address"
                     ? data.dropoff.address
-                    : await GetPathService(vehicle).GetClosestAddress(data.dropoff.coordinate)
+                    : await GetPathService(route).GetClosestAddress(data.dropoff.coordinate)
             });
 
-            var destinations = new List<Destination>(vehicle.destinations);
-            vehicle.destinations = new List<Destination>();
+            var destinations = new List<Destination>(route.destinations);
+            route.destinations = new List<Destination>();
 
             Destination? lastDestination = null;
 
@@ -151,29 +169,21 @@ public static class Planner
                             return 1;
                     }
 
-                    var dis1 = GetPathService(vehicle)
-                        .GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate,
-                            des1.coordinate).Result;
-
-                    var dis2 = GetPathService(vehicle)
-                        .GetDistance(lastDestination != null ? lastDestination.coordinate : vehicle.coordinate,
-                            des2.coordinate).Result;
+                    var dis1 = GetPathService(route).GetDistance(lastDestination.coordinate, des1.coordinate).Result;
+                    var dis2 = GetPathService(route).GetDistance(lastDestination.coordinate, des2.coordinate).Result;
 
                     return dis1.CompareTo(dis2);
                 });
 
                 lastDestination = destinations.First();
                 destinations.Remove(lastDestination);
-                vehicle.destinations.Add(lastDestination);
+                route.destinations.Add(lastDestination);
             }
-
-            await Program.client.InvokeMethodAsync(
-                Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", vehicle));
         }
         catch (Exception e)
         {
             Console.WriteLine(e.ToString());
-            Console.WriteLine(JsonSerializer.Serialize(vehicle,
+            Console.WriteLine(JsonSerializer.Serialize(route,
                 new JsonSerializerOptions
                 {
                     WriteIndented = true,
@@ -182,22 +192,19 @@ public static class Planner
         }
     }
 
-    public static async Task GeneratePathNodes(Vehicle vehicle)
+    public static async Task GeneratePathNodes(Vehicle vehicle, Route route)
     {
         try
         {
-            var sections = await GetPathService(vehicle).GetPath(vehicle);
+            if(route.sections == null)
+                route.sections = new List<RouteSection>();
 
-            var obj = await Program.client.InvokeMethodAsync<Vehicle>(
-                Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", vehicle.id));
-            obj.sections = sections;
-            await Program.client.InvokeMethodAsync(
-                Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", obj));
+            route.sections.AddRange(await GetPathService(route).GetPath(vehicle.coordinate, route));
         }
         catch (Exception e)
         {
             Console.WriteLine(e.ToString());
-            Console.WriteLine(JsonSerializer.Serialize(vehicle,
+            Console.WriteLine(JsonSerializer.Serialize(route,
                 new JsonSerializerOptions
                 {
                     WriteIndented = true,
@@ -206,33 +213,28 @@ public static class Planner
         }
     }
 
-    public static int GetCurrentVehicleLoad(Vehicle vehicle)
+    public static async Task FindClosetsDestinationNodes(Route route)
     {
-        return vehicle.destinations.Where(e => !e.isPickup).Select(s => s.load).Sum();
-    }
-
-    public static async Task FindClosetsDestinationNodes(Vehicle vehicle)
-    {
-        foreach (var dest in vehicle.destinations)
+        foreach (var dest in route.destinations)
         {
             Coordinate closestNode = null;
-            foreach (var node in vehicle.sections)
+            foreach (var node in route.sections)
             foreach (var cord in polylineEncoder.Decode(node.polyline)
                          .Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude }))
-                if (closestNode == null || await GetPathService(vehicle).GetDistance(closestNode, dest.coordinate) >
-                    await GetPathService(vehicle).GetDistance(cord, dest.coordinate))
+                if (closestNode == null || await GetPathService(route).GetDistance(closestNode, dest.coordinate) >
+                    await GetPathService(route).GetDistance(cord, dest.coordinate))
                     closestNode = cord;
 
             if (closestNode != null) dest.closestNode = closestNode;
         }
     }
 
-    public static async Task GenerateDistanceValues(Vehicle vehicle)
+    public static async Task GenerateDistanceValues(Route route)
     {
-        var allCords = vehicle.sections.SelectMany(section => polylineEncoder.Decode(section.polyline).Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude })).ToList();
+        var allCords = route.sections.SelectMany(section => polylineEncoder.Decode(section.polyline).Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude })).ToList();
 
         var lastCord = 0;
-        foreach (var dest in vehicle.destinations.Where(e => e.closestNode != null))
+        foreach (var dest in route.destinations.Where(e => e.closestNode != null))
         {
             var dist = 0.0;
 
@@ -246,7 +248,7 @@ public static class Planner
                     break;
                 }
 
-                dist += await GetPathService(vehicle).GetDistance(allCords[k], allCords[k + 1]);
+                dist += await GetPathService(route).GetDistance(allCords[k], allCords[k + 1]);
             }
         }
     }
@@ -257,12 +259,17 @@ public static class Planner
 
         var distance = double.NaN;
 
-        var nodes = new List<Coordinate>(vehicle?.destinations?.Select(e => e.coordinate));
+        var nodes = new List<Coordinate>();
         nodes.Add(vehicle.coordinate);
+
+        if (vehicle.route != null && vehicle.route.destinations is {Count: > 0})
+        {
+            nodes.AddRange(vehicle.route.destinations.Select(e => e.coordinate));
+        }
 
         nodes.ForEach(e =>
         {
-            var dis = GetPathService(vehicle).GetDistance(e, coordinate).Result;
+            var dis = (vehicle.route != null ? GetPathService(vehicle.route) : GetDefaultPathService()).GetDistance(e, coordinate).Result;
             if (double.IsNaN(distance) || dis < distance) distance = dis;
         });
 

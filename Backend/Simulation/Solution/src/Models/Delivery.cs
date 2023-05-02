@@ -8,7 +8,7 @@ public class Delivery
 
 public class DeliveryDestination
 {
-    public int size { get; set; }
+    public Package package { get; set; }
     public string type { get; set; } = "cords"; // or "address"
     public string? address { get; set; }
     public Coordinate? coordinate { get; set; }

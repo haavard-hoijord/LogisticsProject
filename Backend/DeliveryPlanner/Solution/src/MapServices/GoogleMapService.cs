@@ -13,6 +13,7 @@ using GoogleApi.Entities.Maps.Geocoding.Location.Request;
 using Solution.Models;
 using DateTime = System.DateTime;
 using Location = Google.Maps.Routing.V2.Location;
+using Route = Solution.Models.Route;
 
 namespace Solution.Pathfinder;
 
@@ -36,16 +37,14 @@ public class GoogleMapService : IMapService
 
     private static readonly double MinSpeed = 10.0;
 
-    public async Task<List<RouteSection>> GetPath(Vehicle vehicle)
+    public async Task<List<RouteSection>> GetPath(Coordinate currentPos, Route route)
     {
         try
         {
-            Console.WriteLine($"Getting path for vehicle {vehicle.id}");
-
-            var lastPos = vehicle.destinations.Last().coordinate;
+            var lastPos = route.destinations.Last().coordinate;
             var wayPoints = new RepeatedField<Waypoint>();
 
-            foreach (var destination in vehicle.destinations)
+            foreach (var destination in route.destinations)
                 wayPoints.Add(new Waypoint
                 {
                     Location = new Location
@@ -69,7 +68,7 @@ public class GoogleMapService : IMapService
                         Location = new Location
                         {
                             LatLng = new LatLng
-                                { Latitude = vehicle.coordinate.latitude, Longitude = vehicle.coordinate.longitude }
+                                { Latitude = currentPos.latitude, Longitude = currentPos.longitude }
                         }
                     },
                     Destination = new Waypoint
@@ -87,18 +86,11 @@ public class GoogleMapService : IMapService
                     RoutingPreference = RoutingPreference.TrafficAwareOptimal
                 };
 
-                var response = await client.ComputeRoutesAsync(routeRequest,
-                    CallSettings.FromHeader("X-Goog-FieldMask", "routes.polyline.encodedPolyline"));
+                var response = await client.ComputeRoutesAsync(routeRequest, CallSettings.FromHeader("X-Goog-FieldMask", "routes.polyline.encodedPolyline"));
 
                 if (response.Routes.Count > 0)
                 {
-                    var obj = await Program.client.InvokeMethodAsync<Vehicle>(
-                        Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "VehicleData", "track", vehicle.id));
-
-                    obj.lowResPolyline = response.Routes.First().Polyline.EncodedPolyline;
-                    await Program.client.InvokeMethodAsync(
-                        Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "VehicleData", "update", obj));
-                    Console.WriteLine("Low res polyline generated");
+                    route.overviewPolyline = response.Routes.First().Polyline.EncodedPolyline;
                 }
             });
 
@@ -111,7 +103,7 @@ public class GoogleMapService : IMapService
                     Location = new Location
                     {
                         LatLng = new LatLng
-                            { Latitude = vehicle.coordinate.latitude, Longitude = vehicle.coordinate.longitude }
+                            { Latitude = currentPos.latitude, Longitude = currentPos.longitude }
                     }
                 },
                 Destination = new Waypoint
@@ -137,10 +129,10 @@ public class GoogleMapService : IMapService
             {
                 if (response.Routes.Count > 0)
                 {
-                    var route = response.Routes.First();
+                    var firstRoute = response.Routes.First();
                     var sections = new List<RouteSection>();
 
-                    foreach (var leg in route.Legs)
+                    foreach (var leg in firstRoute.Legs)
                     foreach (var step in leg.Steps)
                     {
                         var stepDistanceKm = step.DistanceMeters / 1000.0; // Convert meters to kilometers
@@ -225,14 +217,13 @@ public class GoogleMapService : IMapService
             Planner.GetDeliveryCoordinates(this, data.pickup),
             Planner.GetDeliveryCoordinates(this, data.dropoff));
         var filteredList = vehicles
-            .Where(e => Planner.GetCurrentVehicleLoad(e) + data.pickup.size < e.maxLoad)
-            .Where(e => e.destinations.Count <=
-                        6) //Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
+            .Where(e => Planner.PackageFits(e, data.pickup.package))
+            .Where(e => e.route == null || e.route.destinations.Count <= 6) //Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
             .Where(e => Planner.GetDeliveryCoordinates(this, data.pickup) != null)
             .OrderBy(e =>
                 Planner.GetShortestDistance(e, Planner.GetDeliveryCoordinates(this, data.pickup))
                     ?.Result + tripDistance)
-            .ThenBy(e => e.maxLoad - Planner.GetCurrentVehicleLoad(e))
+            //.ThenBy(e => e.maxLoad - Planner.GetCurrentVehicleLoad(e))
             .ToList();
 
         if (filteredList.Count > 10) filteredList = filteredList.GetRange(0, 10);
@@ -266,7 +257,7 @@ public class GoogleMapService : IMapService
             var tempList = new List<Vehicle>(filteredList);
             filteredList = filteredList
                 .OrderBy(e => rows.ElementAt(tempList.IndexOf(e)).Value)
-                .ThenBy(e => e.maxLoad - Planner.GetCurrentVehicleLoad(e))
+               // .ThenBy(e => e.maxLoad - Planner.GetCurrentVehicleLoad(e))
                 .ToList();
             return filteredList.First();
         }

@@ -5,23 +5,12 @@ import polyline from '@mapbox/polyline';
 import './App.css'
 import Sidebar from "./components/Sidebar.jsx";
 
-const css3Colors = [
-    'aqua', 'black', 'blue', 'fuchsia', 'gray', 'green', 'lime', 'maroon', 'navy',
-    'olive', 'orange', 'purple', 'red', 'teal', 'yellow',
-];
+const css3Colors = ['aqua', 'black', 'blue', 'fuchsia', 'gray', 'green', 'lime', 'maroon', 'navy', 'olive', 'orange', 'purple', 'red', 'teal', 'yellow',];
 
 
 //Custom map markers: https://github.com/Concept211/Google-Maps-Markers
 
-const mapMarkers = [
-    'http://maps.gstatic.com/mapfiles/markers2/marker.png',
-    'http://maps.gstatic.com/mapfiles/markers2/icon_green.png',
-    'http://maps.gstatic.com/mapfiles/markers2/icon_purple.png',
-    'http://maps.gstatic.com/mapfiles/markers2/icon_yellow.png',
-    'http://maps.gstatic.com/mapfiles/markers2/icon_orange.png',
-    'http://maps.gstatic.com/mapfiles/markers2/icon_pink.png',
-    'http://maps.gstatic.com/mapfiles/markers2/icon_brown.png',
-]
+const mapMarkers = ['http://maps.gstatic.com/mapfiles/markers2/marker.png', 'http://maps.gstatic.com/mapfiles/markers2/icon_green.png', 'http://maps.gstatic.com/mapfiles/markers2/icon_purple.png', 'http://maps.gstatic.com/mapfiles/markers2/icon_yellow.png', 'http://maps.gstatic.com/mapfiles/markers2/icon_orange.png', 'http://maps.gstatic.com/mapfiles/markers2/icon_pink.png', 'http://maps.gstatic.com/mapfiles/markers2/icon_brown.png',]
 
 function getColor(num) {
     return css3Colors[num % css3Colors.length];
@@ -63,7 +52,7 @@ function MapComponent() {
 
     const [ws, setWs] = useState(null);
 
-    async function reRender(){
+    async function reRender() {
         await setReRender(!reRenderValue);
         //window.location.reload();
     }
@@ -71,15 +60,15 @@ function MapComponent() {
     const onClick = async (...args) => {
         focusVehicle(null)
 
-        if(mapPicker){
+        if (mapPicker) {
             mapPicker(args[0].latLng.lat(), args[0].latLng.lng());
             setMapPicker(null);
         }
     }
+
     async function fetchVehicles() {
         await fetch(`${DAPR_URL}/v1.0/invoke/Data/method/track/all`, {
-            method: 'GET',
-            headers: {
+            method: 'GET', headers: {
                 'Content-Type': 'application/json'
             }
         })
@@ -93,17 +82,13 @@ function MapComponent() {
 
 
     useEffect(() => {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setCurrentLocation({
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude,
-                });
-            },
-            (error) => {
-                console.error('Error getting current position:', error);
-            }
-        );
+        navigator.geolocation.getCurrentPosition((position) => {
+            setCurrentLocation({
+                lat: position.coords.latitude, lng: position.coords.longitude,
+            });
+        }, (error) => {
+            console.error('Error getting current position:', error);
+        });
     }, []);
 
     useEffect(() => {
@@ -131,8 +116,7 @@ function MapComponent() {
 
                     if (followedVehicle && followedVehicle.id === data.vehicle.id) {
                         setCenter({
-                            lat: data.vehicle.coordinate.latitude,
-                            lng: data.vehicle.coordinate.longitude
+                            lat: data.vehicle.coordinate.latitude, lng: data.vehicle.coordinate.longitude
                         })
                     }
                 }
@@ -208,15 +192,13 @@ function MapComponent() {
         if (vehicle) {
             let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
             let index = vehicles.findIndex((v) => v.id === vehicleId);
-            if(vehicleRefs[index]){
+            if (vehicleRefs[index]) {
                 vehicleRefs[index].scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center'
+                    behavior: 'smooth', block: 'center'
                 });
             }
             setCenter({
-                lat: vehicle.coordinate.latitude,
-                lng: vehicle.coordinate.longitude
+                lat: vehicle.coordinate.latitude, lng: vehicle.coordinate.longitude
             })
         }
     }
@@ -228,9 +210,9 @@ function MapComponent() {
 
         let vehicleId = vehicle.id || Math.max(...vehicles.map((v) => v.id));
         let path = []
-        if (vehicle.destinations) {
+        if (vehicle.route && vehicle.route.destinations) {
             let position = {lat: vehicle.coordinate.latitude, lng: vehicle.coordinate.longitude}
-            vehicle.destinations.forEach(async (destination, index) => {
+            vehicle.route.destinations.forEach(async (destination, index) => {
                 if (destination && destination.coordinate) {
                     let pos = {lat: destination.coordinate.latitude, lng: destination.coordinate.longitude}
                     path.push(<Marker key={`Destination ${vehicleId}-${index}`} position={pos}
@@ -246,42 +228,42 @@ function MapComponent() {
 
         let overviewThreshold = 8;
 
-        if (vehicle.sections && Array.isArray(vehicle.sections) && vehicle.sections.length > 0 || (vehicle.lowResPolyline)) {
-            let paths = [];
-            let basicPath = false;
+        if (vehicle.route) {
+            if (vehicle.route.sections && Array.isArray(vehicle.route.sections) && vehicle.route.sections.length > 0 || (vehicle.route.overviewPolyline)) {
+                let paths = [];
+                let basicPath = false;
 
-            if(zoom <= overviewThreshold && vehicle.lowResPolyline || vehicle.lowResPolyline && !vehicle.sections){
-                paths = polyline.decode(vehicle.lowResPolyline).map(([lat, lng]) => ({lat, lng}));
-                basicPath = true;
+                if (zoom <= overviewThreshold && vehicle.route.overviewPolyline || vehicle.route.overviewPolyline && !vehicle.sections) {
+                    paths = polyline.decode(vehicle.route.overviewPolyline).map(([lat, lng]) => ({lat, lng}));
+                    basicPath = true;
 
-            }else{
-                vehicle.sections.forEach((section) => {
-                    let sections = polyline.decode(section.polyline).map(([lat, lng]) => ({lat, lng}));
-                    paths.push(...sections);
-                });
-            }
-
-            paths.unshift({
-                lat: vehicle.coordinate.latitude,
-                lng: vehicle.coordinate.longitude
-            });
-
-            path.push(<Polyline key={`${basicPath ? "Simple-Path" : "Path"} ${vehicleId}`} path={paths} options={{
-                strokeColor: getColor(vehicleId - 1),
-                strokeOpacity: basicPath && !(selectedVehicle && selectedVehicle.id === vehicleId) ? 0.5 : 1,
-                strokeWeight: 3
-            }} onClick={() => focusVehicle(vehicle)}/>)
-
-        } else if (vehicle.destinations && Array.isArray(vehicle.destinations) && vehicle.destinations.length > 0) {
-            path.push(<Polyline key={`Path ${vehicleId}`} path={vehicle.destinations.map((destination) => {
-                return {
-                    lat: destination.coordinate.latitude,
-                    lng: destination.coordinate.longitude
+                } else {
+                    vehicle.route.sections.forEach((section) => {
+                        let sections = polyline.decode(section.polyline).map(([lat, lng]) => ({lat, lng}));
+                        paths.push(...sections);
+                    });
                 }
-            })} options={{
-                strokeColor: getColor(vehicleId - 1),
-                strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
-            }} onClick={() => focusVehicle(vehicle)}/>)
+
+                paths.unshift({
+                    lat: vehicle.coordinate.latitude, lng: vehicle.coordinate.longitude
+                });
+
+                path.push(<Polyline key={`${basicPath ? "Simple-Path" : "Path"} ${vehicleId}`} path={paths} options={{
+                    strokeColor: getColor(vehicleId - 1),
+                    strokeOpacity: basicPath && !(selectedVehicle && selectedVehicle.id === vehicleId) ? 0.5 : 1,
+                    strokeWeight: 3
+                }} onClick={() => focusVehicle(vehicle)}/>)
+
+            } else if (vehicle.route.destinations && Array.isArray(vehicle.route.destinations) && vehicle.route.destinations.length > 0) {
+                path.push(<Polyline key={`Path ${vehicleId}`} path={vehicle.route.destinations.map((destination) => {
+                    return {
+                        lat: destination.coordinate.latitude, lng: destination.coordinate.longitude
+                    }
+                })} options={{
+                    strokeColor: getColor(vehicleId - 1),
+                    strokeWeight: selectedVehicle && selectedVehicle.id === vehicle.id ? 10 : 3
+                }} onClick={() => focusVehicle(vehicle)}/>)
+            }
         }
 
         return <Marker key={`Vehicle ${vehicleId}`}
@@ -292,8 +274,7 @@ function MapComponent() {
                            fontSize: "18px",
                        }}
                        icon={{
-                           url: "",
-                           scaledSize: new google.maps.Size(0, 0),
+                           url: "", scaledSize: new google.maps.Size(0, 0),
                        }}
                        title={`Vehicle ${vehicleId}`}
                        position={{lat: vehicle.coordinate?.latitude, lng: vehicle.coordinate?.longitude}}
@@ -321,8 +302,7 @@ function MapComponent() {
                 <LoadScript googleMapsApiKey={GOOGLE_API_TOKEN}>
                     <GoogleMap
                         mapContainerStyle={{
-                            width: '100%',
-                            height: '100%'
+                            width: '100%', height: '100%'
                         }}
                         options={{
                             disableDefaultUI: true,
@@ -333,19 +313,17 @@ function MapComponent() {
                         clickableIcons={false}
                         onMouseOver={(e) => {
                             setMousePosition({
-                                lat: e.latLng.lat(),
-                                lng: e.latLng.lng()
+                                lat: e.latLng.lat(), lng: e.latLng.lng()
                             })
                         }}
                         onZoomChanged={() => {
-                            if(mapRef.current) {
+                            if (mapRef.current) {
                                 setZoom(mapRef.current.getZoom())
                             }
                         }}
                         onMouseMove={(e) => {
                             setMousePosition({
-                                lat: e.latLng.lat(),
-                                lng: e.latLng.lng()
+                                lat: e.latLng.lat(), lng: e.latLng.lng()
                             })
                         }}
                         onDrag={() => {
@@ -366,16 +344,13 @@ function MapComponent() {
                     </GoogleMap>
                 </LoadScript>
             </div>
-        </div>
-    );
+        </div>);
 }
 
 function App() {
-    return (
-        <div className="App">
+    return (<div className="App">
             <MapComponent/>
-        </div>
-    )
+        </div>)
 }
 
 export default App

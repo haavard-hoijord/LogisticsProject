@@ -33,9 +33,9 @@ public class PlannerController : ControllerBase
     {
         UpdateRateLimiter.Enqueue(async () =>
         {
-            await Planner.GeneratePathNodes(vehicle);
-            await Planner.FindClosetsDestinationNodes(vehicle);
-            await Planner.GenerateDistanceValues(vehicle);
+            await Planner.GeneratePathNodes(vehicle, vehicle.route);
+            await Planner.FindClosetsDestinationNodes(vehicle.route);
+            await Planner.GenerateDistanceValues(vehicle.route);
         });
     }
 
@@ -48,6 +48,7 @@ public class PlannerController : ControllerBase
     [HttpPost("/add")]
     public IActionResult AddPath([FromBody] Delivery data)
     {
+        Console.WriteLine("Adding path");
         AddRateLimiter.Enqueue(async () => Planner.addPath(data));
         return Ok();
     }

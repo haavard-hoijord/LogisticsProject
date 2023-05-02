@@ -33,7 +33,14 @@ public class MysqlContext : DbContext
         modelBuilder.Entity<Vehicle>()
             .HasOne(e => e.route)
             .WithOne()
-            .HasForeignKey<Route>(c => c.id);
+            .HasForeignKey<Vehicle>(c => c.routeId);
+
+        modelBuilder.Entity<Vehicle>()
+            .Property(e => e.packages)
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, new JsonSerializerOptions { IgnoreNullValues = true }),
+                v => JsonSerializer.Deserialize<List<Package>>(v, new JsonSerializerOptions { IgnoreNullValues = true }))
+            .HasColumnType("json");
 
         modelBuilder.Entity<Route>()
             .HasKey(e => e.id);

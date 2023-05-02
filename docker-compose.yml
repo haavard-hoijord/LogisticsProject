@@ -2,7 +2,7 @@ services:
   frontend:
     build:
         context: .
-        dockerfile: "Frontend/Dockerfile"
+        dockerfile: "Frontend/Map/Dockerfile"
     depends_on:
       backend:
         condition: service_healthy
