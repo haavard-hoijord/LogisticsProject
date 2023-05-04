@@ -195,6 +195,7 @@ public class SimulationController : ControllerBase
                 var coordinate = await Program.client.InvokeMethodAsync<Coordinate>(addressRequest);
 
                 var companies = await Program.client.InvokeMethodAsync<List<Company>>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "backend", "companies"));
+                var random = new Random();
 
                 var vehicle = new Vehicle
                 {
@@ -203,10 +204,12 @@ public class SimulationController : ControllerBase
                         latitude = coordinate.latitude,
                         longitude = coordinate.longitude
                     },
-                    maxVolume = 50,
                     maxWeight = 50,
                     company = companies[new Random().Next(0, companies.Count)].id,
-                    mapService = "google"
+                    mapService = "google",
+                    width = random.Next(5, 40),
+                    height = random.Next(5, 20),
+                    depth = random.Next(5, 20),
                 };
                 var response = await Program.client.InvokeMethodWithResponseAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "add", vehicle));
                 if (response.StatusCode == HttpStatusCode.OK)
@@ -247,25 +250,26 @@ public class SimulationController : ControllerBase
 
                 Console.WriteLine("Adding delivery from " + randomAddress1 + " to " + randomAddress2);
 
+                var random = new Random();
+                var package = new Package
+                {
+                    width = random.Next(1, 5),
+                    height = random.Next(1, 5),
+                    depth = random.Next(1, 5),
+                    weight = 1
+                };
+
                 var delivery = new Delivery
                 {
                     pickup = new DeliveryDestination
                     {
-                        package = new()
-                        {
-                            volume = 1,
-                            weight = 1
-                        },
+                        package = package,
                         type = "address",
                         address = randomAddress1
                     },
                     dropoff = new DeliveryDestination
                     {
-                        package = new()
-                        {
-                            volume = 1,
-                            weight = 1
-                        },
+                        package = package,
                         type = "address",
                         address = randomAddress2
                     }

@@ -1,5 +1,5 @@
 services:
-  frontend:
+  frontend-map:
     build:
         context: .
         dockerfile: "Frontend/Map/Dockerfile"
@@ -8,6 +8,16 @@ services:
         condition: service_healthy
     ports:
       - 3000:3000
+
+  frontend-package-loading:
+    build:
+      context: .
+      dockerfile: "Frontend/PackageLoading/Dockerfile"
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - 3001:3001
 
   backend:
     build: "Backend/BackendApi"

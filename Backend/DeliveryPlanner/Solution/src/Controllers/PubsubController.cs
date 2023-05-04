@@ -16,7 +16,8 @@ public class PubsubController : ControllerBase
         var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
-        var dest = obj.route.destinations.Where(dest => dest.isPickup && dest.routeId == data.route).OrderBy(e => Planner.GetShortestDistance(obj, e.coordinate)).First();
+        var dest = obj.route.destinations.Where(dest => dest.isPickup && dest.routeId == data.route)
+            .OrderBy(e => Planner.GetShortestDistance(obj, e.coordinate)).First();
         obj.route.destinations.Remove(dest);
 
         var package = dest.package;
@@ -42,7 +43,8 @@ public class PubsubController : ControllerBase
         var requestMessage = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", data.id);
         var obj = await Program.client.InvokeMethodAsync<Vehicle>(requestMessage);
 
-        var dest = obj.route.destinations.Where(dest => !dest.isPickup && dest.routeId == data.route).OrderBy(e => Planner.GetShortestDistance(obj, e.coordinate)).First();
+        var dest = obj.route.destinations.Where(dest => !dest.isPickup && dest.routeId == data.route)
+            .OrderBy(e => Planner.GetShortestDistance(obj, e.coordinate)).First();
         obj.route.destinations.Remove(dest);
         obj.packages.RemoveAll(e => e.routeId == dest.routeId);
 

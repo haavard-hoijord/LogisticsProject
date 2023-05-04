@@ -2,22 +2,8 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GUI} from "dat.gui";
 
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Enable softer shadows
-
-document.body.appendChild(renderer.domElement);
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0.4, 0.4, 0.4);
-
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const controls = new OrbitControls(camera, renderer.domElement);
-
-const light = new THREE.HemisphereLight('white', 10);
-light.position.set(0, 100, 0);
-scene.add(light);
+const DAPR_URL = `http://localhost:5000/dapr`;
+let DEBUG = false;
 
 let width = 20;
 let height = 10;
@@ -35,12 +21,82 @@ let cubes = [];
 let packages = [];
 let grid = create3DArray(width, height, depth);
 
-controls.target.set(width / 2, height / 2, depth / 2);
+let vehicles = [];
 
-camera.position.set(30, 10, 30);
-camera.lookAt(10, 0, 0);
+const renderer = new THREE.WebGLRenderer();
+const scene = new THREE.Scene();
 
-controls.update();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const controls = new OrbitControls(camera, renderer.domElement);
+
+(async () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Enable softer shadows
+
+    document.body.appendChild(renderer.domElement);
+
+    scene.background = new THREE.Color(0.4, 0.4, 0.4);
+
+    const light = new THREE.HemisphereLight('white', 10);
+    light.position.set(0, 100, 0);
+    scene.add(light);
+
+
+    vehicles = await fetch(`${DAPR_URL}/v1.0/invoke/Data/method/track/all`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    }).then(response => response.json());
+
+    if(DEBUG){
+        initPackages();
+    }else{
+        selectVehicle(vehicles.filter(vehicles => vehicles.route)[0]);
+    }
+
+    initCubes();
+    initGUI();
+
+    controls.target.set(width / 2, height / 2, depth / 2);
+
+    camera.position.set(30, 10, 30);
+    camera.lookAt(10, 0, 0);
+
+    controls.update();
+
+    animate();
+})();
+
+function reInitCubes() {
+    for (const cube of cubes) {
+        scene.remove(cube);
+    }
+
+    cubes = [];
+    initCubes();
+}
+
+function initCubes() {
+    if(controls){
+        controls.target.set(width / 2, height / 2, depth / 2);
+    }
+    grid = create3DArray(width, height, depth);
+    fill3DArray(grid, packages);
+    addGridCubes();
+
+    const planeMaterial = new THREE.MeshStandardMaterial({
+        color: 0x999999, side: THREE.DoubleSide, opacity: 0.3, transparent: true
+    });
+
+    const geometry = new THREE.BoxGeometry(width + 0.1, height + 0.1, depth + 0.1);
+    geometry.translate(width / 2, height / 2, depth / 2); // pivot point is shifted
+    const cube = new THREE.Mesh(geometry, planeMaterial);
+    cube.position.set(-0.05, -0.05, -0.05);
+    scene.add(cube);
+    cubes.push(cube);
+}
 
 function initPackages() {
     packages = [];
@@ -58,34 +114,6 @@ function initPackages() {
     }
 }
 
-function initCubes() {
-    grid = create3DArray(width, height, depth);
-    fill3DArray(grid, packages);
-    addGridCubes();
-
-    const planeMaterial = new THREE.MeshStandardMaterial({
-        color: 0x999999, side: THREE.DoubleSide, opacity: 0.3, transparent: true
-    });
-
-    const geometry = new THREE.BoxGeometry(width + 0.1, height + 0.1, depth + 0.1);
-    geometry.translate(width / 2, height / 2, depth / 2); // pivot point is shifted
-    const cube = new THREE.Mesh(geometry, planeMaterial);
-    cube.position.set(-0.05, -0.05, -0.05);
-    scene.add(cube);
-    cubes.push(cube);
-}
-
-initPackages();
-initCubes();
-
-function reInitCubes() {
-    for (const cube of cubes) {
-        scene.remove(cube);
-    }
-
-    cubes = [];
-    initCubes();
-}
 
 function animate() {
     requestAnimationFrame(animate);
@@ -93,7 +121,6 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-animate();
 
 function create3DArray(width, height, depth) {
     const arr = new Array(width);
@@ -169,7 +196,7 @@ function fill3DArray(array, objects,) {
             const object = remainingObjects[i];
             const obSize = object.width * object.height * object.depth;
 
-            if (obSize <= (2*2*2)) {
+            if (obSize <= (2 * 2 * 2)) {
                 for (let y = 0; y < height && !objectPlaced; y++) {
 
                     for (let x = 0; x < width && !objectPlaced; x++) {
@@ -220,7 +247,7 @@ function addGridCubes() {
             for (let z = 0; z < depth; z++) {
                 let gridObject = grid[x][y][z];
 
-                if(y > limitHeight) {
+                if (y > limitHeight) {
                     ignoredCubes.push(gridObject.id);
                 }
             }
@@ -232,7 +259,7 @@ function addGridCubes() {
             for (let z = 0; z < depth; z++) {
                 let gridObject = grid[x][y][z];
 
-                if(!ignoredCubes.includes(gridObject.id)) {
+                if (!ignoredCubes.includes(gridObject.id)) {
                     addGridCube(grid, x, y, z);
                 }
             }
@@ -290,72 +317,123 @@ function addGridCube(grid, x, y, z) {
     }
 }
 
+let curVehicle;
+function selectVehicle(vehicle){
+    packages = [];
 
-const gui = new GUI();
+    curVehicle = vehicle;
 
-const packagesFolder = gui.addFolder("Packages");
-let packageData = {packageCount, uniformSizes, renderEmpty, mergeSame};
-packagesFolder.add(packageData, "packageCount").onChange(() => {
-    packageCount = packageData.packageCount;
-    initPackages()
-    reInitCubes();
-}).name("Package Count: ");
-packagesFolder.add(packageData, "uniformSizes").onChange(() => {
-    uniformSizes = packageData.uniformSizes;
-    initPackages()
-    reInitCubes();
-}).name("Uniform Sizes: ");
-packagesFolder.add(packageData, "renderEmpty").onChange(() => {
-    renderEmpty = packageData.renderEmpty;
-    reInitCubes();
-}).name("Render Empty: ");
-packagesFolder.add(packageData, "mergeSame").onChange(() => {
-    mergeSame = packageData.mergeSame;
-    reInitCubes();
-}).name("Merge Same: ");
-
-packagesFolder.open();
-
-const sizeFolder = gui.addFolder("Size");
-let sizeData = {width, height, depth};
-sizeFolder.add(sizeData, "width").onChange(() => {
-    width = sizeData.width;
-    reInitCubes();
-}).name("Width: ");
-
-sizeFolder.add(sizeData, "height").onChange(() => {
-    height = sizeData.height;
-    limitHeight = Math.min(limitHeight, height);
-    reInitCubes();
-}).name("Height: ");
-
-sizeFolder.add(sizeData, "depth").onChange(() => {
-    depth = sizeData.depth;
-    reInitCubes();
-}).name("Depth: ");
-
-sizeFolder.open();
-
-const otherFolder = gui.addFolder("Other");
-const btn = {
-    ref: function () {
-        initPackages();
-        reInitCubes();
+    if(vehicle.route){
+        vehicle.route.destinations.filter((destination, index) => destination.isPickup).map((destination, index) => destination.package).map((pk) => {
+            return {
+                ...pk,
+                id: pk.routeId,
+                color: new THREE.Color(Math.random(), Math.random(), Math.random())
+            }
+        }).forEach((pk) => {
+            packages.push(pk);
+        });
     }
-};
-otherFolder.add(btn, "ref").name("Refresh");
-/*
-otherFolder.add({limitHeight}, "limitHeight", 1, height).onChange(() => {
-   limitHeight = btn.limitHeight;
+    width = vehicle.width;
+    height = vehicle.height;
+    depth = vehicle.depth;
+    reInitCubes();
+}
 
-   cubes.forEach(cube => {
-       if(cube.material.opacity !== 0.3){
-           cube.material.opacity = cube.position.y > limitHeight ? 0 : 1;
-           cube.material.transparent = cube.position.y > limitHeight;
-           cube.material.needsUpdate = true;
-       }
-   });
+function initGUI(){
+    const gui = new GUI();
 
-}).listen().name("Render Height: ");
-*/
-otherFolder.open()
+    const packagesFolder = gui.addFolder("Packages");
+    let packageData = {packageCount, uniformSizes, renderEmpty, mergeSame};
+    packagesFolder.add(packageData, "packageCount").onChange(() => {
+        packageCount = packageData.packageCount;
+        initPackages()
+        reInitCubes();
+    }).name("Package Count: ");
+
+    packagesFolder.add(packageData, "uniformSizes").onChange(() => {
+        uniformSizes = packageData.uniformSizes;
+        initPackages()
+        reInitCubes();
+    }).name("Uniform Sizes: ");
+    packagesFolder.add(packageData, "renderEmpty").onChange(() => {
+        renderEmpty = packageData.renderEmpty;
+        reInitCubes();
+    }).name("Render Empty: ");
+    packagesFolder.add(packageData, "mergeSame").onChange(() => {
+        mergeSame = packageData.mergeSame;
+        reInitCubes();
+    }).name("Merge Same: ");
+
+    packagesFolder.open();
+
+    const sizeFolder = gui.addFolder("Size");
+    let sizeData = {width, height, depth};
+    sizeFolder.add(sizeData, "width").onChange(() => {
+        width = sizeData.width;
+        reInitCubes();
+    }).name("Width: ");
+
+    sizeFolder.add(sizeData, "height").onChange(() => {
+        height = sizeData.height;
+        limitHeight = Math.min(limitHeight, height);
+        reInitCubes();
+    }).name("Height: ");
+
+    sizeFolder.add(sizeData, "depth").onChange(() => {
+        depth = sizeData.depth;
+        reInitCubes();
+    }).name("Depth: ");
+
+    sizeFolder.open();
+
+
+    const vehicleFolder = gui.addFolder("Vehicles");
+
+    for(let vehicle of vehicles.sort((e => -e.id))){
+        vehicleFolder.add({[vehicle.id]: () => {
+            selectVehicle(vehicle);
+        }}, vehicle.id).name("Vehicle " + vehicle.id);
+    }
+    vehicleFolder.open();
+
+    const otherFolder = gui.addFolder("Other");
+    const btn = {
+        ref: function () {
+            if(DEBUG) initPackages();
+            reInitCubes();
+        },
+        dbg: DEBUG
+    };
+    otherFolder.add(btn, "ref").name("Refresh");
+    otherFolder.add(btn, "dbg").name("Debug").onChange(() => {
+        DEBUG = btn.dbg;
+        grid = [];
+
+        if(DEBUG){
+            initPackages();
+            width = 20;
+            height = 10;
+            depth = 10;
+        }else{
+            selectVehicle(curVehicle);
+        }
+        reInitCubes();
+    });
+    /*
+    otherFolder.add({limitHeight}, "limitHeight", 1, height).onChange(() => {
+       limitHeight = btn.limitHeight;
+
+       cubes.forEach(cube => {
+           if(cube.material.opacity !== 0.3){
+               cube.material.opacity = cube.position.y > limitHeight ? 0 : 1;
+               cube.material.transparent = cube.position.y > limitHeight;
+               cube.material.needsUpdate = true;
+           }
+       });
+
+    }).listen().name("Render Height: ");
+    */
+    otherFolder.open()
+
+}

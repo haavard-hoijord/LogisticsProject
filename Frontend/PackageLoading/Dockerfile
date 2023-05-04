@@ -1,9 +1,9 @@
 FROM node:14 AS build
 WORKDIR /app
-COPY Frontend/Map/package*.json ./
+COPY Frontend/PackageLoading/package*.json ./
 RUN npm i
-COPY Frontend/Map/src ./src
-COPY Frontend/Map/* .
+COPY Frontend/PackageLoading/src ./src
+COPY Frontend/PackageLoading/* .
 ADD .env ./.env
 RUN npm run build
 
@@ -13,5 +13,5 @@ COPY --from=build /app/package*.json ./
 RUN npm i --only=production
 COPY --from=build /app/dist ./dist
 RUN npm install -g serve
-EXPOSE 3000
-CMD ["serve", "-s", "dist", "-l", "3000"]
+EXPOSE 3001
+CMD ["serve", "-s", "dist", "-l", "3001"]

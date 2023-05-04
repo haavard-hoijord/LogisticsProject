@@ -189,8 +189,8 @@ const Sidebar = ({
                     (<div className="vehicle-view">
                         <div className="title">Vehicle {selectedVehicle.id}</div>
                         <div
-                            className="sub-title">Capacity: {selectedVehicle.maxLoad -
-                            (selectedVehicle.route?.destinations.filter(s => s && !s.isPickup).map(s => s.load).reduce((a1, a2) => a1 + a2, 0) - selectedVehicle.route?.destinations.filter(s => s && s.isPickup).map(s => s.load).reduce((a1, a2) => a1 + a2, 0))}</div>
+                            className="sub-title">Capacity: {selectedVehicle.maxWeight -
+                            (selectedVehicle.route?.destinations.filter(s => s && !s.isPickup).map(s => s.load).reduce((a1, a2) => a1 + a2, 0) - selectedVehicle.route?.destinations.filter(s => s && s.isPickup).map(s => s.package.weight).reduce((a1, a2) => a1 + a2, 0))}</div>
                         {routes.map((rt, index) => {
                             return (
                                 <div>
@@ -580,14 +580,18 @@ const Sidebar = ({
                                                             ...pickupPoint,
                                                             package: {
                                                                 weight: pickupPoint.size || 1,
-                                                                volume: 1
+                                                                width: 1,
+                                                                height: 1,
+                                                                depth: 1
                                                             },
                                                         },
                                                         dropoff: {
                                                             ...deliveryPoint,
                                                             package: {
                                                                 weight: deliveryPoint.size || 1,
-                                                                volume: 1
+                                                                width: 1,
+                                                                height: 1,
+                                                                depth: 1
                                                             },                                                        }
                                                     })
                                                 }).then((e) => {

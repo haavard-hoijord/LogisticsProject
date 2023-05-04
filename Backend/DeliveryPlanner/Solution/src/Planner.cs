@@ -39,12 +39,15 @@ public static class Planner
             {
                 var route = await GenerateRoute(vehicle, data);
 
-                vehicle = await Program.client.InvokeMethodAsync<Vehicle>(Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", vehicle.id));
+                vehicle = await Program.client.InvokeMethodAsync<Vehicle>(
+                    Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track", vehicle.id));
                 vehicle.route = route;
 
-                await Program.client.InvokeMethodAsync(Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", vehicle));
+                await Program.client.InvokeMethodAsync(
+                    Program.client.CreateInvokeMethodRequest(HttpMethod.Post, "Data", "update", vehicle));
 
-                Console.WriteLine("Added path to vehicle " + vehicle.id + " with " + vehicle.route.sections.Count + " sections");
+                Console.WriteLine("Added path to vehicle " + vehicle.id + " with " + vehicle.route.sections.Count +
+                                  " sections");
 
                 Program.client.PublishEventAsync("status", "new_path", new Dictionary<string, string>
                 {
@@ -60,8 +63,10 @@ public static class Planner
 
     public static async Task<Route> GenerateRoute(Vehicle vehicle, Delivery delivery)
     {
-        var route = new Route();
-        route.mapService = vehicle.mapService;
+        var route = vehicle.route ?? new Route
+        {
+            mapService = vehicle.mapService
+        };
 
         await AddDestination(delivery, route);
         await GeneratePathNodes(vehicle, route);
@@ -77,7 +82,8 @@ public static class Planner
         {
             var message = Program.client.CreateInvokeMethodRequest(HttpMethod.Get, "Data", "track/all");
             return await GetDefaultPathService().FindBestFittingVehicle(await Program.client.InvokeMethodAsync<List<Vehicle>>(message), data);
-        }catch(Exception e)
+        }
+        catch (Exception e)
         {
             Console.WriteLine(e.ToString());
         }
@@ -87,9 +93,31 @@ public static class Planner
 
     public static bool PackageFits(Vehicle vehicle, Package package)
     {
-        var usedVolume = vehicle.packages.Sum(e => e.volume);
+        var usedVolume = vehicle.packages.Sum(e => e.width * e.height * e.depth);
         var usedWeight = vehicle.packages.Sum(e => e.weight);
-        return usedVolume + package.volume <= vehicle.maxVolume && usedWeight + package.weight <= vehicle.maxWeight;
+
+        if (usedVolume + package.width * package.height * package.depth <=
+            vehicle.width * vehicle.height * vehicle.depth && usedWeight + package.weight <= vehicle.maxWeight)
+        {
+            var vehiclePackages = vehicle.route == null
+                ? new List<Package>()
+                : vehicle.route.destinations.Where(e => e.isPickup).Select(e => e.package).ToList();
+
+            var grid = new GridObject[vehicle.width, vehicle.height, vehicle.depth];
+            var missedPackages = PackageGrid.Fill3DArray(grid, vehiclePackages);
+
+            var packages = new List<Package>(vehiclePackages);
+            packages.Add(package);
+
+            var missedPackages2 = PackageGrid.Fill3DArray(grid, new List<Package> { package });
+
+            if (missedPackages2.Count > missedPackages.Count)
+                return false;
+
+            return true;
+        }
+
+        return false;
     }
 
     public static Coordinate? GetDeliveryCoordinates(IMapService service, DeliveryDestination destination)
@@ -133,6 +161,10 @@ public static class Planner
 
             if (route.destinations.Count > 0) routeId = route.destinations.Max(e => e.routeId) + 1;
 
+            if (data.pickup.package != null) data.pickup.package.routeId = routeId;
+
+            if (data.dropoff.package != null) data.dropoff.package.routeId = routeId;
+
             route.destinations.Add(new Destination
             {
                 coordinate = GetDeliveryCoordinates(data.pickup), package = data.pickup.package, isPickup = true,
@@ -151,15 +183,20 @@ public static class Planner
                     : await GetPathService(route).GetClosestAddress(data.dropoff.coordinate)
             });
 
+
             var destinations = new List<Destination>(route.destinations);
             route.destinations = new List<Destination>();
 
-            Destination? lastDestination = null;
+            Destination? lastDestination = destinations.First();
 
             while (destinations.Count > 0)
             {
                 destinations.Sort((des1, des2) =>
                 {
+                    if (des1 == null && des2 == null) return 0;
+                    if (des1 == null) return -1; // Treat null as smaller than any non-null value
+                    if (des2 == null) return 1; // Treat null as smaller than any non-null value
+
                     if (des1.routeId == des2.routeId)
                     {
                         if (des1.isPickup && !des2.isPickup)
@@ -169,10 +206,15 @@ public static class Planner
                             return 1;
                     }
 
+                    if (des1.coordinate == null && des2.coordinate == null) return 0;
+                    if (des1.coordinate == null) return -1; // Treat null as smaller than any non-null value
+                    if (des2.coordinate == null) return 1; // Treat null as smaller than any non-null value
+
+
                     var dis1 = GetPathService(route).GetDistance(lastDestination.coordinate, des1.coordinate).Result;
                     var dis2 = GetPathService(route).GetDistance(lastDestination.coordinate, des2.coordinate).Result;
 
-                    return dis1.CompareTo(dis2);
+                    return NullSafeDoubleCompare(dis1, dis2);
                 });
 
                 lastDestination = destinations.First();
@@ -192,11 +234,34 @@ public static class Planner
         }
     }
 
+    static int NullSafeDoubleCompare(double? x, double? y, double epsilon = 1e-9)
+    {
+        if (x == null && y == null)
+        {
+            return 0;
+        }
+        if (x == null || x == double.NaN)
+        {
+            return -1; // Treat null as smaller than any non-null value
+        }
+        if (y == null || y == double.NaN)
+        {
+            return 1; // Treat null as smaller than any non-null value
+        }
+
+        if (Math.Abs(x.Value - y.Value) < epsilon)
+        {
+            return 0;
+        }
+
+        return x.Value.CompareTo(y.Value);
+    }
+
     public static async Task GeneratePathNodes(Vehicle vehicle, Route route)
     {
         try
         {
-            if(route.sections == null)
+            if (route.sections == null)
                 route.sections = new List<RouteSection>();
 
             route.sections.AddRange(await GetPathService(route).GetPath(vehicle.coordinate, route));
@@ -231,7 +296,9 @@ public static class Planner
 
     public static async Task GenerateDistanceValues(Route route)
     {
-        var allCords = route.sections.SelectMany(section => polylineEncoder.Decode(section.polyline).Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude })).ToList();
+        var allCords = route.sections.SelectMany(section =>
+            polylineEncoder.Decode(section.polyline)
+                .Select(e => new Coordinate { latitude = e.Latitude, longitude = e.Longitude })).ToList();
 
         var lastCord = 0;
         foreach (var dest in route.destinations.Where(e => e.closestNode != null))
@@ -262,14 +329,13 @@ public static class Planner
         var nodes = new List<Coordinate>();
         nodes.Add(vehicle.coordinate);
 
-        if (vehicle.route != null && vehicle.route.destinations is {Count: > 0})
-        {
+        if (vehicle.route != null && vehicle.route.destinations is { Count: > 0 })
             nodes.AddRange(vehicle.route.destinations.Select(e => e.coordinate));
-        }
 
         nodes.ForEach(e =>
         {
-            var dis = (vehicle.route != null ? GetPathService(vehicle.route) : GetDefaultPathService()).GetDistance(e, coordinate).Result;
+            var dis = (vehicle.route != null ? GetPathService(vehicle.route) : GetDefaultPathService())
+                .GetDistance(e, coordinate).Result;
             if (double.IsNaN(distance) || dis < distance) distance = dis;
         });
 

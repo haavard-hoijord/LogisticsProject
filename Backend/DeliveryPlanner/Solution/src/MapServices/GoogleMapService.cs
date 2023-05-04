@@ -86,12 +86,11 @@ public class GoogleMapService : IMapService
                     RoutingPreference = RoutingPreference.TrafficAwareOptimal
                 };
 
-                var response = await client.ComputeRoutesAsync(routeRequest, CallSettings.FromHeader("X-Goog-FieldMask", "routes.polyline.encodedPolyline"));
+                var response = await client.ComputeRoutesAsync(routeRequest,
+                    CallSettings.FromHeader("X-Goog-FieldMask", "routes.polyline.encodedPolyline"));
 
                 if (response.Routes.Count > 0)
-                {
                     route.overviewPolyline = response.Routes.First().Polyline.EncodedPolyline;
-                }
             });
 
             await RoutesRateLimiter.WaitForReadyAsync();
@@ -218,7 +217,7 @@ public class GoogleMapService : IMapService
             Planner.GetDeliveryCoordinates(this, data.dropoff));
         var filteredList = vehicles
             .Where(e => Planner.PackageFits(e, data.pickup.package))
-            .Where(e => e.route == null || e.route.destinations.Count <= 6) //Google maps api allows max 8 waypoints so only allow vehicles with 6 or less destinations
+            .Where(e => e.route == null || e.route.destinations.Count <= 23) //Google maps api allows max 25 waypoints so only allow vehicles with 23 or less destinations
             .Where(e => Planner.GetDeliveryCoordinates(this, data.pickup) != null)
             .OrderBy(e =>
                 Planner.GetShortestDistance(e, Planner.GetDeliveryCoordinates(this, data.pickup))
@@ -257,7 +256,7 @@ public class GoogleMapService : IMapService
             var tempList = new List<Vehicle>(filteredList);
             filteredList = filteredList
                 .OrderBy(e => rows.ElementAt(tempList.IndexOf(e)).Value)
-               // .ThenBy(e => e.maxLoad - Planner.GetCurrentVehicleLoad(e))
+                // .ThenBy(e => e.maxLoad - Planner.GetCurrentVehicleLoad(e))
                 .ToList();
             return filteredList.First();
         }
