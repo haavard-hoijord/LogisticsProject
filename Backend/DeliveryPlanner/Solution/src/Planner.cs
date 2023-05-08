@@ -217,8 +217,8 @@ public static class Planner
                     return NullSafeDoubleCompare(dis1, dis2);
                 });
 
-                lastDestination = destinations.First();
                 destinations.Remove(lastDestination);
+                lastDestination = destinations.First();
                 route.destinations.Add(lastDestination);
             }
         }

@@ -1,17 +1,25 @@
 import * as THREE from 'three';
+import {Raycaster, Vector2} from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GUI} from "dat.gui";
+import {
+    CSS2DRenderer,
+    CSS2DObject,
+} from 'three/addons/renderers/CSS2DRenderer.js';
+import "./main.css"
 
 const DAPR_URL = `http://localhost:5000/dapr`;
-let DEBUG = false;
+let DEBUG = true;
 
 let width = 20;
 let height = 10;
 let depth = 10;
 
+let maxSize = 5;
+
 let limitHeight = height;
 
-let uniformSizes = true;
+let uniformSizes = false;
 let renderEmpty = false;
 let mergeSame = true;
 
@@ -23,37 +31,59 @@ let grid = create3DArray(width, height, depth);
 
 let vehicles = [];
 
-const renderer = new THREE.WebGLRenderer();
-const scene = new THREE.Scene();
+const { innerWidth, innerHeight } = window;
+
+const gui = new GUI();
+
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(2);
+
+document.body.appendChild(renderer.domElement);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const controls = new OrbitControls(camera, renderer.domElement);
 
+controls.enableDamping = true;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0.4, 0.4, 0.4);
+
 (async () => {
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Enable softer shadows
-
-    document.body.appendChild(renderer.domElement);
-
-    scene.background = new THREE.Color(0.4, 0.4, 0.4);
-
-    const light = new THREE.HemisphereLight('white', 10);
+    const light = new THREE.HemisphereLight('white', "gray", 1);
     light.position.set(0, 100, 0);
     scene.add(light);
 
 
-    vehicles = await fetch(`${DAPR_URL}/v1.0/invoke/Data/method/track/all`, {
+    fetch(`${DAPR_URL}/v1.0/invoke/Data/method/track/all`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
         }
-    }).then(response => response.json());
+    })
+        .then(response => response.json())
+        .then(data => {
+            vehicles = data
 
-    if(DEBUG){
+            if (!DEBUG && vehicles && vehicles.length > 0) {
+                selectVehicle(vehicles.filter(vehicles => vehicles.route)[0]);
+                reInitCubes();
+
+                const vehicleFolder = gui.addFolder("Vehicles");
+
+                for (let vehicle of vehicles.sort((e => -e.id))) {
+                    vehicleFolder.add({
+                        [vehicle.id]: () => {
+                            selectVehicle(vehicle);
+                        }
+                    }, vehicle.id).name("Vehicle " + vehicle.id);
+                }
+                vehicleFolder.open();
+            }
+        });
+
+    if (DEBUG) {
         initPackages();
-    }else{
-        selectVehicle(vehicles.filter(vehicles => vehicles.route)[0]);
     }
 
     initCubes();
@@ -66,7 +96,92 @@ const controls = new OrbitControls(camera, renderer.domElement);
 
     controls.update();
 
-    animate();
+    // Setup labels
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(innerWidth, innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    document.body.appendChild(labelRenderer.domElement);
+
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'label';
+    labelDiv.style.marginTop = '-1em';
+    const label = new CSS2DObject(labelDiv);
+    label.visible = false;
+    scene.add(label);
+
+    // Track mouse movement to pick objects
+    const raycaster = new Raycaster();
+    const mouse = new Vector2();
+
+    window.addEventListener('mousemove', ({ clientX, clientY }) => {
+        const { innerWidth, innerHeight } = window;
+
+        mouse.x = (clientX / innerWidth) * 2 - 1;
+        mouse.y = -(clientY / innerHeight) * 2 + 1;
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        const { innerWidth, innerHeight } = window;
+
+        renderer.setSize(innerWidth, innerHeight);
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+    });
+
+    renderer.setAnimationLoop(() => {
+        controls.update();
+
+        // Pick objects from view using normalized mouse coordinates
+        raycaster.setFromCamera(mouse, camera);
+
+        let cubes = scene.children.filter(s => s.package);
+        const [hovered] = raycaster.intersectObjects(cubes);
+
+        for(let cube of cubes){
+            cube.material.emissive.setHex(0x000000)
+        }
+
+        if (hovered) {
+            let obj = hovered.object;
+            let pak = obj.package;
+
+            // Setup label
+            renderer.domElement.className = 'hovered';
+            label.visible = true;
+            labelDiv.innerHTML = `Cube ${pak.id} <br>Size: ${pak.size.x}x${pak.size.y}x${pak.size.z}<br>Weight: ${pak.weight}kg<br>Rotation: ${pak.rotation}`
+
+            // Get offset from object's dimensions
+            const offset = new THREE.Vector3();
+            new THREE.Box3().setFromObject(obj).getSize(offset);
+
+            // Move label over hovered element
+            label.position.set(pak.origin.x + (pak.size.x / 2), pak.origin.y + (pak.size.y / 2) - 2, pak.origin.z + (pak.size.z / 2));
+
+
+            for(let cube of cubes){
+                if(cube.package && cube.package.id === pak.id){
+                    cube.material.emissive.setHex(0xffffff)
+                }
+            }
+        } else {
+            // Reset label
+            renderer.domElement.className = '';
+            label.visible = false;
+            labelDiv.textContent = '';
+
+        }
+
+        // Render scene
+        renderer.render(scene, camera);
+
+        // Render labels
+        labelRenderer.render(scene, camera);
+    });
+
+    //animate();
 })();
 
 function reInitCubes() {
@@ -79,7 +194,7 @@ function reInitCubes() {
 }
 
 function initCubes() {
-    if(controls){
+    if (controls) {
         controls.target.set(width / 2, height / 2, depth / 2);
     }
     grid = create3DArray(width, height, depth);
@@ -101,7 +216,7 @@ function initCubes() {
 function initPackages() {
     packages = [];
     for (let i = 0; i < packageCount; i++) {
-        let randomSize = () => Math.max(1, Math.round(Math.random() * 5));
+        let randomSize = () => Math.max(1, Math.round(Math.random() * maxSize));
         let size = randomSize();
         packages.push({
             width: uniformSizes ? size : randomSize(),
@@ -113,14 +228,6 @@ function initPackages() {
         })
     }
 }
-
-
-function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
-}
-
 
 function create3DArray(width, height, depth) {
     const arr = new Array(width);
@@ -138,20 +245,21 @@ function fill3DArray(array, objects,) {
     const height = array[0].length;
     const depth = array[0][0].length;
 
+    objects.sort((a, b) => b.weight - a.weight);
     objects.sort((a, b) => (b.width * b.height * b.depth) - (a.width * a.height * a.depth));
 
-    function objectFits(x, y, z, objectWidth, objectHeight, objectDepth) {
-        if (x + objectWidth > width || y + objectHeight > height || z + objectDepth > depth) {
+    function objectFits(x, y, z, object) {
+        if (x + object.width > width || y + object.height > height || z + object.depth > depth) {
             return false;
         }
 
-        if (!isOnFloor(x, y, z, objectWidth, objectDepth)) {
+        if (!isOnFloor(x, y, z, object)) {
             return false;
         }
 
-        for (let dx = 0; dx < objectWidth; dx++) {
-            for (let dy = 0; dy < objectHeight; dy++) {
-                for (let dz = 0; dz < objectDepth; dz++) {
+        for (let dx = 0; dx < object.width; dx++) {
+            for (let dy = 0; dy < object.height; dy++) {
+                for (let dz = 0; dz < object.depth; dz++) {
                     if (array[x + dx][y + dy][z + dz] !== 0) {
                         return false;
                     }
@@ -162,13 +270,13 @@ function fill3DArray(array, objects,) {
         return true;
     }
 
-    function isOnFloor(x, y, z, objectWidth, objectDepth) {
+    function isOnFloor(x, y, z, object) {
         if (y === 0) {
             return true;
         }
 
-        for (let dx = 0; dx < objectWidth; dx++) {
-            for (let dz = 0; dz < objectDepth; dz++) {
+        for (let dx = 0; dx < object.width; dx++) {
+            for (let dz = 0; dz < object.depth; dz++) {
                 if (!hasFloor(x + dx, y, z + dz)) {
                     return false;
                 }
@@ -178,6 +286,8 @@ function fill3DArray(array, objects,) {
     }
 
     function placeObject(x, y, z, object) {
+        object.origin = {x, y, z};
+        object.size = {x: object.width, y: object.height, z: object.depth};
         for (let dx = 0; dx < object.width; dx++) {
             for (let dy = 0; dy < object.height; dy++) {
                 for (let dz = 0; dz < object.depth; dz++) {
@@ -196,31 +306,28 @@ function fill3DArray(array, objects,) {
             const object = remainingObjects[i];
             const obSize = object.width * object.height * object.depth;
 
-            if (obSize <= (2 * 2 * 2)) {
-                for (let y = 0; y < height && !objectPlaced; y++) {
 
-                    for (let x = 0; x < width && !objectPlaced; x++) {
-                        for (let z = 0; z < depth && !objectPlaced; z++) {
-                            if (objectFits(x, y, z, object.width, object.height, object.depth)) {
-                                placeObject(x, y, z, object);
-                                objectPlaced = true;
-                                remainingObjects.splice(i, 1);
-                            }
-                        }
+            function attemptPlace(x, y, z, object) {
+                const orientations = generateOrientations(object);
+                for (const orientation of orientations) {
+                    if (objectFits(x, y, z, orientation)) {
+                        placeObject(x, y, z, orientation);
+                        objectPlaced = true;
+                        remainingObjects.splice(i, 1);
                     }
                 }
+            }
+
+            const loop = (max, func) => {
+                for (let i = 0; i < max && !objectPlaced; i++) {
+                    func(i);
+                }
+            }
+
+            if (obSize < Math.pow(2, 3) && object.width === object.height && object.height === object.depth) {
+                loop(height, (y) => loop(width, (x) => loop(depth, (z) => attemptPlace(x, y, z, object))));
             } else {
-                for (let x = 0; x < width && !objectPlaced; x++) {
-                    for (let y = 0; y < height && !objectPlaced; y++) {
-                        for (let z = 0; z < depth && !objectPlaced; z++) {
-                            if (objectFits(x, y, z, object.width, object.height, object.depth)) {
-                                placeObject(x, y, z, object);
-                                objectPlaced = true;
-                                remainingObjects.splice(i, 1);
-                            }
-                        }
-                    }
-                }
+                loop(width, (x) => loop(height, (y) => loop(depth, (z) => attemptPlace(x, y, z, object))));
             }
         }
 
@@ -229,14 +336,41 @@ function fill3DArray(array, objects,) {
         }
     }
 
-    const unplacedObjects = remainingObjects.map(object => object.id);
+    const unplacedObjects = remainingObjects.map(object => object.id + "-[" + object.width + "x" + object.height + "x" + object.depth + "]");
     if (unplacedObjects.length > 0) {
         console.log(`Objects with IDs [${unplacedObjects.join(', ')}] could not be placed.`);
     }
 }
 
+function generateOrientations(object) {
+    const orientations = [];
+
+    //TODO Make some packages only allow certain orientations (fragile goods etc)
+
+    orientations.push({...object, rotation: 'front'}); // Front (original orientation)
+
+    if (object.width !== object.height) {
+        orientations.push({...object, rotation: 'back', width: object.height, height: object.width, depth: object.depth}); // Back (180 degrees in XY plane)
+    }
+
+    if (object.width !== object.depth && object.height !== object.depth) {
+        orientations.push({...object, rotation: 'up', width: object.width, height: object.depth, depth: object.height}); // Up (90 degrees in XZ plane)
+        orientations.push({...object, rotation: 'left', width: object.height, height: object.depth, depth: object.width}); // Left (90 degrees in XY plane)
+        orientations.push({...object, rotation: 'down', width: object.depth, height: object.width, depth: object.height}); // Down (90 degrees in YZ plane)
+        orientations.push({...object, rotation: 'right', width: object.depth, height: object.height, depth: object.width}); // Right (270 degrees in XY plane)
+    }
+
+    // Sort orientations by height in ascending order
+    orientations.sort((a, b) => a.height - b.height);
+
+    //Remove any orientations that are not the same size as the original object
+    orientations.filter((s) => (s.width * s.height * s.depth) !== (object.width * object.height * object.depth));
+
+    return orientations;
+}
+
 function hasFloor(x, y, z) {
-    return y === 0 || grid[x][y - 1][z] !== 0;
+    return y === 0 || grid[x][y - 1][z];
 }
 
 function addGridCubes() {
@@ -260,14 +394,14 @@ function addGridCubes() {
                 let gridObject = grid[x][y][z];
 
                 if (!ignoredCubes.includes(gridObject.id)) {
-                    addGridCube(grid, x, y, z);
+                    addGridCube(grid, x, y, z, gridObject);
                 }
             }
         }
     }
 }
 
-function addGridCube(grid, x, y, z) {
+function addGridCube(grid, x, y, z, object) {
     let gridObject = grid[x][y][z];
     let size = 0.8;
 
@@ -283,10 +417,11 @@ function addGridCube(grid, x, y, z) {
     geometry.translate(width / 2, height / 2, depth / 2); // pivot point is shifted
 
     if (gridObject && gridObject.id) {
-        const material = new THREE.MeshStandardMaterial({color: gridObject.color});
+        const material = new THREE.MeshPhongMaterial({color: gridObject.color, emissive: 0x000000 });
         const cube = new THREE.Mesh(geometry, material);
 
         cube.position.set(x, y, z);
+        cube.package = object;
 
         scene.add(cube);
         cubes.push(cube);
@@ -318,12 +453,13 @@ function addGridCube(grid, x, y, z) {
 }
 
 let curVehicle;
-function selectVehicle(vehicle){
+
+function selectVehicle(vehicle) {
     packages = [];
 
     curVehicle = vehicle;
 
-    if(vehicle.route){
+    if (vehicle.route) {
         vehicle.route.destinations.filter((destination, index) => destination.isPickup).map((destination, index) => destination.package).map((pk) => {
             return {
                 ...pk,
@@ -340,8 +476,7 @@ function selectVehicle(vehicle){
     reInitCubes();
 }
 
-function initGUI(){
-    const gui = new GUI();
+function initGUI() {
 
     const packagesFolder = gui.addFolder("Packages");
     let packageData = {packageCount, uniformSizes, renderEmpty, mergeSame};
@@ -368,7 +503,7 @@ function initGUI(){
     packagesFolder.open();
 
     const sizeFolder = gui.addFolder("Size");
-    let sizeData = {width, height, depth};
+    let sizeData = {width, height, depth, maxSize};
     sizeFolder.add(sizeData, "width").onChange(() => {
         width = sizeData.width;
         reInitCubes();
@@ -385,22 +520,18 @@ function initGUI(){
         reInitCubes();
     }).name("Depth: ");
 
+    sizeFolder.add(sizeData, "maxSize", 1, 10).onChange(() => {
+        maxSize = sizeData.maxSize;
+        initPackages();
+        reInitCubes();
+    }).name("Max Size: ");
+
     sizeFolder.open();
-
-
-    const vehicleFolder = gui.addFolder("Vehicles");
-
-    for(let vehicle of vehicles.sort((e => -e.id))){
-        vehicleFolder.add({[vehicle.id]: () => {
-            selectVehicle(vehicle);
-        }}, vehicle.id).name("Vehicle " + vehicle.id);
-    }
-    vehicleFolder.open();
 
     const otherFolder = gui.addFolder("Other");
     const btn = {
         ref: function () {
-            if(DEBUG) initPackages();
+            if (DEBUG) initPackages();
             reInitCubes();
         },
         dbg: DEBUG
@@ -410,12 +541,12 @@ function initGUI(){
         DEBUG = btn.dbg;
         grid = [];
 
-        if(DEBUG){
+        if (DEBUG) {
             initPackages();
             width = 20;
             height = 10;
             depth = 10;
-        }else{
+        } else {
             selectVehicle(curVehicle);
         }
         reInitCubes();

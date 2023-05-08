@@ -207,7 +207,7 @@ public class SimulationController : ControllerBase
                     maxWeight = 50,
                     company = companies[new Random().Next(0, companies.Count)].id,
                     mapService = "google",
-                    width = random.Next(5, 40),
+                    width = random.Next(5, 20),
                     height = random.Next(5, 20),
                     depth = random.Next(5, 20),
                 };
