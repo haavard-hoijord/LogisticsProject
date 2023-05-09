@@ -2,10 +2,7 @@ import * as THREE from 'three';
 import {Raycaster, Vector2} from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GUI} from "dat.gui";
-import {
-    CSS2DRenderer,
-    CSS2DObject,
-} from 'three/addons/renderers/CSS2DRenderer.js';
+import {CSS2DObject, CSS2DRenderer,} from 'three/addons/renderers/CSS2DRenderer.js';
 import "./main.css"
 
 const DAPR_URL = `http://localhost:5000/dapr`;
@@ -31,11 +28,11 @@ let grid = create3DArray(width, height, depth);
 
 let vehicles = [];
 
-const { innerWidth, innerHeight } = window;
+const {innerWidth, innerHeight} = window;
 
 const gui = new GUI();
 
-const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+const renderer = new THREE.WebGLRenderer({alpha: true, antialias: true});
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(2);
 
@@ -115,8 +112,8 @@ scene.background = new THREE.Color(0.4, 0.4, 0.4);
     const raycaster = new Raycaster();
     const mouse = new Vector2();
 
-    window.addEventListener('mousemove', ({ clientX, clientY }) => {
-        const { innerWidth, innerHeight } = window;
+    window.addEventListener('mousemove', ({clientX, clientY}) => {
+        const {innerWidth, innerHeight} = window;
 
         mouse.x = (clientX / innerWidth) * 2 - 1;
         mouse.y = -(clientY / innerHeight) * 2 + 1;
@@ -124,7 +121,7 @@ scene.background = new THREE.Color(0.4, 0.4, 0.4);
 
     // Handle window resize
     window.addEventListener('resize', () => {
-        const { innerWidth, innerHeight } = window;
+        const {innerWidth, innerHeight} = window;
 
         renderer.setSize(innerWidth, innerHeight);
         camera.aspect = innerWidth / innerHeight;
@@ -140,7 +137,7 @@ scene.background = new THREE.Color(0.4, 0.4, 0.4);
         let cubes = scene.children.filter(s => s.package);
         const [hovered] = raycaster.intersectObjects(cubes);
 
-        for(let cube of cubes){
+        for (let cube of cubes) {
             cube.material.emissive.setHex(0x000000)
         }
 
@@ -160,9 +157,8 @@ scene.background = new THREE.Color(0.4, 0.4, 0.4);
             // Move label over hovered element
             label.position.set(pak.origin.x + (pak.size.x / 2), pak.origin.y + (pak.size.y / 2) - 2, pak.origin.z + (pak.size.z / 2));
 
-
-            for(let cube of cubes){
-                if(cube.package && cube.package.id === pak.id){
+            for (let cube of cubes) {
+                if (cube.package && cube.package.id === pak.id) {
                     cube.material.emissive.setHex(0xffffff)
                 }
             }
@@ -180,8 +176,6 @@ scene.background = new THREE.Color(0.4, 0.4, 0.4);
         // Render labels
         labelRenderer.render(scene, camera);
     });
-
-    //animate();
 })();
 
 function reInitCubes() {
@@ -350,14 +344,38 @@ function generateOrientations(object) {
     orientations.push({...object, rotation: 'front'}); // Front (original orientation)
 
     if (object.width !== object.height) {
-        orientations.push({...object, rotation: 'back', width: object.height, height: object.width, depth: object.depth}); // Back (180 degrees in XY plane)
+        orientations.push({
+            ...object,
+            rotation: 'back',
+            width: object.height,
+            height: object.width,
+            depth: object.depth
+        }); // Back (180 degrees in XY plane)
     }
 
     if (object.width !== object.depth && object.height !== object.depth) {
         orientations.push({...object, rotation: 'up', width: object.width, height: object.depth, depth: object.height}); // Up (90 degrees in XZ plane)
-        orientations.push({...object, rotation: 'left', width: object.height, height: object.depth, depth: object.width}); // Left (90 degrees in XY plane)
-        orientations.push({...object, rotation: 'down', width: object.depth, height: object.width, depth: object.height}); // Down (90 degrees in YZ plane)
-        orientations.push({...object, rotation: 'right', width: object.depth, height: object.height, depth: object.width}); // Right (270 degrees in XY plane)
+        orientations.push({
+            ...object,
+            rotation: 'left',
+            width: object.height,
+            height: object.depth,
+            depth: object.width
+        }); // Left (90 degrees in XY plane)
+        orientations.push({
+            ...object,
+            rotation: 'down',
+            width: object.depth,
+            height: object.width,
+            depth: object.height
+        }); // Down (90 degrees in YZ plane)
+        orientations.push({
+            ...object,
+            rotation: 'right',
+            width: object.depth,
+            height: object.height,
+            depth: object.width
+        }); // Right (270 degrees in XY plane)
     }
 
     // Sort orientations by height in ascending order
@@ -367,6 +385,7 @@ function generateOrientations(object) {
     orientations.filter((s) => (s.width * s.height * s.depth) !== (object.width * object.height * object.depth));
 
     return orientations;
+
 }
 
 function hasFloor(x, y, z) {
@@ -374,28 +393,10 @@ function hasFloor(x, y, z) {
 }
 
 function addGridCubes() {
-    let ignoredCubes = [];
-
     for (let x = 0; x < width; x++) {
         for (let y = 0; y < height; y++) {
             for (let z = 0; z < depth; z++) {
-                let gridObject = grid[x][y][z];
-
-                if (y > limitHeight) {
-                    ignoredCubes.push(gridObject.id);
-                }
-            }
-        }
-    }
-
-    for (let x = 0; x < width; x++) {
-        for (let y = 0; y < height; y++) {
-            for (let z = 0; z < depth; z++) {
-                let gridObject = grid[x][y][z];
-
-                if (!ignoredCubes.includes(gridObject.id)) {
-                    addGridCube(grid, x, y, z, gridObject);
-                }
+                addGridCube(grid, x, y, z, grid[x][y][z]);
             }
         }
     }
@@ -417,7 +418,7 @@ function addGridCube(grid, x, y, z, object) {
     geometry.translate(width / 2, height / 2, depth / 2); // pivot point is shifted
 
     if (gridObject && gridObject.id) {
-        const material = new THREE.MeshPhongMaterial({color: gridObject.color, emissive: 0x000000 });
+        const material = new THREE.MeshPhongMaterial({color: gridObject.color, emissive: 0x000000});
         const cube = new THREE.Mesh(geometry, material);
 
         cube.position.set(x, y, z);
@@ -477,7 +478,6 @@ function selectVehicle(vehicle) {
 }
 
 function initGUI() {
-
     const packagesFolder = gui.addFolder("Packages");
     let packageData = {packageCount, uniformSizes, renderEmpty, mergeSame};
     packagesFolder.add(packageData, "packageCount").onChange(() => {
@@ -551,20 +551,6 @@ function initGUI() {
         }
         reInitCubes();
     });
-    /*
-    otherFolder.add({limitHeight}, "limitHeight", 1, height).onChange(() => {
-       limitHeight = btn.limitHeight;
-
-       cubes.forEach(cube => {
-           if(cube.material.opacity !== 0.3){
-               cube.material.opacity = cube.position.y > limitHeight ? 0 : 1;
-               cube.material.transparent = cube.position.y > limitHeight;
-               cube.material.needsUpdate = true;
-           }
-       });
-
-    }).listen().name("Render Height: ");
-    */
     otherFolder.open()
 
 }
