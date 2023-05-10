@@ -34,6 +34,12 @@ export function initGUI() {
             initCubes();
         }).name("Package Count: ");
 
+        packagesFolder.add(settings, "maxSize", 1, 10).onChange(() => {
+            sessionStorage.setItem("settings", JSON.stringify(settings));
+            initPackages();
+            initCubes();
+        }).name("Max Size: ");
+
         packagesFolder.add(settings, "uniformSizes").onChange(() => {
             sessionStorage.setItem("settings", JSON.stringify(settings));
             initPackages()
@@ -41,28 +47,10 @@ export function initGUI() {
         }).name("Uniform Sizes: ");
     }
 
-    packagesFolder.add(settings, "renderEmpty").onChange(() => {
-        sessionStorage.setItem("settings", JSON.stringify(settings));
-        initCubes();
-    }).name("Render Empty: ");
-
-    packagesFolder.add(settings, "mergeSame").onChange(() => {
-        sessionStorage.setItem("settings", JSON.stringify(settings));
-        initCubes();
-    }).name("Merge Same: ");
-
     packagesFolder.add(settings, "checkBelowWeight").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
         initCubes();
     }).name("Below Weight: ");
-
-    if(settings.DEBUG){
-        packagesFolder.add(settings, "maxSize", 1, 10).onChange(() => {
-            sessionStorage.setItem("settings", JSON.stringify(settings));
-            initPackages();
-            initCubes();
-        }).name("Max Size: ");
-    }
 
     packagesFolder.open();
 
@@ -83,6 +71,19 @@ export function initGUI() {
     }).name("Depth: ");
 
     sizeFolder.open();
+
+    const renderFolder = gui.addFolder("Render settings");
+    renderFolder.add(settings, "renderEmpty").onChange(() => {
+        sessionStorage.setItem("settings", JSON.stringify(settings));
+        initCubes();
+    }).name("Render Empty: ");
+
+    renderFolder.add(settings, "mergeSame").onChange(() => {
+        sessionStorage.setItem("settings", JSON.stringify(settings));
+        initCubes();
+    }).name("Merge Same: ");
+
+    renderFolder.open()
 
     const otherFolder = gui.addFolder("Other");
     const btn = {
@@ -106,6 +107,10 @@ export function initGUI() {
         stats.runTime = "";
 
         initCubes();
+
+
+        gui.destroy();
+        initGUI();
     }).name("Algorithm: ");
     otherFolder.add(btn, "ref").name("Refresh");
     if(settings.DEBUG) otherFolder.add(btn, "reg").name("Regenerate");

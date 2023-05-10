@@ -22,8 +22,8 @@ export let settings = JSON.parse(sessionStorage.getItem("settings")) || {
     uniformSizes: false,
     renderEmpty: false,
     mergeSame: true,
+    algorithm: Object.keys(algorithms)[0],
     checkBelowWeight: true,
-    algorithm: Object.keys(algorithms)[0]
 }
 
 export let stats = {
