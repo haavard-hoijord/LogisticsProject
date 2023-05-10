@@ -28,15 +28,24 @@ export class BestFitAlgorithm extends Algorithm {
 
                     // Calculate the amount of free space remaining around the cube (lower is better)
                     let freeSpace = 0;
-                    for (let dx = -1; dx <= 1; dx++) {
-                        for (let dy = -1; dy <= 1; dy++) {
-                            for (let dz = -1; dz <= 1; dz++) {
-                                const nx = x + object.width * dx;
-                                const ny = y + object.height * dy;
-                                const nz = z + object.depth * dz;
+                    let totalSpace = 0;
 
-                                if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height && nz >= 0 && nz < this.depth && grid[nx][ny][nz] === 0) {
-                                    freeSpace++;
+                    for(let dx = 0; dx < object.width; dx++){
+                        for(let dy = 0; dy < object.height; dy++){
+                            for(let dz = 0; dz < object.depth; dz++){
+                                for(let offsetX = -1; offsetX <= 1; offsetX++){
+                                    for(let offsetY = -1; offsetY <= 1; offsetY++){
+                                        for(let offsetZ = -1; offsetZ <= 1; offsetZ++){
+                                            if(x + offsetX + dx < 0 || x + offsetX + dx >= this.width || y + offsetY + dy < 0 || y + offsetY + dy >= this.height || z + offsetZ + dz < 0 || z + offsetZ + dz >= this.depth){
+                                                continue;
+                                            }
+
+                                            if(grid[x + dx + offsetX][y + dy + offsetY][z + dz + offsetZ] === 0){
+                                                freeSpace++;
+                                            }
+                                            totalSpace++;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -45,12 +54,15 @@ export class BestFitAlgorithm extends Algorithm {
                     // Prioritize positions with lower height (lower is better)
                     const heightPenalty = y;
 
+                    // Prioritize positions with less free space
+                    const freeSpacePenalty = (totalSpace - freeSpace) / totalSpace;
+
                     // You can adjust the weight of each factor to influence the final score
                     const distanceWeight = 1;
-                    const freeSpaceWeight = 1;
-                    const heightPenaltyWeight = 2;
+                    const freeSpaceWeight = 5;
+                    const heightPenaltyWeight = 5;
 
-                    return distanceWeight * distance + freeSpaceWeight * freeSpace + heightPenaltyWeight * heightPenalty;
+                    return distanceWeight * distance + freeSpaceWeight * freeSpacePenalty + heightPenaltyWeight * heightPenalty;
                 }
 
                 const attemptWastePlace = (x, y, z, object) => {

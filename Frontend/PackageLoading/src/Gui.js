@@ -1,41 +1,49 @@
 import * as dot from "./main.js";
 import {GUI} from "dat.gui";
 import * as THREE from 'three';
-import {algorithms, settings, grid, packages, initPackages, initCubes, vehicles} from "./main.js";
+import {algorithms, settings, packages, initPackages, initCubes, vehicles, setGrid, setPackages} from "./main.js";
 
-
+let gui;
 export function initGUI() {
-    const gui = new GUI();
-
+    gui = new GUI();
     const packagesFolder = gui.addFolder("Package settings");
-    packagesFolder.add(settings, "packageCount").onChange(() => {
-        sessionStorage.setItem("settings", JSON.stringify(settings));
-        initPackages()
-        initCubes();
-    }).name("Package Count: ").listen();
 
-    packagesFolder.add(settings, "uniformSizes").onChange(() => {
-        sessionStorage.setItem("settings", JSON.stringify(settings));
-        initPackages()
-        initCubes();
-    }).name("Uniform Sizes: ").listen();
+    if(settings.DEBUG){
+        packagesFolder.add(settings, "packageCount").onChange(() => {
+            sessionStorage.setItem("settings", JSON.stringify(settings));
+            initPackages()
+            initCubes();
+        }).name("Package Count: ").listen();
+
+        packagesFolder.add(settings, "uniformSizes").onChange(() => {
+            sessionStorage.setItem("settings", JSON.stringify(settings));
+            initPackages()
+            initCubes();
+        }).name("Uniform Sizes: ").listen();
+    }
+
     packagesFolder.add(settings, "renderEmpty").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
         initCubes();
     }).name("Render Empty: ").listen();
+
     packagesFolder.add(settings, "mergeSame").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
         initCubes();
     }).name("Merge Same: ").listen();
+
     packagesFolder.add(settings, "checkBelowWeight").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
         initCubes();
     }).name("Below Weight: ").listen();
-    packagesFolder.add(settings, "maxSize", 1, 10).onChange(() => {
-        sessionStorage.setItem("settings", JSON.stringify(settings));
-        initPackages();
-        initCubes();
-    }).name("Max Size: ").listen();
+
+    if(settings.DEBUG){
+        packagesFolder.add(settings, "maxSize", 1, 10).onChange(() => {
+            sessionStorage.setItem("settings", JSON.stringify(settings));
+            initPackages();
+            initCubes();
+        }).name("Max Size: ").listen();
+    }
 
     packagesFolder.open();
 
@@ -60,10 +68,14 @@ export function initGUI() {
     const otherFolder = gui.addFolder("Other");
     const btn = {
         ref: function () {
-            initCubes();
+            if(!settings.DEBUG) {
+                selectVehicle(curVehicle);
+            }else{
+                initCubes();
+            }
         },
         reg: function () {
-            if (settings.DEBUG) initPackages();
+            initPackages();
             initCubes();
         }
     };
@@ -72,12 +84,15 @@ export function initGUI() {
         initCubes();
     }).name("Algorithm: ").listen();
     otherFolder.add(btn, "ref").name("Refresh");
-    otherFolder.add(btn, "reg").name("Regenerate");
+    if(settings.DEBUG) otherFolder.add(btn, "reg").name("Regenerate");
 
     if(vehicles && vehicles.length > 0) {
         otherFolder.add(settings, "DEBUG").name("Debug").onChange(() => {
             sessionStorage.setItem("settings", JSON.stringify(settings));
-            grid = [];
+            setGrid([])
+
+            gui.destroy();
+            initGUI();
 
             if (settings.DEBUG) {
                 initPackages();
@@ -89,31 +104,49 @@ export function initGUI() {
             }
             initCubes();
         }).listen();
+
+        const vehicleFolder = gui.addFolder("Vehicles");
+
+        for (let vehicle of vehicles.sort((e => -e.id))) {
+            vehicleFolder.add({
+                [vehicle.id]: () => {
+                    selectVehicle(vehicle);
+                }
+            }, vehicle.id).name("Vehicle " + vehicle.id);
+        }
+        vehicleFolder.open();
     }
     
     otherFolder.open()
 }
 
+export function updateGUI() {
+    gui.destroy();
+    initGUI();
+}
+
 export let curVehicle;
 
-function selectVehicle(vehicle) {
-    packages = [];
+export function selectVehicle(vehicle) {
+    setPackages([]);
 
     curVehicle = vehicle;
 
-    if (vehicle.route) {
-        vehicle.route.destinations.filter((destination, index) => destination.isPickup).map((destination, index) => destination.package).map((pk) => {
-            return {
-                ...pk,
-                id: pk.routeId,
-                color: new THREE.Color(Math.random(), Math.random(), Math.random())
-            }
-        }).forEach((pk) => {
-            packages.push(pk);
-        });
+    if(vehicle){
+        if (vehicle.route) {
+            vehicle.route.destinations.filter((destination, index) => destination.isPickup).map((destination, index) => destination.package).map((pk) => {
+                return {
+                    ...pk,
+                    id: pk.routeId,
+                    color: new THREE.Color(Math.random(), Math.random(), Math.random())
+                }
+            }).forEach((pk) => {
+                packages.push(pk);
+            });
+        }
+        settings.width = vehicle.width;
+        settings.height = vehicle.height;
+        settings.depth = vehicle.depth;
     }
-    settings.width = vehicle.width;
-    settings.height = vehicle.height;
-    settings.depth = vehicle.depth;
     initCubes();
 }

@@ -8,10 +8,12 @@ export class Box{
         this.uniform = this.width === this.height && this.height === this.depth;
         this.rotation = "front";
         this.color = gridObject.color;
+
+        this.fragile = false;
     }
 
     generateOrientations() {
-        const orientations = [];
+        let orientations = [];
 
         //TODO Make some packages only allow certain orientations (fragile goods etc)
 
@@ -34,6 +36,26 @@ export class Box{
         //Remove any orientations that are not the same size as the original this
         orientations.filter((s) => (s.width * s.height * s.depth) !== (this.width * this.height * this.depth));
 
+        orientations.find((s) => !this.validRotations().includes(s.rotation));
+
+        orientations = orientations.map((s) => {
+            return {...s,
+                canStackOntop: this.canStackOntop()
+            }
+        })
+
         return orientations;
+    }
+
+    validRotations(){
+        if(this.uniform || this.fragile){
+            return ["front"];
+        }
+
+        return ["front", "back", "up", "down", "left", "right"];
+    }
+
+    canStackOntop(){
+        return !this.fragile;
     }
 }

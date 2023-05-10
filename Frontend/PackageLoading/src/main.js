@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import "./main.css"
-import {initGUI} from "./Gui";
+import {initGUI, selectVehicle, updateGUI} from "./Gui";
 import {renderTooltip, setupTooltip} from "./Tooltip";
 import {Box} from "./Box";
 import {Algorithm} from "./Algorithms/Algorithm";
@@ -30,6 +30,18 @@ export let cubes = [];
 export let packages = [];
 export let grid = create3DArray(settings.width, settings.height, settings.depth);
 
+export function setCubes(newCubes){
+    cubes = newCubes;
+}
+
+export function setPackages(newPackages){
+    packages = newPackages;
+}
+
+export function setGrid(newGrid){
+    grid = newGrid;
+}
+
 export let vehicles = [];
 
 const {innerWidth, innerHeight} = window;
@@ -53,7 +65,6 @@ scene.background = new THREE.Color(0.4, 0.4, 0.4);
     light.position.set(0, 100, 0);
     scene.add(light);
 
-    /*
     const DAPR_URL = `http://localhost:5000/dapr`;
     fetch(`${DAPR_URL}/v1.0/invoke/Data/method/track/all`, {
         method: 'GET',
@@ -67,21 +78,10 @@ scene.background = new THREE.Color(0.4, 0.4, 0.4);
 
             if (!settings.DEBUG && vehicles && vehicles.length > 0) {
                 selectVehicle(vehicles.filter(vehicles => vehicles.route)[0]);
-                initGUI();
-
-                const vehicleFolder = gui.addFolder("Vehicles");
-
-                for (let vehicle of vehicles.sort((e => -e.id))) {
-                    vehicleFolder.add({
-                        [vehicle.id]: () => {
-                            selectVehicle(vehicle);
-                        }
-                    }, vehicle.id).name("Vehicle " + vehicle.id);
-                }
-                vehicleFolder.open();
+                updateGUI();
             }
         });
-     */
+
 
     if (settings.DEBUG) {
         initPackages();

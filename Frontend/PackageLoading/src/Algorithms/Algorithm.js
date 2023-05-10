@@ -12,6 +12,8 @@ export class Algorithm {
 
         this.objects = stableSort(this.objects, (a, b) => b.weight - a.weight);
         this.objects = stableSort(this.objects, (a, b) => (b.width * b.height * b.depth) - (a.width * a.height * a.depth));
+        this.objects = stableSort(this.objects, (a, b) => a.canStackOntop() === b.canStackOntop() ? 0 : a.canStackOntop() ? 1 : -1);
+
     }
 
 
@@ -82,10 +84,11 @@ export class Algorithm {
                 }
 
                 if (settings.checkBelowWeight) {
-                    let weight = object.weight;
+                    let weight = object.weight / (object.width * object.depth);
+                    let directlyBelowWeight = this.getDirectlyBelowWeight(x,y,z);
                     let belowWeight = this.getBelowWeight(x, y, z);
 
-                    if (weight >= belowWeight) {
+                    if (weight >= belowWeight || weight >= directlyBelowWeight) {
                         return false;
                     }
                 }
@@ -108,7 +111,6 @@ export class Algorithm {
     placeObject(x, y, z, object) {
         object.origin = {x, y, z};
         object.size = {x: object.width, y: object.height, z: object.depth};
-
         for (let dx = 0; dx < object.width; dx++) {
             for (let dy = 0; dy < object.height; dy++) {
                 for (let dz = 0; dz < object.depth; dz++) {
@@ -121,7 +123,25 @@ export class Algorithm {
     }
 
     hasFloor(x, y, z) {
-        return y === 0 || grid[x][y - 1][z];
+        if(y === 0){
+            return true;
+        }
+
+        if(grid[x][y - 1][z] === 0){
+            return false;
+        }
+
+        let obj = grid[x][y - 1][z];
+        return obj && obj.canStackOntop;
+    }
+
+    getDirectlyBelowWeight(x, y, z) {
+        if(y === 0){
+            return 0;
+        }
+
+        const object = grid[x][y - 1][z];
+        return (object.weight / (object.width * object.depth)) || 0;
     }
 
     getBelowWeight(x, y, z) {
@@ -133,7 +153,7 @@ export class Algorithm {
 
             if(!ids.includes(object.id)) {
                 if (object !== 0) {
-                    weight += object.weight * 1.25;
+                    weight += (object.weight / (object.width * object.depth));
                     ids.push(object.id);
                 }
             }
