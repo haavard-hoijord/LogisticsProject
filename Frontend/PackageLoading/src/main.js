@@ -26,6 +26,13 @@ export let settings = JSON.parse(sessionStorage.getItem("settings")) || {
     algorithm: Object.keys(algorithms)[0]
 }
 
+export let stats = {
+    missedPackages: 0,
+    runTime: "",
+    runTimes: [],
+    avgRunTime: ""
+}
+
 export let cubes = [];
 export let packages = [];
 export let grid = create3DArray(settings.width, settings.height, settings.depth);
@@ -184,12 +191,20 @@ function fill3DArray(objects) {
 
     console.log("Running algorithm " + algorithmClass.name + "...");
 
+    const startTime = performance.now();
     let result = algorithm.run();
+    const endTime = performance.now();
 
     const unplacedObjects = result.map(object => object.id);
     if (unplacedObjects.length > 0) {
         console.log(`${unplacedObjects.length} boxes with IDs [${unplacedObjects.join(', ')}] could not be placed.`);
     }
+
+    let runtime = endTime - startTime;
+    stats.missedPackages = unplacedObjects.length;
+    stats.runTime = runtime + "ms";
+    stats.runTimes.push(runtime);
+    stats.avgRunTime = Math.round(stats.runTimes.reduce((a, b) => a + b, 0) / stats.runTimes.length) + "ms";
 }
 function addGridCubes() {
     for (let x = 0; x < settings.width; x++) {

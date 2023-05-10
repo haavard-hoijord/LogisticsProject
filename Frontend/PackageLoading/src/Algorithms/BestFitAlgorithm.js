@@ -51,11 +51,18 @@ export class BestFitAlgorithm extends Algorithm {
                         }
                     }
 
+
                     // Prioritize positions with lower height (lower is better)
                     const heightPenalty = y;
 
                     // Prioritize positions with less free space
                     const freeSpacePenalty = (totalSpace - freeSpace) / totalSpace;
+
+                    // If a box is 1.5x height compared to width or depth it requires having atleast 30% free space around it to not tip over
+                    const tippingRisk = object.height / Math.min(object.width, object.depth)
+                    if(tippingRisk >= 1.5 && freeSpacePenalty < 0.3){
+                        return Infinity;
+                    }
 
                     // You can adjust the weight of each factor to influence the final score
                     const distanceWeight = 1;

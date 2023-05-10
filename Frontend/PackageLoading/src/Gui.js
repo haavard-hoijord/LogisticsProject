@@ -1,11 +1,30 @@
 import * as dot from "./main.js";
 import {GUI} from "dat.gui";
 import * as THREE from 'three';
-import {algorithms, settings, packages, initPackages, initCubes, vehicles, setGrid, setPackages} from "./main.js";
+import {
+    algorithms,
+    settings,
+    packages,
+    initPackages,
+    initCubes,
+    vehicles,
+    setGrid,
+    setPackages,
+    stats
+} from "./main.js";
 
 let gui;
 export function initGUI() {
     gui = new GUI();
+    gui.width = 300;
+
+    const statsFolder = gui.addFolder("Stats");
+    statsFolder.add(dot.stats, "missedPackages").name("Missed Boxes: ").listen();
+    statsFolder.add(dot.stats, "runTime").name("Run Time: ").listen();
+    statsFolder.add(dot.stats, "avgRunTime").name("Avg Run Time: ").listen();
+
+    statsFolder.open()
+
     const packagesFolder = gui.addFolder("Package settings");
 
     if(settings.DEBUG){
@@ -13,36 +32,36 @@ export function initGUI() {
             sessionStorage.setItem("settings", JSON.stringify(settings));
             initPackages()
             initCubes();
-        }).name("Package Count: ").listen();
+        }).name("Package Count: ");
 
         packagesFolder.add(settings, "uniformSizes").onChange(() => {
             sessionStorage.setItem("settings", JSON.stringify(settings));
             initPackages()
             initCubes();
-        }).name("Uniform Sizes: ").listen();
+        }).name("Uniform Sizes: ");
     }
 
     packagesFolder.add(settings, "renderEmpty").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
         initCubes();
-    }).name("Render Empty: ").listen();
+    }).name("Render Empty: ");
 
     packagesFolder.add(settings, "mergeSame").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
         initCubes();
-    }).name("Merge Same: ").listen();
+    }).name("Merge Same: ");
 
     packagesFolder.add(settings, "checkBelowWeight").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
         initCubes();
-    }).name("Below Weight: ").listen();
+    }).name("Below Weight: ");
 
     if(settings.DEBUG){
         packagesFolder.add(settings, "maxSize", 1, 10).onChange(() => {
             sessionStorage.setItem("settings", JSON.stringify(settings));
             initPackages();
             initCubes();
-        }).name("Max Size: ").listen();
+        }).name("Max Size: ");
     }
 
     packagesFolder.open();
@@ -51,17 +70,17 @@ export function initGUI() {
     sizeFolder.add(settings, "width").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
         initCubes();
-    }).name("Width: ").listen();
+    }).name("Width: ");
 
     sizeFolder.add(settings, "height").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
         initCubes();
-    }).name("Height: ").listen();
+    }).name("Height: ");
 
     sizeFolder.add(settings, "depth").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
         initCubes();
-    }).name("Depth: ").listen();
+    }).name("Depth: ");
 
     sizeFolder.open();
 
@@ -81,8 +100,13 @@ export function initGUI() {
     };
     otherFolder.add(settings, "algorithm", Object.keys(algorithms)).onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
+        stats.avgRunTime = "";
+        stats.missedPackages = 0;
+        stats.runTimes = [];
+        stats.runTime = "";
+
         initCubes();
-    }).name("Algorithm: ").listen();
+    }).name("Algorithm: ");
     otherFolder.add(btn, "ref").name("Refresh");
     if(settings.DEBUG) otherFolder.add(btn, "reg").name("Regenerate");
 
@@ -103,7 +127,7 @@ export function initGUI() {
                 selectVehicle(curVehicle);
             }
             initCubes();
-        }).listen();
+        });
 
         const vehicleFolder = gui.addFolder("Vehicles");
 

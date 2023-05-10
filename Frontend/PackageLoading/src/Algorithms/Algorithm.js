@@ -10,13 +10,10 @@ export class Algorithm {
         this.remainingObjects = [...objects];
         this.objectPlaced = false;
 
-        this.objects = stableSort(this.objects, (a, b) => b.weight - a.weight);
+        this.objects = stableSort(this.objects, (a, b) => (b.weight / (b.width * b.depth)) - (a.weight / (a.width * a.depth)));
         this.objects = stableSort(this.objects, (a, b) => (b.width * b.height * b.depth) - (a.width * a.height * a.depth));
         this.objects = stableSort(this.objects, (a, b) => a.canStackOntop() === b.canStackOntop() ? 0 : a.canStackOntop() ? 1 : -1);
-
     }
-
-
 
     run(){
         while (this.remainingObjects.length > 0) {
