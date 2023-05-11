@@ -21,3 +21,10 @@ canvas:active {
     padding: 2px;
     background: rgba(0, 0, 0, 0.6);
 }
+
+
+.folder .c select {
+    border-radius: 0;
+    width: 100%;
+    border: 0 solid transparent;
+}

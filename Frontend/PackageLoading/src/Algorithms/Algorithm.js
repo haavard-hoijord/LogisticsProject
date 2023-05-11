@@ -10,7 +10,7 @@ export class Algorithm {
         this.remainingObjects = [...objects];
         this.objectPlaced = false;
 
-        this.objects = stableSort(this.objects, (a, b) => (b.weight / (b.width * b.depth)) - (a.weight / (a.width * a.depth)));
+        this.objects = stableSort(this.objects, (a, b) => b.weight - a.weight);
         this.objects = stableSort(this.objects, (a, b) => (b.width * b.height * b.depth) - (a.width * a.height * a.depth));
         this.objects = stableSort(this.objects, (a, b) => a.canStackOntop() === b.canStackOntop() ? 0 : a.canStackOntop() ? 1 : -1);
     }
@@ -81,7 +81,7 @@ export class Algorithm {
                 }
 
                 if (settings.checkBelowWeight) {
-                    let weight = object.weight / (object.width * object.depth);
+                    let weight = object.weight;
                     let directlyBelowWeight = this.getDirectlyBelowWeight(x,y,z);
                     let belowWeight = this.getBelowWeight(x, y, z);
 
@@ -106,8 +106,8 @@ export class Algorithm {
     }
 
     placeObject(x, y, z, object) {
-        object.origin = {x, y, z};
-        object.size = {x: object.width, y: object.height, z: object.depth};
+        object.setPosition(x, y, z);
+
         for (let dx = 0; dx < object.width; dx++) {
             for (let dy = 0; dy < object.height; dy++) {
                 for (let dz = 0; dz < object.depth; dz++) {
@@ -129,7 +129,7 @@ export class Algorithm {
         }
 
         let obj = grid[x][y - 1][z];
-        return obj && obj.canStackOntop;
+        return obj && obj.canStackOntop();
     }
 
     getDirectlyBelowWeight(x, y, z) {
@@ -138,7 +138,7 @@ export class Algorithm {
         }
 
         const object = grid[x][y - 1][z];
-        return (object.weight / (object.width * object.depth)) || 0;
+        return object.weight || 0;
     }
 
     getBelowWeight(x, y, z) {
@@ -148,9 +148,11 @@ export class Algorithm {
         for (let currentY = y - 1; currentY >= 0; currentY--) {
             const object = grid[x][currentY][z];
 
+            //TODO Check Above weight for object
+
             if(!ids.includes(object.id)) {
                 if (object !== 0) {
-                    weight += (object.weight / (object.width * object.depth));
+                    weight += object.weight;
                     ids.push(object.id);
                 }
             }

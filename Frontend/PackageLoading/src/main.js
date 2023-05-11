@@ -8,8 +8,8 @@ import {Algorithm} from "./Algorithms/Algorithm";
 import {BestFitAlgorithm} from "./Algorithms/BestFitAlgorithm";
 
 export const algorithms = {
-    default: Algorithm,
-    bestFit: BestFitAlgorithm,
+    Default: Algorithm,
+    BestFit: BestFitAlgorithm,
 }
 
 export let settings = JSON.parse(sessionStorage.getItem("settings")) || {
@@ -206,6 +206,7 @@ function fill3DArray(objects) {
     stats.runTimes.push(runtime);
     stats.avgRunTime = Math.round(stats.runTimes.reduce((a, b) => a + b, 0) / stats.runTimes.length) + "ms";
 }
+
 function addGridCubes() {
     for (let x = 0; x < settings.width; x++) {
         for (let y = 0; y < settings.height; y++) {

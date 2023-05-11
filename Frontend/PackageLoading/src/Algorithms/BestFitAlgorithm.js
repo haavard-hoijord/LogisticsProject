@@ -51,7 +51,6 @@ export class BestFitAlgorithm extends Algorithm {
                         }
                     }
 
-
                     // Prioritize positions with lower height (lower is better)
                     const heightPenalty = y;
 
@@ -59,8 +58,7 @@ export class BestFitAlgorithm extends Algorithm {
                     const freeSpacePenalty = (totalSpace - freeSpace) / totalSpace;
 
                     // If a box is 1.5x height compared to width or depth it requires having atleast 30% free space around it to not tip over
-                    const tippingRisk = object.height / Math.min(object.width, object.depth)
-                    if(tippingRisk >= 1.5 && freeSpacePenalty < 0.3){
+                    if(object.isTippingRisk() && freeSpacePenalty < 0.3){
                         return Infinity;
                     }
 
@@ -73,13 +71,15 @@ export class BestFitAlgorithm extends Algorithm {
                 }
 
                 const attemptWastePlace = (x, y, z, object) => {
-                    for (const orientation of object.generateOrientations()) {
-                        if (this.objectFits(x, y, z, orientation)) {
-                            const score = calculateScore(x, y, z, orientation);
+                    if(object){
+                        for (const orientation of object.generateOrientations()) {
+                            if (this.objectFits(x, y, z, orientation)) {
+                                const score = calculateScore(x, y, z, orientation);
 
-                            if (score < minScore) {
-                                minScore = score;
-                                bestFit = {x, y, z, orientation};
+                                if (score < minScore) {
+                                    minScore = score;
+                                    bestFit = {x, y, z, orientation};
+                                }
                             }
                         }
                     }

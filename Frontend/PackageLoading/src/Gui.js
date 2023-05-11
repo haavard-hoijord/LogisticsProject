@@ -108,7 +108,6 @@ export function initGUI() {
 
         initCubes();
 
-
         gui.destroy();
         initGUI();
     }).name("Algorithm: ");
