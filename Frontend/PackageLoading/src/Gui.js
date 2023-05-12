@@ -78,6 +78,11 @@ export function initGUI() {
         initCubes();
     }).name("Merge Same: ");
 
+    renderFolder.add(settings, "weightOverview").onChange(() => {
+        sessionStorage.setItem("settings", JSON.stringify(settings));
+        initCubes();
+    }).name("Weight Overview: ");
+
     renderFolder.open()
 
     const otherFolder = gui.addFolder("Other");

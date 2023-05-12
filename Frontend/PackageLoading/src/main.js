@@ -6,6 +6,7 @@ import {BestFitAlgorithm} from "./Algorithms/BestFitAlgorithm";
 import {fetchVehicles} from "./VehicleHandler";
 import {addGridCubes, controls, initScene, scene} from "./SceneHandler";
 import {create3DArray} from "./Util";
+import {getMaterials} from "./WeightOverview";
 
 export const algorithms = {
     Default: Algorithm,
@@ -30,6 +31,7 @@ export let settings = JSON.parse(sessionStorage.getItem("settings")) || {
     mergeSame: true,
     algorithm: Object.keys(algorithms)[0],
     checkBelowWeight: true,
+    weightOverview: false
 }
 
 export let stats = {
@@ -38,6 +40,14 @@ export let stats = {
     runTimes: [],
     avgRunTime: ""
 }
+
+export const materialData = {
+    color: 0x999999,
+    side: THREE.DoubleSide,
+    opacity: 0.3,
+    transparent: true
+}
+
 
 export let cubes = [];
 export let packages = [];
@@ -84,13 +94,21 @@ export function initCubes() {
     generateCubes(packages);
     addGridCubes();
 
-    const planeMaterial = new THREE.MeshStandardMaterial({
-        color: 0x999999, side: THREE.DoubleSide, opacity: 0.3, transparent: true
-    });
+    let materials;
 
+    const material = new THREE.MeshStandardMaterial(materialData);
+
+    if(settings.weightOverview) {
+       materials = getMaterials();
+    }else{
+        materials = [
+            material, material, material, material, material, material,
+        ];
+
+    }
     const geometry = new THREE.BoxGeometry(settings.width + 0.1, settings.height + 0.1, settings.depth + 0.1);
     geometry.translate(settings.width / 2, settings.height / 2, settings.depth / 2); // pivot point is shifted
-    const cube = new THREE.Mesh(geometry, planeMaterial);
+    const cube = new THREE.Mesh(geometry, materials);
     cube.position.set(-0.05, -0.05, -0.05);
     scene.add(cube);
     cubes.push(cube);
