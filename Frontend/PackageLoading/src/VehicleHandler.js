@@ -1,7 +1,7 @@
 import {initGUI} from "./Gui";
 import {defaultSettings, initCubes, initPackages, packages, setPackages, settings} from "./main";
 import * as THREE from "three";
-import {Box} from "./Box";
+import {Box, boxFromPackage} from "./Box";
 
 const DAPR_URL = `http://localhost:5000/dapr`;
 
@@ -42,15 +42,7 @@ export function selectVehicle(vehicle) {
 
     if (vehicle) {
         if (vehicle.route) {
-            vehicle.route.destinations.filter((destination, index) => destination.isPickup).map((destination, index) => destination.package).map((pk) => {
-                return new Box({
-                    ...pk,
-                    id: pk.routeId,
-                    color: new THREE.Color(Math.random(), Math.random(), Math.random())
-                });
-            }).forEach((pk) => {
-                packages.push(pk);
-            });
+            setPackages(vehicle.route.destinations.filter((destination) => destination.isPickup).map((destination) => destination.package).map((pk) => boxFromPackage(pk)));
         }
         settings.width = vehicle.width;
         settings.height = vehicle.height;

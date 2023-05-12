@@ -3,14 +3,14 @@ import {settings} from "./main";
 
 export class Box {
     constructor(gridObject) {
-        this.width = gridObject.width;
-        this.height = gridObject.height;
-        this.depth = gridObject.depth;
-        this.weight = gridObject.weight;
-        this.id = gridObject.id;
+        this.width = gridObject.width || 1;
+        this.height = gridObject.height || 1;
+        this.depth = gridObject.depth || 1;
+        this.weight = gridObject.weight || 1;
+        this.id = gridObject.routeId || gridObject.id || (Math.random() * 10000);
         this.uniform = this.width === this.height && this.height === this.depth;
         this.rotation = gridObject.rotation || "front";
-        this.color = gridObject.color;
+        this.color = gridObject.color || new THREE.Color(Math.random(), Math.random(), Math.random());
 
         this.gridObject = gridObject;
 
@@ -104,13 +104,19 @@ export class Box {
 export function randomBox(id) {
     let randomSize = () => Math.max(1, Math.round(Math.random() * settings.maxSize));
     let size = randomSize();
-
+    let width = settings.uniformSizes ? size : randomSize();
+    let height = settings.uniformSizes ? size : randomSize();
+    let depth = settings.uniformSizes ? size : randomSize();
+    let volume = width * height * depth;
     return new Box({
-        width: settings.uniformSizes ? size : randomSize(),
-        height: settings.uniformSizes ? size : randomSize(),
-        depth: settings.uniformSizes ? size : randomSize(),
-        weight: Math.max(1, Math.round(Math.random() * 20)),
-        id: id,
-        color: new THREE.Color(Math.random(), Math.random(), Math.random())
+        width: width,
+        height: height,
+        depth: depth,
+        weight: Math.max(Math.max(1, volume / 2), Math.round(Math.random() * (volume * 5) * 10) / 10),
+        id: id
     })
+}
+
+export function boxFromPackage(pk){
+    return new Box({...pk});
 }
