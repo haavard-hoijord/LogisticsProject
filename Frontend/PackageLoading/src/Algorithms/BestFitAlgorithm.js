@@ -52,7 +52,7 @@ export class BestFitAlgorithm extends Algorithm {
                     }
 
                     // Prioritize positions with lower height (lower is better)
-                    const heightPenalty = y;
+                    const heightPenalty = y + object.height;
 
                     // Prioritize positions with less free space
                     const freeSpacePenalty = (totalSpace - freeSpace) / totalSpace;
@@ -65,7 +65,7 @@ export class BestFitAlgorithm extends Algorithm {
                     // You can adjust the weight of each factor to influence the final score
                     const distanceWeight = 1;
                     const freeSpaceWeight = 5;
-                    const heightPenaltyWeight = 5;
+                    const heightPenaltyWeight = 1;
 
                     return distanceWeight * distance + freeSpaceWeight * freeSpacePenalty + heightPenaltyWeight * heightPenalty;
                 }

@@ -13,6 +13,7 @@ export class Box {
         this.color = gridObject.color || new THREE.Color(Math.random(), Math.random(), Math.random());
 
         this.gridObject = gridObject;
+        this.gridObject.color = this.color;
 
         this.size = {x: this.width, y: this.height, z: this.depth};
 
