@@ -131,7 +131,7 @@ export function initGUI() {
         const vehicleFolder = gui.addFolder("Vehicles");
 
         vehicleFolder.add(vehicleSettings, "curVehicle", vehicles.sort((e => -e.id)).map((s) => `Vehicle ${s.id}`)).onChange(() => {
-            selectVehicle(settings.vehicle);
+            selectVehicle(vehicles.find((e) => e.id === vehicleSettings.curVehicle.split(" ")[1]));
         }).name("Vehicle: ");
         vehicleFolder.open();
     }
