@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import {CSS2DObject, CSS2DRenderer,} from 'three/addons/renderers/CSS2DRenderer.js';
 import {Raycaster, Vector2} from 'three';
-import {camera, renderer, scene} from "./main";
+import {CSS2DObject, CSS2DRenderer,} from 'three/addons/renderers/CSS2DRenderer.js';
+import {camera, renderer, scene} from "./SceneHandler";
 
 // Track mouse movement to pick objects
 const raycaster = new Raycaster();
@@ -9,7 +9,7 @@ const mouse = new Vector2(Infinity, Infinity);
 
 let label, labelDiv, labelRenderer;
 
-export function setupTooltip(){
+export function setupTooltip() {
     // Setup labels
     labelRenderer = new CSS2DRenderer();
     labelRenderer.setSize(innerWidth, innerHeight);
@@ -33,7 +33,7 @@ export function setupTooltip(){
     });
 }
 
-export function renderTooltip(){
+export function renderTooltip() {
     // Pick objects from view using normalized mouse coordinates
     raycaster.setFromCamera(mouse, camera);
 

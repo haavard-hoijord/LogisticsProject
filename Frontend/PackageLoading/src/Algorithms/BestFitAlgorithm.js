@@ -10,7 +10,7 @@ export class BestFitAlgorithm extends Algorithm {
     run() {
         let i = 0;
         let added = [];
-        for(let runNum = 0; runNum < 2; runNum++) {
+        for (let runNum = 0; runNum < 2; runNum++) {
             for (const object of this.remainingObjects) {
                 this.objectPlaced = false;
                 let minScore = Infinity;
@@ -30,17 +30,17 @@ export class BestFitAlgorithm extends Algorithm {
                     let freeSpace = 0;
                     let totalSpace = 0;
 
-                    for(let dx = 0; dx < object.width; dx++){
-                        for(let dy = 0; dy < object.height; dy++){
-                            for(let dz = 0; dz < object.depth; dz++){
-                                for(let offsetX = -1; offsetX <= 1; offsetX++){
-                                    for(let offsetY = -1; offsetY <= 1; offsetY++){
-                                        for(let offsetZ = -1; offsetZ <= 1; offsetZ++){
-                                            if(x + offsetX + dx < 0 || x + offsetX + dx >= this.width || y + offsetY + dy < 0 || y + offsetY + dy >= this.height || z + offsetZ + dz < 0 || z + offsetZ + dz >= this.depth){
+                    for (let dx = 0; dx < object.width; dx++) {
+                        for (let dy = 0; dy < object.height; dy++) {
+                            for (let dz = 0; dz < object.depth; dz++) {
+                                for (let offsetX = -1; offsetX <= 1; offsetX++) {
+                                    for (let offsetY = -1; offsetY <= 1; offsetY++) {
+                                        for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
+                                            if (x + offsetX + dx < 0 || x + offsetX + dx >= this.width || y + offsetY + dy < 0 || y + offsetY + dy >= this.height || z + offsetZ + dz < 0 || z + offsetZ + dz >= this.depth) {
                                                 continue;
                                             }
 
-                                            if(grid[x + dx + offsetX][y + dy + offsetY][z + dz + offsetZ] === 0){
+                                            if (grid[x + dx + offsetX][y + dy + offsetY][z + dz + offsetZ] === 0) {
                                                 freeSpace++;
                                             }
                                             totalSpace++;
@@ -58,7 +58,7 @@ export class BestFitAlgorithm extends Algorithm {
                     const freeSpacePenalty = (totalSpace - freeSpace) / totalSpace;
 
                     // If a box is 1.5x height compared to width or depth it requires having atleast 30% free space around it to not tip over
-                    if(object.isTippingRisk() && freeSpacePenalty < 0.3){
+                    if (object.isTippingRisk() && freeSpacePenalty < 0.3) {
                         return Infinity;
                     }
 
@@ -71,7 +71,7 @@ export class BestFitAlgorithm extends Algorithm {
                 }
 
                 const attemptWastePlace = (x, y, z, object) => {
-                    if(object){
+                    if (object) {
                         for (const orientation of object.generateOrientations()) {
                             if (this.objectFits(x, y, z, orientation)) {
                                 const score = calculateScore(x, y, z, orientation);

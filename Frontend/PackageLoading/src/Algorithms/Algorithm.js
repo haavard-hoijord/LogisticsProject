@@ -1,4 +1,5 @@
-import {grid, settings, stableSort} from "../main";
+import {grid, settings} from "../main";
+import {stableSort} from "../Util";
 
 export class Algorithm {
     constructor(width, height, depth, objects) {
@@ -15,7 +16,7 @@ export class Algorithm {
         this.objects = stableSort(this.objects, (a, b) => a.canStackOntop() === b.canStackOntop() ? 0 : a.canStackOntop() ? 1 : -1);
     }
 
-    run(){
+    run() {
         while (this.remainingObjects.length > 0) {
             for (let i = 0; i < this.remainingObjects.length; i++) {
                 this.objectPlaced = false;
@@ -34,7 +35,7 @@ export class Algorithm {
                     loop(this.width, (x) => loop(this.height, (y) => loop(this.depth, (z) => this.attemptPlace(x, y, z, object))));
                 }
 
-                if(this.objectPlaced){
+                if (this.objectPlaced) {
                     this.remainingObjects.splice(i, 1);
                 }
             }
@@ -82,7 +83,7 @@ export class Algorithm {
 
                 if (settings.checkBelowWeight) {
                     let weight = object.weight;
-                    let directlyBelowWeight = this.getDirectlyBelowWeight(x,y,z);
+                    let directlyBelowWeight = this.getDirectlyBelowWeight(x, y, z);
                     let belowWeight = this.getBelowWeight(x, y, z);
 
                     if (weight >= belowWeight || weight >= directlyBelowWeight) {
@@ -111,7 +112,7 @@ export class Algorithm {
         for (let dx = 0; dx < object.width; dx++) {
             for (let dy = 0; dy < object.height; dy++) {
                 for (let dz = 0; dz < object.depth; dz++) {
-                    if(x + dx < this.width && y + dy < this.height && z + dz < this.depth){
+                    if (x + dx < this.width && y + dy < this.height && z + dz < this.depth) {
                         grid[x + dx][y + dy][z + dz] = object;
                     }
                 }
@@ -120,11 +121,11 @@ export class Algorithm {
     }
 
     hasFloor(x, y, z) {
-        if(y === 0){
+        if (y === 0) {
             return true;
         }
 
-        if(grid[x][y - 1][z] === 0){
+        if (grid[x][y - 1][z] === 0) {
             return false;
         }
 
@@ -133,7 +134,7 @@ export class Algorithm {
     }
 
     getDirectlyBelowWeight(x, y, z) {
-        if(y === 0){
+        if (y === 0) {
             return 0;
         }
 
@@ -150,7 +151,7 @@ export class Algorithm {
 
             //TODO Check Above weight for object
 
-            if(!ids.includes(object.id)) {
+            if (!ids.includes(object.id)) {
                 if (object !== 0) {
                     weight += object.weight;
                     ids.push(object.id);
