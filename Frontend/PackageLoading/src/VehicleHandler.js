@@ -1,5 +1,5 @@
 import {initGUI} from "./Gui";
-import {defaultSettings, initCubes, initPackages, packages, setPackages, settings} from "./main";
+import {clearPackages, defaultSettings, initCubes, initPackages, packages, setPackages, settings} from "./main";
 import * as THREE from "three";
 import {Box, boxFromPackage} from "./Box";
 
@@ -36,7 +36,7 @@ export let vehicleSettings = {
 export let vehicles = [];
 
 export function selectVehicle(vehicle) {
-    setPackages([]);
+    clearPackages()
 
     vehicleSettings.curVehicle = vehicle;
 

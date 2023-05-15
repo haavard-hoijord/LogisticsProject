@@ -6,7 +6,6 @@ export class BestFitAlgorithm extends Algorithm {
         super(width, height, depth, objects);
     }
 
-
     run() {
         let i = 0;
         let added = [];
@@ -22,59 +21,11 @@ export class BestFitAlgorithm extends Algorithm {
                     }
                 }
 
-                const calculateScore = (x, y, z, object) => {
-                    // Calculate distance from the origin (lower is better)
-                    const distance = Math.sqrt(x * x + y * y + z * z);
-
-                    // Calculate the amount of free space remaining around the cube (lower is better)
-                    let freeSpace = 0;
-                    let totalSpace = 0;
-
-                    for (let dx = 0; dx < object.width; dx++) {
-                        for (let dy = 0; dy < object.height; dy++) {
-                            for (let dz = 0; dz < object.depth; dz++) {
-                                for (let offsetX = -1; offsetX <= 1; offsetX++) {
-                                    for (let offsetY = -1; offsetY <= 1; offsetY++) {
-                                        for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
-                                            if (x + offsetX + dx < 0 || x + offsetX + dx >= this.width || y + offsetY + dy < 0 || y + offsetY + dy >= this.height || z + offsetZ + dz < 0 || z + offsetZ + dz >= this.depth) {
-                                                continue;
-                                            }
-
-                                            if (grid[x + dx + offsetX][y + dy + offsetY][z + dz + offsetZ] === 0) {
-                                                freeSpace++;
-                                            }
-                                            totalSpace++;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Prioritize positions with lower height (lower is better)
-                    const heightPenalty = y + object.height;
-
-                    // Prioritize positions with less free space
-                    const freeSpacePenalty = (totalSpace - freeSpace) / totalSpace;
-
-                    // If a box is 1.5x height compared to width or depth it requires having atleast 30% free space around it to not tip over
-                    if (object.isTippingRisk() && freeSpacePenalty < 0.3) {
-                        return Infinity;
-                    }
-
-                    // You can adjust the weight of each factor to influence the final score
-                    const distanceWeight = 1;
-                    const freeSpaceWeight = 5;
-                    const heightPenaltyWeight = 1;
-
-                    return distanceWeight * distance + freeSpaceWeight * freeSpacePenalty + heightPenaltyWeight * heightPenalty;
-                }
-
                 const attemptWastePlace = (x, y, z, object) => {
                     if (object) {
                         for (const orientation of object.generateOrientations()) {
                             if (this.objectFits(x, y, z, orientation)) {
-                                const score = calculateScore(x, y, z, orientation);
+                                const score = this.calculateScore(x, y, z, orientation);
 
                                 if (score < minScore) {
                                     minScore = score;
@@ -99,5 +50,59 @@ export class BestFitAlgorithm extends Algorithm {
 
         this.remainingObjects = this.remainingObjects.filter((object) => !added.includes(object.id));
         return this.remainingObjects;
+    }
+
+    calculateScore(x, y, z, object){
+        // Calculate distance from the origin (lower is better)
+        const distance = Math.sqrt(x * x + y * y + z * z);
+
+        // Calculate the amount of free space remaining around the cube (lower is better)
+        let freeSpace = 0;
+        let totalSpace = 0;
+
+        for (let dx = 0; dx < object.width; dx++) {
+            for (let dy = 0; dy < object.height; dy++) {
+                for (let dz = 0; dz < object.depth; dz++) {
+                    for (let offsetX = -1; offsetX <= 1; offsetX++) {
+                        for (let offsetY = -1; offsetY <= 1; offsetY++) {
+                            for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
+                                if (x + offsetX + dx < 0 || x + offsetX + dx >= this.width || y + offsetY + dy < 0 || y + offsetY + dy >= this.height || z + offsetZ + dz < 0 || z + offsetZ + dz >= this.depth) {
+                                    continue;
+                                }
+
+                                if (grid[x + dx + offsetX][y + dy + offsetY][z + dz + offsetZ] === 0) {
+                                    freeSpace++;
+                                }
+                                totalSpace++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Prioritize positions with lower height (lower is better)
+        const heightPenalty = y + object.height;
+
+        // Prioritize positions with less free space
+        const freeSpacePenalty = (totalSpace - freeSpace) / totalSpace;
+
+        // If a box is 1.5x height compared to width or depth it requires having atleast 30% free space around it to not tip over
+        if (object.isTippingRisk() && freeSpacePenalty < 0.3) {
+            return Infinity;
+        }
+
+        // You can adjust the weight of each factor to influence the final score
+        const distanceWeight = 1;
+        const freeSpaceWeight = 5;
+        const heightPenaltyWeight = 1;
+
+        let score = 0;
+
+        score += distanceWeight * distance;
+        score += freeSpaceWeight * freeSpacePenalty;
+        score += heightPenaltyWeight * heightPenalty;
+
+        return score;
     }
 }

@@ -7,10 +7,12 @@ import {fetchVehicles} from "./VehicleHandler";
 import {addGridCubes, controls, initScene, scene} from "./SceneHandler";
 import {create3DArray} from "./Util";
 import {getMaterials} from "./WeightOverview";
+import {BestFitWeightAlgorithm} from "./Algorithms/BestFitWeightAlgorithm";
 
 export const algorithms = {
-    Default: Algorithm,
+    FirstFit: Algorithm,
     BestFit: BestFitAlgorithm,
+    BestFitWeight: BestFitWeightAlgorithm
 }
 
 export let defaultSettings = {
@@ -18,6 +20,8 @@ export let defaultSettings = {
     height: 10,
     depth: 10,
 }
+
+export let renderOverlays = ["None", "Weight", "DeliveryOrder", "CarryWeight", "TippingRisk", "Stability"]
 
 export let settings = JSON.parse(sessionStorage.getItem("settings")) || {
     DEBUG: true,
@@ -31,7 +35,8 @@ export let settings = JSON.parse(sessionStorage.getItem("settings")) || {
     mergeSame: true,
     algorithm: Object.keys(algorithms)[0],
     checkBelowWeight: true,
-    weightOverview: false
+    weightOverview: false,
+    renderOverlay: "None"
 }
 
 export let stats = {
@@ -48,21 +53,20 @@ export const materialData = {
     transparent: true
 }
 
-
 export let cubes = [];
 export let packages = [];
 export let grid = [create3DArray(settings.width, settings.height, settings.depth)];
 
-export function setCubes(newCubes) {
-    cubes = newCubes;
+export function clearPackages() {
+    packages = [];
 }
 
 export function setPackages(newPackages) {
     packages = newPackages;
 }
 
-export function setGrid(newGrid) {
-    grid = newGrid;
+export function clearGrid() {
+    grid = [create3DArray(settings.width, settings.height, settings.depth)];
 }
 
 (async () => {
@@ -77,29 +81,21 @@ export function setGrid(newGrid) {
     initCubes();
 })();
 
-export function initCubes() {
-    console.log("initCubes");
-
+export function reRenderCubes(){
     for (const cube of cubes) {
         scene.remove(cube);
     }
 
     cubes = [];
 
-    if (controls) {
-        controls.target.set(settings.width / 2, settings.height / 2, settings.depth / 2);
-    }
-
-    grid = create3DArray(settings.width, settings.height, settings.depth);
-    generateCubes(packages);
     addGridCubes();
 
+    //Add the outline box
+    const material = new THREE.MeshStandardMaterial(materialData);
     let materials;
 
-    const material = new THREE.MeshStandardMaterial(materialData);
-
     if(settings.weightOverview) {
-       materials = getMaterials();
+        materials = getMaterials();
     }else{
         materials = [
             material, material, material, material, material, material,
@@ -114,9 +110,23 @@ export function initCubes() {
     cubes.push(cube);
 }
 
-export function initPackages() {
-    console.log("initPackages");
+export function initCubes() {
+    for (const cube of cubes) {
+        scene.remove(cube);
+    }
 
+    cubes = [];
+
+    if (controls) {
+        controls.target.set(settings.width / 2, settings.height / 2, settings.depth / 2);
+    }
+
+    grid = create3DArray(settings.width, settings.height, settings.depth);
+    generateCubes(packages);
+    reRenderCubes();
+}
+
+export function initPackages() {
     packages = [];
     for (let i = 0; i < settings.packageCount; i++) {
         let box = randomBox(i + 1);

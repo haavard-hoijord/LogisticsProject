@@ -51,14 +51,14 @@ export function renderTooltip() {
         // Setup label
         renderer.domElement.className = 'hovered';
         label.visible = true;
-        labelDiv.innerHTML = `Cube ${pak.id} <br>Size: ${pak.size.x}x${pak.size.y}x${pak.size.z}<br>Weight: ${pak.weight}kg<br>Rotation: ${pak.rotation}`
+        labelDiv.innerHTML = `Cube ${pak.id} <br>Size: ${pak.width}x${pak.height}x${pak.depth}<br>Weight: ${pak.weight}kg<br>Rotation: ${pak.rotation}`
 
         // Get offset from object's dimensions
         const offset = new THREE.Vector3();
         new THREE.Box3().setFromObject(obj).getSize(offset);
 
         // Move label over hovered element
-        label.position.set(pak.origin.x + (pak.size.x / 2), pak.origin.y + (pak.size.y / 2) - 2, pak.origin.z + (pak.size.z / 2));
+        label.position.set(pak.origin.x + (pak.width / 2), pak.origin.y + (pak.height / 2) - 2, pak.origin.z + (pak.depth / 2));
 
         for (let cube of cubes) {
             if (cube.package && cube.package.id === pak.id) {

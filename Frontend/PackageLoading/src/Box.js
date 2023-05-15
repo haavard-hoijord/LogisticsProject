@@ -3,21 +3,22 @@ import {settings} from "./main";
 
 export class Box {
     constructor(gridObject) {
+        this.id = gridObject.routeId || gridObject.id || (Math.random() * 10000);
+        this.deliveryOrder = gridObject.deliveryOrder || this.id || 0;
+
         this.width = gridObject.width || 1;
         this.height = gridObject.height || 1;
         this.depth = gridObject.depth || 1;
-        this.weight = gridObject.weight || 1;
-        this.id = gridObject.routeId || gridObject.id || (Math.random() * 10000);
         this.uniform = this.width === this.height && this.height === this.depth;
+
+        this.weight = gridObject.weight || 1;
+
         this.rotation = gridObject.rotation || "front";
         this.color = gridObject.color || new THREE.Color(Math.random(), Math.random(), Math.random());
 
-        this.gridObject = gridObject;
-        this.gridObject.color = this.color;
+        this.gridObject = {...gridObject, color: this.color};
 
-        this.size = {x: this.width, y: this.height, z: this.depth};
-
-        this.heightRation = this.height / Math.min(this.width, this.depth)
+        this.heightRatio = this.height / Math.min(this.width, this.depth)
         this.origin = {x: 0, y: 0, z: 0};
         this.center = {x: this.width / 2, y: this.height / 2, z: this.depth / 2};
 
@@ -25,7 +26,7 @@ export class Box {
     }
 
     isTippingRisk() {
-        return this.heightRation >= 1.5;
+        return this.heightRatio >= 1.5;
     }
 
     canStackOntop() {

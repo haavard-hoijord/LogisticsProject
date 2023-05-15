@@ -1,5 +1,14 @@
 import * as dot from "./main.js";
-import {algorithms, initCubes, initPackages, setGrid, settings, stats} from "./main.js";
+import {
+    algorithms,
+    clearGrid,
+    initCubes,
+    initPackages,
+    renderOverlays,
+    reRenderCubes,
+    settings,
+    stats
+} from "./main.js";
 import {GUI} from "dat.gui";
 import {fetchVehicles, selectVehicle, vehicles, vehicleSettings} from "./VehicleHandler";
 
@@ -70,18 +79,23 @@ export function initGUI() {
     const renderFolder = gui.addFolder("Render settings");
     renderFolder.add(settings, "renderEmpty").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
-        initCubes();
+        reRenderCubes();
     }).name("Render Empty: ");
 
     renderFolder.add(settings, "mergeSame").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
-        initCubes();
+        reRenderCubes();
     }).name("Merge Same: ");
+
+    renderFolder.add(settings, "renderOverlay", renderOverlays).onChange(() => {
+        sessionStorage.setItem("settings", JSON.stringify(settings));
+        reRenderCubes();
+    }).name("Render Overlay: ");
 
     renderFolder.add(settings, "weightOverview").onChange(() => {
         sessionStorage.setItem("settings", JSON.stringify(settings));
-        initCubes();
-    }).name("Weight Overview: ");
+        reRenderCubes();
+    }).name("Weight Distribution: ").listen();
 
     renderFolder.open()
 
@@ -107,8 +121,6 @@ export function initGUI() {
         stats.runTime = "";
 
         initCubes();
-
-        gui.destroy();
         initGUI();
     }).name("Algorithm: ");
     otherFolder.add(btn, "ref").name("Refresh");
@@ -117,9 +129,8 @@ export function initGUI() {
     if (vehicles && vehicles.length > 0) {
         otherFolder.add(settings, "DEBUG").name("Debug").onChange(() => {
             sessionStorage.setItem("settings", JSON.stringify(settings));
-            setGrid([])
+            clearGrid();
 
-            gui.destroy();
             initGUI();
 
             if (settings.DEBUG) {
@@ -142,9 +153,4 @@ export function initGUI() {
     }
 
     otherFolder.open()
-}
-
-export function updateGUI() {
-    gui.destroy();
-    initGUI();
 }

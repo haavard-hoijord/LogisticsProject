@@ -165,10 +165,12 @@ const Sidebar = ({
                 </div>
                 <div className="sidebar-companies">
                     {companies.filter(e => vehicles.filter(e1 => e1.company === e.id).length > 0).map((company, index) => (
-                        <div className={`company ${closedCompanies[company.id] ? "closed" : ""}`} key={company.id} onClick={() => {
-                            let temp = closedCompanies;
+                        <div className={`company ${closedCompanies[company.id] ? "closed" : ""}`} key={company.id} onClick={(e) => {
+                            e.stopPropagation();
+                            /*let temp = closedCompanies;
                             temp[company.id] = !temp[company.id];
                             setClosedCompanies({...temp});
+                             */
                         }}>
                             <p>{company.name}</p>
                             {!closedCompanies[company.id] ? (

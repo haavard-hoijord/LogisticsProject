@@ -6,11 +6,13 @@ export class Algorithm {
         this.width = width;
         this.height = height;
         this.depth = depth;
-        this.totalVolume = width * height * depth;
         this.objects = objects;
         this.remainingObjects = [...objects];
         this.objectPlaced = false;
 
+        this.totalWeights = new Array(grid.length).fill(0).map(() => new Array(grid[0].length).fill(0).map(() => new Array(grid[0][0].length).fill(0)));
+
+        this.objects = stableSort(this.objects, (a, b) => b.deliveryOrder - a.deliveryOrder);
         this.objects = stableSort(this.objects, (a, b) => b.weight - a.weight);
         this.objects = stableSort(this.objects, (a, b) => (b.width * b.height * b.depth) - (a.width * a.height * a.depth));
         this.objects = stableSort(this.objects, (a, b) => a.canStackOntop() === b.canStackOntop() ? 0 : a.canStackOntop() ? 1 : -1);
@@ -114,6 +116,15 @@ export class Algorithm {
                 for (let dz = 0; dz < object.depth; dz++) {
                     if (x + dx < this.width && y + dy < this.height && z + dz < this.depth) {
                         grid[x + dx][y + dy][z + dz] = object;
+
+                        // Update the total weights
+                        for(let i = x + dx; i < this.width; i++) {
+                            for(let j = y + dy; j < this.height; j++) {
+                                for(let k = z + dz; k < this.depth; k++) {
+                                    this.totalWeights[i][j][k] += object.weight / (object.width * object.height * object.depth);
+                                }
+                            }
+                        }
                     }
                 }
             }

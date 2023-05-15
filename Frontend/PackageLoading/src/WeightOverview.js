@@ -3,6 +3,7 @@ import {grid, materialData, settings} from "./main";
 
 const overviewSettings = {
     opacity: 0.9,
+    gridSize: 1
 }
 
 export function getMaterials(){
@@ -25,122 +26,119 @@ export function getMaterials(){
 
     let depthCanvasRight = document.createElement('canvas');
     let depthContextRight = depthCanvasRight.getContext('2d');
+    
+    let gridTextureSize = 64 / overviewSettings.gridSize;
+    
+    topCanvas.width = settings.width * gridTextureSize;
+    topCanvas.height = settings.depth * gridTextureSize;
 
-    topCanvas.width = settings.width * 32;
-    topCanvas.height = settings.depth * 32;
+    bottomCanvas.width = settings.width * gridTextureSize;
+    bottomCanvas.height = settings.depth * gridTextureSize;
 
-    bottomCanvas.width = settings.width * 32;
-    bottomCanvas.height = settings.depth * 32;
+    widthCanvasFront.width = settings.width * gridTextureSize;
+    widthCanvasFront.height = settings.depth * gridTextureSize;
+    widthCanvasBack.width = settings.width * gridTextureSize;
+    widthCanvasBack.height = settings.depth * gridTextureSize;
 
-    widthCanvasFront.width = settings.width * 32;
-    widthCanvasFront.height = settings.depth * 32;
-    widthCanvasBack.width = settings.width * 32;
-    widthCanvasBack.height = settings.depth * 32;
-
-    depthCanvasLeft.width = settings.depth * 32;
-    depthCanvasLeft.height = settings.height * 32;
-    depthCanvasRight.width = settings.depth * 32;
-    depthCanvasRight.height = settings.height * 32;
+    depthCanvasLeft.width = settings.depth * gridTextureSize;
+    depthCanvasLeft.height = settings.height * gridTextureSize;
+    depthCanvasRight.width = settings.depth * gridTextureSize;
+    depthCanvasRight.height = settings.height * gridTextureSize;
 
     matData.opacity = 1;
 
-    let topValues = new Array(settings.width / 2);
-    let bottomValues = new Array(settings.width / 2);
-    let widthValuesFront = new Array(settings.width / 2);
-    let widthValuesBack = new Array(settings.width / 2);
-    let depthValuesLeft = new Array(settings.depth / 2);
-    let depthValuesRight = new Array(settings.depth / 2);
+    let topValues = new Array(settings.width / overviewSettings.gridSize);
+    let bottomValues = new Array(settings.width / overviewSettings.gridSize);
+    let widthValuesFront = new Array(settings.width / overviewSettings.gridSize);
+    let widthValuesBack = new Array(settings.width / overviewSettings.gridSize);
+    let depthValuesLeft = new Array(settings.depth / overviewSettings.gridSize);
+    let depthValuesRight = new Array(settings.depth / overviewSettings.gridSize);
 
     // Initialize your 2D arrays
-    for(let i = 0; i < settings.width / 2; i++) {
-        topValues[i] = new Array(settings.depth / 2).fill(0);
-        bottomValues[i] = new Array(settings.depth / 2).fill(0);
-        widthValuesFront[i] = new Array(settings.height).fill(0);
-        widthValuesBack[i] = new Array(settings.height).fill(0);
+    for(let i = 0; i < settings.width / overviewSettings.gridSize; i++) {
+        topValues[i] = new Array(settings.depth / overviewSettings.gridSize).fill(0);
+        bottomValues[i] = new Array(settings.depth / overviewSettings.gridSize).fill(0);
+        widthValuesFront[i] = new Array(settings.height / overviewSettings.gridSize).fill(0);
+        widthValuesBack[i] = new Array(settings.height / overviewSettings.gridSize).fill(0);
     }
 
-    for(let i = 0; i < settings.depth / 2; i++) {
-        depthValuesLeft[i] = new Array(settings.height).fill(0);
-        depthValuesRight[i] = new Array(settings.height).fill(0);
+    for(let i = 0; i < settings.depth / overviewSettings.gridSize; i++) {
+        depthValuesLeft[i] = new Array(settings.height / overviewSettings.gridSize).fill(0);
+        depthValuesRight[i] = new Array(settings.height / overviewSettings.gridSize).fill(0);
     }
 
 
     //Width
-    for(let xSection = 0; xSection < settings.width / 2; xSection++){
-        for(let ySection = 0; ySection < settings.height / 2; ySection++){
-            let ids = [];
+    for(let xSection = 0; xSection < settings.width / overviewSettings.gridSize; xSection++){
+        for(let ySection = 0; ySection < settings.height / overviewSettings.gridSize; ySection++){
             let value = 0;
 
-            for(let x = 0; x < 2; x++){
-                let newX = xSection * 2 + x;
-                for(let y = 0; y < 2; y++){
-                    let newY = ySection * 2 + y;
+            for(let x = 0; x < overviewSettings.gridSize; x++){
+                let newX = xSection *overviewSettings.gridSize + x;
+                for(let y = 0; y < overviewSettings.gridSize; y++){
+                    let newY = ySection *overviewSettings.gridSize + y;
                     for(let z = 0; z < settings.depth; z++){
-                        if(grid[newX][newY][z] !== undefined && !ids.includes(grid[newX][newY][z].id)){
+                        if(grid[newX][newY][z] !== undefined){
                             let obj = grid[newX][newY][z];
                             if(obj && obj.weight && obj.weight > 0){
-                                value += obj.weight;
-                                ids.push(obj.id);
+                                value += obj.weight / (obj.width * obj.depth * obj.height);
                             }
                         }
                     }
                 }
             }
 
-            widthValuesFront[xSection][settings.height / 2 - ySection] = value;
-            widthValuesBack[settings.width / 2 - xSection - 1][settings.height / 2 - ySection] = value;
+            widthValuesFront[xSection][settings.height / overviewSettings.gridSize - ySection - 1] = value;
+            widthValuesBack[settings.width / overviewSettings.gridSize - xSection - 1][settings.height / overviewSettings.gridSize - ySection - 1] = value;
         }
     }
 
-    for(let zSection = 0; zSection < settings.depth / 2; zSection++){
-        for(let ySection = 0; ySection < settings.height / 2; ySection++){
-            let ids = [];
+    //Depth
+    for(let zSection = 0; zSection < settings.depth / overviewSettings.gridSize; zSection++){
+        for(let ySection = 0; ySection < settings.height / overviewSettings.gridSize; ySection++){
             let value = 0;
 
-            for(let z = 0; z < 2; z++){
-                let newZ = zSection * 2 + z;
-                for(let y = 0; y < 2; y++){
-                    let newY = ySection * 2 + y;
+            for(let z = 0; z < overviewSettings.gridSize; z++){
+                let newZ = zSection *overviewSettings.gridSize + z;
+                for(let y = 0; y < overviewSettings.gridSize; y++){
+                    let newY = ySection *overviewSettings.gridSize + y;
                     for(let x = 0; x < settings.width; x++){
-                        if(grid[x][newY][newZ] !== undefined && !ids.includes(grid[x][newY][newZ].id)){
+                        if(grid[x][newY][newZ] !== undefined){
                             let obj = grid[x][newY][newZ];
                             if(obj && obj.weight && obj.weight > 0){
-                                value += obj.weight;
-                                ids.push(obj.id);
+                                value += obj.weight / (obj.width * obj.depth * obj.height);
                             }
                         }
                     }
                 }
             }
 
-            depthValuesLeft[zSection][settings.height / 2 - ySection] = value;
-            depthValuesRight[settings.depth / 2 - zSection - 1][settings.height / 2 - ySection] = value;
+            depthValuesLeft[zSection][settings.height / overviewSettings.gridSize - ySection - 1] = value;
+            depthValuesRight[settings.depth / overviewSettings.gridSize - zSection - 1][settings.height / overviewSettings.gridSize - ySection - 1] = value;
         }
     }
 
     //Top
-    for(let xSection = 0; xSection < settings.width / 2; xSection++){
-        for(let zSection = 0; zSection < settings.depth / 2; zSection++){
-            let ids = [];
+    for(let xSection = 0; xSection < settings.width / overviewSettings.gridSize; xSection++){
+        for(let zSection = 0; zSection < settings.depth / overviewSettings.gridSize; zSection++){
             let value = 0;
-            for(let x = 0; x < 2; x++){
-                let newX = xSection * 2 + x;
-                for(let z = 0; z < 2; z++){
-                    let newZ = zSection * 2 + z;
+            for(let x = 0; x < overviewSettings.gridSize; x++){
+                let newX = xSection *overviewSettings.gridSize + x;
+                for(let z = 0; z < overviewSettings.gridSize; z++){
+                    let newZ = zSection *overviewSettings.gridSize + z;
 
                     for(let y = 0; y < settings.height; y++){
-                        if(grid[newX][y][newZ] !== undefined && !ids.includes(grid[newX][y][newZ].id)){
+                        if(grid[newX][y][newZ] !== undefined){
                             let obj = grid[newX][y][newZ];
                             if(obj && obj.weight && obj.weight > 0){
-                                value += obj.weight;
-                                ids.push(grid[newX][y][newZ].id);
+                                value += obj.weight / (obj.width * obj.depth * obj.height);
                             }
                         }
                     }
                 }
             }
             topValues[xSection][zSection] = value;
-            bottomValues[xSection][settings.depth / 2 - zSection - 1] = value;
+            bottomValues[xSection][settings.depth / overviewSettings.gridSize - zSection - 1] = value;
         }
     }
 
@@ -148,25 +146,24 @@ export function getMaterials(){
         context.clearRect(0, 0, canvas.width, canvas.height);
 
         let maxValue = -Infinity;
-        let minValue = Infinity;
 
         for(let i = 0; i < values.length; i++) {
             for(let j = 0; j < values[i].length; j++) {
                 if(values[i][j] > maxValue) {
                     maxValue = values[i][j];
                 }
-                if(values[i][j] < minValue) {
-                    minValue = values[i][j];
-                }
             }
         }
 
-        for(let i = 0; i < canvas.width; i += 64) {
-            for(let j = 0; j < canvas.height; j += 64) {
-                // context.strokeRect(i, j, 64, 64);
 
-                let x = i / 64;
-                let y = j / 64;
+        let renderSize = 64;
+
+        for(let i = 0; i < canvas.width; i += renderSize) {
+            for(let j = 0; j < canvas.height; j += renderSize) {
+                context.strokeRect(i, j, renderSize, renderSize);
+
+                let x = i / renderSize;
+                let y = j / renderSize;
 
                 let value = values[x][y];
 
@@ -176,11 +173,11 @@ export function getMaterials(){
                 let hue = normalizedValue * 120;
 
                 context.fillStyle = `hsla(${hue}, 100%, 50%, ${overviewSettings.opacity})`;
-                context.fillRect(i, j, 64, 64);
+                context.fillRect(i, j, renderSize, renderSize);
             }
         }
     }
-
+    
     // Create grid texture
     updateGrid(depthContextLeft, depthCanvasLeft, depthValuesLeft);
     updateGrid(depthContextRight, depthCanvasRight, depthValuesRight);

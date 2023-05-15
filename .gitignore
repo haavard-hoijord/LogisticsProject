@@ -55,3 +55,4 @@ Backend/Planner/.vscode/tasks.json
 Backend/Planner/.vscode/launch.json
 Frontend/PackageLoading/Node_modules/
 Frontend/Map/Node_modules/
+*.bkp
