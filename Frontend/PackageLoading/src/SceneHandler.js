@@ -93,7 +93,7 @@ function addGridCube(grid, x, y, z, object) {
             }
 
             let value = gridObject.weight;
-            let normalizedValue = 1 - (value / (maxValue * 0.5));
+            let normalizedValue = 1 - (value / (maxValue * 0.75));
 
             // Map the normalized value to a hue between 0 (red) and 120 (green)
             let hue = Math.max(0, normalizedValue) * 120;
