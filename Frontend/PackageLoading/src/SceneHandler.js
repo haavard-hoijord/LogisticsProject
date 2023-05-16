@@ -118,33 +118,9 @@ function addGridCube(grid, x, y, z, object) {
             // Map the normalized value to a hue between 0 (red) and 120 (green)
             let hue = Math.max(0, normalizedValue) * 120;
             color = new THREE.Color(`hsla(${hue}, 100%, 50%, 1.0)`);
-        }else if(settings.renderOverlay === "CarryWeight"){
+        }else if(settings.renderOverlay === "SupportingWeight"){
             let maxValue = object.weight;
-            let value = 0;
-            let ids = [];
-            for(let dx = 0; dx < object.width; dx++){
-                for(let dz = 0; dz < object.depth; dz++){
-                    let dy = y + object.height + 1;
-
-                    if(dy >= settings.height || dx + object.origin.x >= settings.width || dz + object.origin.z >= settings.depth){
-                        continue;
-                    }
-
-                    for(let dy = 0; dy < object.height; dy++){
-                        if(dy + object.origin.y + object.height >= settings.height){
-                            continue;
-                        }
-
-                        let pack = grid[dx + object.origin.x][object.height + dy + object.origin.y][dz + object.origin.z];
-
-                        if(pack && !ids.includes(pack.id)){
-                            value += pack.weight;
-                            ids.push(pack.id);
-                        }
-                    }
-                }
-            }
-
+            let value = object.aboveWeight;
             let normalizedValue = 1 - (value / maxValue);
 
             // Map the normalized value to a hue between 0 (red) and 120 (green)
@@ -159,34 +135,8 @@ function addGridCube(grid, x, y, z, object) {
             let hue = Math.max(0, normalizedValue) * 120;
             color = new THREE.Color(`hsla(${hue}, 100%, 50%, 1.0)`);
         }else if(settings.renderOverlay === "Stability"){
-            let value = 0;
             let maxValue = 0.75;
-
-            // Calculate the amount of free space remaining around the cube (lower is better)
-            let freeSpace = 0;
-            let totalSpace = 0;
-
-            for (let dx = 0; dx < object.width; dx++) {
-                for (let dy = 0; dy < object.height; dy++) {
-                    for (let dz = 0; dz < object.depth; dz++) {
-                        for (let offsetX = -1; offsetX <= 1; offsetX++) {
-                            for (let offsetY = -1; offsetY <= 1; offsetY++) {
-                                for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
-                                    if (object.origin.x + offsetX + dx < 0 || object.origin.x + offsetX + dx >= settings.width || object.origin.y + offsetY + dy < 0 || object.origin.y + offsetY + dy >= settings.height || object.origin.z + offsetZ + dz < 0 || object.origin.z + offsetZ + dz >= settings.depth) {
-                                        continue;
-                                    }
-
-                                    if (grid[object.origin.x + dx + offsetX][object.origin.y + dy + offsetY][object.origin.z + dz + offsetZ] === 0) {
-                                        freeSpace++;
-                                    }
-                                    totalSpace++;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            value = freeSpace / totalSpace;
+            let value = object.freeSpace / object.totalSpace;
 
             if(object.isTippingRisk()){
                 value *= 1.5;

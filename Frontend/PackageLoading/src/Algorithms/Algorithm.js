@@ -110,12 +110,43 @@ export class Algorithm {
 
     placeObject(x, y, z, object) {
         object.setPosition(x, y, z);
+        object.onUpdate();
 
         for (let dx = 0; dx < object.width; dx++) {
             for (let dy = 0; dy < object.height; dy++) {
                 for (let dz = 0; dz < object.depth; dz++) {
                     if (x + dx < this.width && y + dy < this.height && z + dz < this.depth) {
                         grid[x + dx][y + dy][z + dz] = object;
+
+                        for(let xOffset = -1; xOffset <= 1; xOffset++){
+                            if(x + dx + xOffset < this.width && x + dx + xOffset >= 0) {
+                                let obj = grid[x + dx + xOffset][y + dy][z + dz];
+
+                                if(obj !== 0 && obj.id !== object.id){
+                                    obj.onUpdate();
+                                }
+                            }
+                        }
+
+                        for(let yOffset = -1; yOffset <= 1; yOffset++){
+                            if(y + dy + yOffset < this.height && y + dy + yOffset >= 0) {
+                                let obj = grid[x + dx][y + dy + yOffset][z + dz];
+
+                                if(obj !== 0 && obj.id !== object.id){
+                                    obj.onUpdate();
+                                }
+                            }
+                        }
+
+                        for(let zOffset = -1; zOffset <= 1; zOffset++){
+                            if(z + dz + zOffset < this.depth && z + dz + zOffset >= 0) {
+                                let obj = grid[x + dx][y + dy][z + dz + zOffset];
+
+                                if(obj !== 0 && obj.id !== object.id){
+                                    obj.onUpdate();
+                                }
+                            }
+                        }
 
                         // Update the total weights
                         for(let i = x + dx; i < this.width; i++) {
@@ -153,14 +184,13 @@ export class Algorithm {
         return object.weight || 0;
     }
 
+
     getBelowWeight(x, y, z) {
         let weight = 0;
         let ids = [];
         // Iterate through all the y-values below the given y-coordinate
         for (let currentY = y - 1; currentY >= 0; currentY--) {
             const object = grid[x][currentY][z];
-
-            //TODO Check Above weight for object
 
             if (!ids.includes(object.id)) {
                 if (object !== 0) {

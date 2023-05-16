@@ -19,11 +19,14 @@ export class BestFitWeightAlgorithm extends BestFitAlgorithm {
     }
 
     calculateBalance(box, x, y, z) {
-        // Calculate the total weights of the left and right halves of the grid
-        let leftWeight = x < Math.floor(grid.length / 2) ? this.totalWeights[x][y][z] + box.weight : this.totalWeights[Math.floor(grid.length / 2) - 1][y][z];
-        let rightWeight = x >= Math.floor(grid.length / 2) ? this.totalWeights[x][y][z] + box.weight : this.totalWeights[grid.length - 1][y][z];
+        // Calculate the total weights of the four quadrants
+        let frontLeftWeight = (x < Math.floor(grid.length / 2) && y < Math.floor(grid[0].length / 2)) ? this.totalWeights[x][y][z] + box.weight : this.totalWeights[Math.floor(grid.length / 2) - 1][Math.floor(grid[0].length / 2) - 1][z];
+        let frontRightWeight = (x >= Math.floor(grid.length / 2) && y < Math.floor(grid[0].length / 2)) ? this.totalWeights[x][y][z] + box.weight : this.totalWeights[grid.length - 1][Math.floor(grid[0].length / 2) - 1][z];
+        let backLeftWeight = (x < Math.floor(grid.length / 2) && y >= Math.floor(grid[0].length / 2)) ? this.totalWeights[x][y][z] + box.weight : this.totalWeights[Math.floor(grid.length / 2) - 1][grid[0].length - 1][z];
+        let backRightWeight = (x >= Math.floor(grid.length / 2) && y >= Math.floor(grid[0].length / 2)) ? this.totalWeights[x][y][z] + box.weight : this.totalWeights[grid.length - 1][grid[0].length - 1][z];
 
-        // Return the negative absolute difference in weights (higher for more balanced distributions)
-        return -Math.abs(leftWeight - rightWeight);
+        // Calculate the balance score as the negative sum of the absolute differences in weights between the quadrants
+        return -Math.abs(frontLeftWeight - frontRightWeight) - Math.abs(backLeftWeight - backRightWeight) - Math.abs(frontLeftWeight - backLeftWeight) - Math.abs(frontRightWeight - backRightWeight);
     }
+
 }

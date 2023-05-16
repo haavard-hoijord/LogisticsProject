@@ -21,7 +21,7 @@ export let defaultSettings = {
     depth: 10,
 }
 
-export let renderOverlays = ["None", "Weight", "DeliveryOrder", "CarryWeight", "TippingRisk", "Stability"]
+export let renderOverlays = ["None", "Weight", "DeliveryOrder", "SupportingWeight", "TippingRisk", "Stability"]
 
 export let settings = JSON.parse(sessionStorage.getItem("settings")) || {
     DEBUG: true,

@@ -51,7 +51,10 @@ export function renderTooltip() {
         // Setup label
         renderer.domElement.className = 'hovered';
         label.visible = true;
-        labelDiv.innerHTML = `Cube ${pak.id} <br>Size: ${pak.width}x${pak.height}x${pak.depth}<br>Weight: ${pak.weight}kg<br>Rotation: ${pak.rotation}`
+        labelDiv.innerHTML = `Cube ${pak.id}
+                            <br>Size: ${pak.width}x${pak.height}x${pak.depth}
+                            <br>Weight: ${pak.weight}kg
+                            <br>Rotation: ${pak.rotation}`
 
         // Get offset from object's dimensions
         const offset = new THREE.Vector3();
