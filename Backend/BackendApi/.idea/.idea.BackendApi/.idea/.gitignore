@@ -1,61 +1,16 @@
-# Compiled class file
-*.class
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-replay_pid*
-
-
-/out/
-*.iml
-*.dll
-*.exe
-*.xml
-/Backend/DeliveryPlanner/Solution/obj/
-/Backend/Data/Solution/obj/
-/Backend/BackendApi/Solution/obj/
-/Backend/Simulation/Solution/obj/
-/Backend/DeliveryPlanner/Solution/.idea/
-/Backend/Data/Solution/.idea/
-/Backend/BackendApi/Solution/.idea/
-/Backend/Simulation/Solution/.idea/
-/Backend/DeliveryPlanner/Solution/bin/
-/Backend/Data/Solution/bin/
-/Backend/BackendApi/Solution/bin/
-/Backend/Simulation/Solution/bin/
-*.dll
-*.xml
-*.cache
-*.meta
-*.vsidx
-Backend/Planner/Solution/.vs/Solution/v17/.suo
-*.v2
-*.lock
-Backend/Webapi/Solution/.vs/Solution/v17/.suo
-*.2
-Backend/Planner/.vscode/tasks.json
-Backend/Planner/.vscode/launch.json
-Frontend/PackageLoading/Node_modules/
-Frontend/Map/Node_modules/
-*.bkp
+# Default ignored files
+/shelf/
+/workspace.xml
+# Rider ignored files
+/.idea.BackendApi.iml
+/contentModel.xml
+/modules.xml
+/projectSettingsUpdater.xml
+# Editor-based HTTP Client requests
+/httpRequests/
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
 
 # Created by https://www.toptal.com/developers/gitignore/api/intellij+all,rider,csharp,java,node
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij+all,rider,csharp,java,node
@@ -708,3 +663,54 @@ dist
 
 # SvelteKit build / generate output
 .svelte-kit
+
+### Rider ###
+# Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
+# Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
+
+# User-specific stuff
+
+# AWS User-specific
+
+# Generated files
+
+# Sensitive or high-churn files
+
+# Gradle
+
+# Gradle and Maven with auto-import
+# When using Gradle or Maven with auto-import, you should exclude module files,
+# since they will be recreated, and may cause churn.  Uncomment if using
+# auto-import.
+# .idea/artifacts
+# .idea/compiler.xml
+# .idea/jarRepositories.xml
+# .idea/modules.xml
+# .idea/*.iml
+# .idea/modules
+# *.iml
+# *.ipr
+
+# CMake
+
+# Mongo Explorer plugin
+
+# File-based project format
+
+# IntelliJ
+
+# mpeltonen/sbt-idea plugin
+
+# JIRA plugin
+
+# Cursive Clojure plugin
+
+# SonarLint plugin
+
+# Crashlytics plugin (for Android Studio and IntelliJ)
+
+# Editor-based Rest Client
+
+# Android studio 3.1+ serialized cache file
+
+# End of https://www.toptal.com/developers/gitignore/api/intellij+all,rider,csharp,java,node

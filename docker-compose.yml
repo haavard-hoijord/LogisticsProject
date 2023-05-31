@@ -20,7 +20,9 @@ services:
       - 3001:3001
 
   backend:
-    build: "Backend/BackendApi"
+    build:
+        context: ./Backend/
+        dockerfile: "/BackendApi/Dockerfile"
     healthcheck:
       test: [ "CMD-SHELL", "curl --fail --silent http://localhost:80/health || exit 1" ]
       interval: 1s
@@ -44,7 +46,9 @@ services:
       - .env
 
   backend-data:
-    build: "Backend/Data"
+    build:
+        context: ./Backend/
+        dockerfile: "/Data/Dockerfile"
     env_file:
       - .env
     healthcheck:
@@ -66,7 +70,9 @@ services:
       - 5001:80
 
   backend-simulation:
-    build: "Backend/Simulation"
+    build:
+        context: ./Backend/
+        dockerfile: "/Simulation/Dockerfile"
     env_file:
       - .env
     healthcheck:
@@ -82,7 +88,9 @@ services:
       - 5003:80
 
   backend-delivery-planner:
-    build: "Backend/DeliveryPlanner"
+    build:
+        context: ./Backend/
+        dockerfile: "/DeliveryPlanner/Dockerfile"
     healthcheck:
       test: [ "CMD-SHELL", "curl --fail --silent http://localhost:80/health || exit 1" ]
       interval: 1s

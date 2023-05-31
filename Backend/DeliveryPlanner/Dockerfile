@@ -1,12 +1,13 @@
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build-env
-WORKDIR /Solution
+WORKDIR /DeliveryPlanner
 
 # Copy everything
-COPY . ./
+COPY ./DeliveryPlanner ./
+COPY ./Models  ./
 # Restore as distinct layers
-RUN dotnet restore ./Solution/Solution.sln
+RUN dotnet restore ./DeliveryPlanner.sln
 # Build and publish a release
-RUN dotnet publish -c Release -o out ./Solution/Solution.sln
+RUN dotnet publish -c Release -o out ./DeliveryPlanner.sln
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:7.0
@@ -17,6 +18,6 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /Solution
-COPY --from=build-env /Solution/out .
-ENTRYPOINT ["dotnet", "Solution.dll"]
+WORKDIR /DeliveryPlanner
+COPY --from=build-env /DeliveryPlanner/out .
+ENTRYPOINT ["dotnet", "DeliveryPlanner.dll"]
