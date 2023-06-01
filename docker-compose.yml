@@ -22,7 +22,7 @@ services:
   backend:
     build:
         context: ./Backend/
-        dockerfile: "/BackendApi/Dockerfile"
+        dockerfile: "/Logistics.Api/Dockerfile"
     healthcheck:
       test: [ "CMD-SHELL", "curl --fail --silent http://localhost:80/health || exit 1" ]
       interval: 1s
@@ -48,7 +48,7 @@ services:
   backend-data:
     build:
         context: ./Backend/
-        dockerfile: "/Data/Dockerfile"
+        dockerfile: "/Logistics.Database/Dockerfile"
     env_file:
       - .env
     healthcheck:
@@ -72,7 +72,7 @@ services:
   backend-simulation:
     build:
         context: ./Backend/
-        dockerfile: "/Simulation/Dockerfile"
+        dockerfile: "/Logistics.Simulation/Dockerfile"
     env_file:
       - .env
     healthcheck:
@@ -90,7 +90,7 @@ services:
   backend-delivery-planner:
     build:
         context: ./Backend/
-        dockerfile: "/DeliveryPlanner/Dockerfile"
+        dockerfile: "/Logistics.Deliveries/Dockerfile"
     healthcheck:
       test: [ "CMD-SHELL", "curl --fail --silent http://localhost:80/health || exit 1" ]
       interval: 1s
@@ -112,25 +112,25 @@ services:
       - 5002:80
 
   backend-dapr:
-    build: "Backend/BackendApi/dapr/"
+    build: "Backend/Logistics.Api/dapr/"
     depends_on:
       - backend
     network_mode: "service:backend"
 
   backend-simulation-dapr:
-    build: "Backend/Simulation/dapr/"
+    build: "Backend/Logistics.Simulation/dapr/"
     depends_on:
       - backend-simulation
     network_mode: "service:backend-simulation"
 
   backend-data-dapr:
-    build: "Backend/Data/dapr/"
+    build: "Backend/Logistics.Database/dapr/"
     depends_on:
       - backend-data
     network_mode: "service:backend-data"
 
   backend-delivery-planner-dapr:
-    build: "Backend/DeliveryPlanner/dapr/"
+    build: "Backend/Logistics.Deliveries/dapr/"
     depends_on:
       - backend-delivery-planner
     network_mode: "service:backend-delivery-planner"

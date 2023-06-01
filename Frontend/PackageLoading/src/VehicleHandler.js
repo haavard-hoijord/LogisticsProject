@@ -9,7 +9,7 @@ export async function fetchVehicles() {
     let curSelected = vehicleSettings.curVehicle || -1;
     selectVehicle(null);
 
-    let result = await fetch(`${DAPR_URL}/v1.0/invoke/Data/method/track/all`, {
+    let result = await fetch(`${DAPR_URL}/v1.0/invoke/Database/method/track/all`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'

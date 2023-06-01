@@ -67,7 +67,7 @@ function MapComponent() {
     }
 
     async function fetchVehicles() {
-        await fetch(`${DAPR_URL}/v1.0/invoke/Data/method/track/all`, {
+        await fetch(`${DAPR_URL}/v1.0/invoke/Database/method/track/all`, {
             method: 'GET', headers: {
                 'Content-Type': 'application/json'
             }

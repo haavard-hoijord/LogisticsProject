@@ -14,7 +14,7 @@ import {fetchVehicles, selectVehicle, vehicles, vehicleSettings} from "./Vehicle
 
 let gui;
 
-function saveSettings(){
+function saveSettings() {
     sessionStorage.setItem("settings", JSON.stringify(settings));
 }
 
@@ -53,32 +53,34 @@ export function initGUI() {
             initPackages()
             initCubes();
         }).name("Uniform Sizes: ");
+
+        packagesFolder.add(settings, "checkBelowWeight").onChange(() => {
+            saveSettings();
+            initCubes();
+        }).name("Below Weight: ");
+
+        packagesFolder.open();
     }
 
-    packagesFolder.add(settings, "checkBelowWeight").onChange(() => {
-        saveSettings();
-        initCubes();
-    }).name("Below Weight: ");
+    if (settings.DEBUG) {
+        const sizeFolder = gui.addFolder("Container size");
+        sizeFolder.add(settings, "width").onChange(() => {
+            saveSettings();
+            initCubes();
+        }).name("Width: ").listen();
 
-    packagesFolder.open();
+        sizeFolder.add(settings, "height").onChange(() => {
+            saveSettings();
+            initCubes();
+        }).name("Height: ").listen();
 
-    const sizeFolder = gui.addFolder("Container size");
-    sizeFolder.add(settings, "width").onChange(() => {
-        saveSettings();
-        initCubes();
-    }).name("Width: ");
+        sizeFolder.add(settings, "depth").onChange(() => {
+            saveSettings();
+            initCubes();
+        }).name("Depth: ").listen();
 
-    sizeFolder.add(settings, "height").onChange(() => {
-        saveSettings();
-        initCubes();
-    }).name("Height: ");
-
-    sizeFolder.add(settings, "depth").onChange(() => {
-        saveSettings();
-        initCubes();
-    }).name("Depth: ");
-
-    sizeFolder.open();
+        sizeFolder.open();
+    }
 
     const renderFolder = gui.addFolder("Render settings");
     renderFolder.add(settings, "renderEmpty").onChange(() => {

@@ -33,7 +33,7 @@ const Sidebar = ({
     const [simServiceOnline, setSimServiceOnline] = useState(false);
 
     useEffect(() => {
-        fetch(`${DAPR_URL}/v1.0/invoke/backend/method/companies`, {
+        fetch(`${DAPR_URL}/v1.0/invoke/Api/method/companies`, {
             method: 'GET', headers: {
                 'Content-Type': 'application/json'
             }
@@ -43,7 +43,7 @@ const Sidebar = ({
                 setCompanies([...data])
             });
 
-        fetch(`${DAPR_URL}/v1.0/invoke/DeliveryPlanner/method/mapmodes`, {
+        fetch(`${DAPR_URL}/v1.0/invoke/Deliveries/method/mapmodes`, {
             method: 'GET', headers: {
                 'Content-Type': 'application/json'
             }
@@ -53,7 +53,7 @@ const Sidebar = ({
                 setMapModes([...data])
             });
 
-        fetch(`${DAPR_URL}/v1.0/invoke/simulation/method/health`, {
+        fetch(`${DAPR_URL}/v1.0/invoke/Simulation/method/health`, {
             method: 'GET', headers: {
                 'Content-Type': 'application/json'
             }
@@ -62,7 +62,7 @@ const Sidebar = ({
                 if(response.ok){
                     setSimServiceOnline(true);
 
-                    fetch(`${DAPR_URL}/v1.0/invoke/simulation/method/simulation/speed`, {
+                    fetch(`${DAPR_URL}/v1.0/invoke/Simulation/method/Simulation/speed`, {
                         method: 'GET', headers: {
                             'Content-Type': 'application/json'
                         }
@@ -100,7 +100,7 @@ const Sidebar = ({
 
 
     async function postSimSpeed(e) {
-        await fetch(`${DAPR_URL}/v1.0/invoke/simulation/method/simulation/speed`, {
+        await fetch(`${DAPR_URL}/v1.0/invoke/Simulation/method/Simulation/speed`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -351,7 +351,7 @@ const Sidebar = ({
 
                                 <button className="add-vehicle-button" disabled={!vehiclePoint}
                                         onClick={() => {
-                                            fetch(`${DAPR_URL}/v1.0/invoke/Data/method/add`, {
+                                            fetch(`${DAPR_URL}/v1.0/invoke/Database/method/add`, {
                                                 method: 'POST', headers: {
                                                     'Content-Type': 'application/json'
                                                 },
@@ -573,7 +573,7 @@ const Sidebar = ({
 
                                     <button className="add-delivery-button" disabled={!pickupPoint || !deliveryPoint}
                                             onClick={() => {
-                                                fetch(`${DAPR_URL}/v1.0/invoke/DeliveryPlanner/method/add`, {
+                                                fetch(`${DAPR_URL}/v1.0/invoke/Deliveries/method/add`, {
                                                     method: 'POST', headers: {
                                                         'Content-Type': 'application/json'
                                                     },
@@ -624,7 +624,7 @@ const Sidebar = ({
                                         <button className="add-random-vehicle-button"
                                                 onClick={async () => {
                                                     //TODO Set is adding loading icon
-                                                    await fetch(`${DAPR_URL}/v1.0/invoke/simulation/method/random/vehicle`, {
+                                                    await fetch(`${DAPR_URL}/v1.0/invoke/Simulation/method/random/vehicle`, {
                                                         method: 'POST',
                                                         headers: {
                                                             'Content-Type': 'application/json'
@@ -657,7 +657,7 @@ const Sidebar = ({
                                         </div>
 
                                         <button className="add-random-delivery-button" onClick={async () => {
-                                            await fetch(`${DAPR_URL}/v1.0/invoke/simulation/method/random/delivery`, {
+                                            await fetch(`${DAPR_URL}/v1.0/invoke/Simulation/method/random/delivery`, {
                                                 method: 'POST',
                                                 headers: {
                                                     'Content-Type': 'application/json'

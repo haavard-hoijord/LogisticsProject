@@ -1,14 +1,14 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Simulation", "Simulation\Simulation.csproj", "{97ACDA9F-D8D2-4260-9469-DF477EC45A32}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logistics.Simulation", "Logistics.Simulation\Logistics.Simulation.csproj", "{97ACDA9F-D8D2-4260-9469-DF477EC45A32}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeliveryPlanner", "DeliveryPlanner\DeliveryPlanner.csproj", "{D92BB843-57C3-4694-9BA7-F7B50FC9C262}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logistics.Deliveries", "Logistics.Deliveries\Logistics.Deliveries.csproj", "{D92BB843-57C3-4694-9BA7-F7B50FC9C262}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Data", "Data\Data.csproj", "{D2C1CF3C-3526-4807-83B1-5343E7E6CC8D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logistics.Database", "Logistics.Database\Logistics.Database.csproj", "{D2C1CF3C-3526-4807-83B1-5343E7E6CC8D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackendApi", "BackendApi\BackendApi.csproj", "{65EB4E64-1891-4040-833D-18A32C77DF2C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logistics.Api", "Logistics.Api\Logistics.Api.csproj", "{65EB4E64-1891-4040-833D-18A32C77DF2C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Models", "Models\Models.csproj", "{3D2D8046-CE20-4B01-9C6C-BBC89B3AF82C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logistics.Models", "Logistics.Models\Logistics.Models.csproj", "{3D2D8046-CE20-4B01-9C6C-BBC89B3AF82C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
